@@ -1,0 +1,864 @@
+﻿@page
+@model PlanifPRS.Pages.MilestonesModel
+@{
+    ViewData["Title"] = "Gestion des Jalons PRS";
+    var today = DateTime.Today;
+}
+
+<div class="milestones-container">
+    <!-- En-tête moderne -->
+    <div class="milestones-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-flag-checkered me-3"></i>Gestion des Jalons PRS
+                </h1>
+                <p class="page-subtitle">
+                    <i class="fas fa-info-circle me-1"></i>Suivez l'avancement de vos projets et identifiez les retards
+                    <span class="ms-3"><i class="fas fa-calendar me-1"></i>Aujourd'hui : @today.ToString("dd/MM/yyyy")</span>
+                </p>
+            </div>
+            <div class="stats-summary">
+                @{
+                    var totalJalons = Model.Jalons?.Count ?? 0;
+                    var jalonsValides = Model.Jalons?.Where(j => j.EstValide).Count() ?? 0;
+                    var jalonsEnRetard = Model.Jalons?.Where(j => j.DatePrevue.HasValue && j.DatePrevue.Value.Date < today && !j.EstValide).Count() ?? 0;
+                    var jalonsEnCours = totalJalons - jalonsValides - jalonsEnRetard;
+                }
+                <div class="stat-badge stat-total">
+                    <i class="fas fa-list-ol"></i>
+                    <span>@totalJalons</span>
+                    <small>Total</small>
+                </div>
+                <div class="stat-badge stat-success">
+                    <i class="fas fa-check-circle"></i>
+                    <span>@jalonsValides</span>
+                    <small>Validés</small>
+                </div>
+                <div class="stat-badge stat-warning">
+                    <i class="fas fa-clock"></i>
+                    <span>@jalonsEnCours</span>
+                    <small>En cours</small>
+                </div>
+                <div class="stat-badge stat-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>@jalonsEnRetard</span>
+                    <small>En retard</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres et actions -->
+    <div class="actions-panel">
+        <div class="filters-section">
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-filter me-1"></i>Filtrer par statut
+                </label>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">
+                        <i class="fas fa-globe"></i>Tous
+                    </button>
+                    <button class="filter-btn" data-filter="valide">
+                        <i class="fas fa-check-circle"></i>Validés
+                    </button>
+                    <button class="filter-btn" data-filter="encours">
+                        <i class="fas fa-clock"></i>En cours
+                    </button>
+                    <button class="filter-btn" data-filter="retard">
+                        <i class="fas fa-exclamation-triangle"></i>En retard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Rechercher un jalon, PRS ou utilisateur...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des jalons -->
+    <div class="jalons-table-container">
+        @if (Model.Jalons != null && Model.Jalons.Any())
+        {
+            <div class="table-responsive">
+                <table class="table jalons-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <i class="fas fa-project-diagram me-1"></i>
+                                PRS - Jalon
+                            </th>
+                            <th>
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                Date Prévue
+                            </th>
+                            <th>
+                                <i class="fas fa-check-square me-1"></i>
+                                Statut
+                            </th>
+                            <th>
+                                <i class="fas fa-users me-1"></i>
+                                Équipe
+                            </th>
+                            <th>
+                                <i class="fas fa-stopwatch me-1"></i>
+                                Avancement
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="jalonsTableBody">
+                        @foreach (var jalon in Model.Jalons)
+                        {
+                            var estEnRetard = jalon.DatePrevue.HasValue && jalon.DatePrevue.Value.Date < today && !jalon.EstValide;
+                            var estValide = jalon.EstValide;
+                            var estEnCours = !estValide && !estEnRetard;
+
+                            var joursDifference = jalon.DatePrevue.HasValue ? (jalon.DatePrevue.Value.Date - today).Days : 0;
+                            var statusClass = estValide ? "valide" : (estEnRetard ? "retard" : "encours");
+
+                            <tr class="jalon-row" data-status="@statusClass" data-searchable="@($"{jalon.Prs?.Titre} {jalon.NomJalon} {string.Join(" ", jalon.JalonUtilisateurs?.Select(ju => $"{ju.Utilisateur?.Nom} {ju.Utilisateur?.Prenom}") ?? new string[0])}")">
+                                <td>
+                                    <div class="jalon-info">
+                                        <div class="prs-title">
+                                            <i class="fas fa-bookmark me-2"></i>
+                                            @(jalon.Prs?.Titre ?? "PRS non renseignée")
+                                        </div>
+                                        <div class="jalon-name">
+                                            <i class="fas fa-flag me-2"></i>
+                                            @(jalon.NomJalon ?? "Nom du jalon absent")
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="date-info">
+                                        @if (jalon.DatePrevue.HasValue)
+                                        {
+                                            <div class="date-value">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                @jalon.DatePrevue.Value.ToString("dd/MM/yyyy")
+                                            </div>
+                                            <div class="date-relative">
+                                                @if (joursDifference > 0)
+                                                {
+                                                    <span class="badge badge-info">
+                                                        <i class="fas fa-arrow-right me-1"></i>Dans @joursDifference jour(s)
+                                                    </span>
+                                                }
+                                                else if (joursDifference == 0)
+                                                {
+                                                    <span class="badge badge-warning">
+                                                        <i class="fas fa-exclamation me-1"></i>Aujourd'hui
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge badge-danger">
+                                                        <i class="fas fa-clock me-1"></i>@Math.Abs(joursDifference) jour(s) de retard
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="date-missing">
+                                                <i class="fas fa-question-circle me-1"></i>
+                                                Date non renseignée
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="status-indicator">
+                                        @if (estValide)
+                                        {
+                                            <span class="status-badge status-success">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                Validé
+                                            </span>
+                                        }
+                                        else if (estEnRetard)
+                                        {
+                                            <span class="status-badge status-danger">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                En retard
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-badge status-warning">
+                                                <i class="fas fa-clock me-1"></i>
+                                                En cours
+                                            </span>
+                                        }
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="team-info">
+                                        @if (jalon.JalonUtilisateurs != null && jalon.JalonUtilisateurs.Any())
+                                        {
+                                            <div class="team-count">
+                                                <i class="fas fa-users me-1"></i>
+                                                @jalon.JalonUtilisateurs.Count() membre(s)
+                                            </div>
+                                            <div class="team-members">
+                                                @foreach (var ju in jalon.JalonUtilisateurs.Take(3))
+                                                {
+                                                    var utilisateur = ju.Utilisateur;
+                                                    var initiales = !string.IsNullOrEmpty(utilisateur?.Nom) && !string.IsNullOrEmpty(utilisateur?.Prenom)
+                                                    ? $"{utilisateur.Prenom[0]}{utilisateur.Nom[0]}"
+                                                    : "??";
+
+                                                    <div class="member-avatar" title="@(utilisateur?.Prenom) @(utilisateur?.Nom)">
+                                                        @initiales
+                                                    </div>
+                                                }
+                                                @if (jalon.JalonUtilisateurs.Count() > 3)
+                                                {
+                                                    <div class="member-avatar member-more" title="@(jalon.JalonUtilisateurs.Count() - 3) autres membres">
+                                                        +@(jalon.JalonUtilisateurs.Count() - 3)
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="team-details">
+                                                @foreach (var ju in jalon.JalonUtilisateurs)
+                                                {
+                                                    var utilisateur = ju.Utilisateur;
+                                                    <div class="member-name">
+                                                        <i class="fas fa-user me-1"></i>
+                                                        @(utilisateur?.Prenom ?? "Prénom absent") @(utilisateur?.Nom ?? "Nom absent")
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="no-team">
+                                                <i class="fas fa-user-slash me-1"></i>
+                                                Aucun membre assigné
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="progress-info">
+                                        @if (estValide)
+                                        {
+                                            <div class="progress-bar">
+                                                <div class="progress-fill" style="width: 100%; background: var(--success-gradient);"></div>
+                                            </div>
+                                            <div class="progress-text">
+                                                <i class="fas fa-trophy me-1"></i>
+                                                Terminé
+                                            </div>
+                                        }
+                                        else if (estEnRetard)
+                                        {
+                                            <div class="progress-bar">
+                                                <div class="progress-fill danger" style="width: 75%; background: var(--warning-gradient);"></div>
+                                            </div>
+                                            <div class="progress-text danger">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                Action requise
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="progress-bar">
+                                                <div class="progress-fill" style="width: 50%; background: var(--info-gradient);"></div>
+                                            </div>
+                                            <div class="progress-text">
+                                                <i class="fas fa-play me-1"></i>
+                                                En progression
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-flag-checkered"></i>
+                </div>
+                <h4>Aucun jalon configuré</h4>
+                <p>Il n'y a actuellement aucun jalon défini dans le système.</p>
+                <button class="btn-primary">
+                    <i class="fas fa-plus me-2"></i>Créer le premier jalon
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Gestion des filtres
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const rows = document.querySelectorAll('.jalon-row');
+            const searchInput = document.getElementById('searchInput');
+
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Mise à jour des boutons actifs
+                    filterButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
+                    const filter = this.getAttribute('data-filter');
+                    filterRows(filter, searchInput.value);
+                });
+            });
+
+            // Gestion de la recherche
+            searchInput.addEventListener('input', function() {
+                const activeFilter = document.querySelector('.filter-btn.active').getAttribute('data-filter');
+                filterRows(activeFilter, this.value);
+            });
+
+            function filterRows(statusFilter, searchText) {
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const status = row.getAttribute('data-status');
+                    const searchable = row.getAttribute('data-searchable').toLowerCase();
+
+                    const matchesStatus = statusFilter === 'all' || status === statusFilter;
+                    const matchesSearch = searchText === '' || searchable.includes(searchText.toLowerCase());
+
+                    if (matchesStatus && matchesSearch) {
+                        row.style.display = '';
+                        visibleCount++;
+
+                        // Animation d'apparition
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateY(10px)';
+                        setTimeout(() => {
+                            row.style.transition = 'all 0.3s ease';
+                            row.style.opacity = '1';
+                            row.style.transform = 'translateY(0)';
+                        }, Math.random() * 100);
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                // Mise à jour du compteur
+                updateVisibleCount(visibleCount);
+            }
+
+            function updateVisibleCount(count) {
+                // Mettre à jour un indicateur de résultats si nécessaire
+                console.log(`${count} jalon(s) visible(s)`);
+            }
+
+            // Animation des membres d'équipe au survol
+            document.querySelectorAll('.team-members').forEach(teamContainer => {
+                teamContainer.addEventListener('mouseenter', function() {
+                    const details = this.parentElement.querySelector('.team-details');
+                    if (details) {
+                        details.style.display = 'block';
+                        details.style.animation = 'fadeIn 0.3s ease';
+                    }
+                });
+
+                teamContainer.addEventListener('mouseleave', function() {
+                    const details = this.parentElement.querySelector('.team-details');
+                    if (details) {
+                        details.style.display = 'none';
+                    }
+                });
+            });
+
+            // Animation des barres de progression
+            setTimeout(() => {
+                document.querySelectorAll('.progress-fill').forEach(bar => {
+                    bar.style.transition = 'width 1s ease-in-out';
+                });
+            }, 500);
+        });
+    </script>
+
+    <style>
+        /* Variables CSS pour la cohérence */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --danger-gradient: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.15);
+            --border-radius: 1rem;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Container principal */
+        .milestones-container {
+            animation: slideInUp 0.6s ease-out;
+        }
+
+        @@keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* En-tête */
+        .milestones-header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .page-title {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #6c757d;
+            font-weight: 500;
+            margin-bottom: 0;
+        }
+
+        /* Stats */
+        .stats-summary {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            transition: var(--transition);
+            min-width: 80px;
+        }
+
+            .stat-badge:hover {
+                transform: translateY(-5px);
+                box-shadow: var(--shadow-hover);
+            }
+
+            .stat-badge i {
+                font-size: 1.5rem;
+                margin-bottom: 0.5rem;
+                display: block;
+            }
+
+            .stat-badge span {
+                font-size: 1.8rem;
+                font-weight: 800;
+                display: block;
+                margin-bottom: 0.25rem;
+            }
+
+            .stat-badge small {
+                font-weight: 600;
+                opacity: 0.8;
+            }
+
+        .stat-total {
+            color: #495057;
+        }
+
+        .stat-success {
+            color: #28a745;
+        }
+
+        .stat-warning {
+            color: #ffc107;
+        }
+
+        .stat-danger {
+            color: #dc3545;
+        }
+
+        /* Panneau d'actions */
+        .actions-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .filter-label {
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+            .filter-btn:hover {
+                border-color: #667eea;
+                transform: translateY(-2px);
+            }
+
+            .filter-btn.active {
+                background: var(--primary-gradient);
+                border-color: #667eea;
+                color: white;
+            }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+            .search-box i {
+                position: absolute;
+                left: 1rem;
+                color: #6c757d;
+                z-index: 2;
+            }
+
+            .search-box input {
+                background: white;
+                border: 2px solid #e9ecef;
+                border-radius: 25px;
+                padding: 0.75rem 1rem 0.75rem 3rem;
+                font-weight: 500;
+                transition: var(--transition);
+                width: 300px;
+            }
+
+                .search-box input:focus {
+                    border-color: #667eea;
+                    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+                    outline: none;
+                }
+
+        /* Tableau */
+        .jalons-table-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .jalons-table {
+            margin: 0;
+            background: transparent;
+        }
+
+            .jalons-table thead th {
+                background: rgba(248, 249, 250, 0.8);
+                border: none;
+                padding: 1.5rem 1rem;
+                font-weight: 700;
+                color: #495057;
+                border-bottom: 2px solid #e9ecef;
+            }
+
+        .jalon-row {
+            transition: var(--transition);
+            border: none;
+        }
+
+            .jalon-row:hover {
+                background: rgba(102, 126, 234, 0.05);
+                transform: translateX(5px);
+            }
+
+            .jalon-row td {
+                padding: 1.5rem 1rem;
+                border: none;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+                vertical-align: middle;
+            }
+
+        /* Info jalon */
+        .jalon-info .prs-title {
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .jalon-info .jalon-name {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        /* Info date */
+        .date-info .date-value {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .date-missing {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .badge-info {
+            background: var(--info-gradient);
+            color: white;
+        }
+
+        .badge-warning {
+            background: var(--warning-gradient);
+            color: white;
+        }
+
+        .badge-danger {
+            background: var(--danger-gradient);
+            color: white;
+        }
+
+        /* Status badges */
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-success {
+            background: var(--success-gradient);
+            color: white;
+        }
+
+        .status-warning {
+            background: var(--warning-gradient);
+            color: white;
+        }
+
+        .status-danger {
+            background: var(--danger-gradient);
+            color: white;
+        }
+
+        /* Équipe */
+        .team-count {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .team-members {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .member-avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+            .member-avatar:hover {
+                transform: scale(1.1);
+            }
+
+        .member-more {
+            background: #6c757d;
+        }
+
+        .team-details {
+            display: none;
+            position: absolute;
+            background: white;
+            border-radius: 8px;
+            padding: 0.5rem;
+            box-shadow: var(--shadow-soft);
+            z-index: 10;
+            margin-top: 0.5rem;
+        }
+
+        .member-name {
+            font-size: 0.8rem;
+            color: #495057;
+            margin-bottom: 0.25rem;
+        }
+
+        .no-team {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Progression */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.85rem;
+        }
+
+            .progress-text.danger {
+                color: #dc3545;
+            }
+
+        /* État vide */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6c757d;
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h4 {
+            margin-bottom: 1rem;
+            color: #495057;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-hover);
+            }
+
+        /* Responsive */
+        @@media (max-width: 768px) {
+            .milestones-header, .actions-panel {
+                padding: 1rem;
+            }
+
+            .stats-summary {
+                justify-content: center;
+            }
+
+            .actions-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box input {
+                width: 100%;
+            }
+
+            .jalons-table-container {
+                overflow-x: auto;
+            }
+
+            .jalon-row:hover {
+                transform: none;
+            }
+        }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+}

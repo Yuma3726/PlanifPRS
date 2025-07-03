@@ -1,0 +1,410 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PlanifPRS</title>
+
+    <!-- Favicon moderne -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+
+    <!-- CSS Libraries -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PlanifPRS.styles.css" asp-append-version="true" />
+
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+    <!-- Page Loader -->
+    <div id="pageLoader" class="page-loader">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <h5>Chargement de PlanifPRS...</h5>
+            <p>Préparation de votre espace de travail</p>
+        </div>
+    </div>
+
+    <div class="main-wrapper">
+        <!-- Header moderne -->
+        <header class="modern-header">
+            <nav class="navbar navbar-expand-lg">
+                <div class="container-fluid px-4">
+                    <!-- Brand -->
+                    <a class="navbar-brand" asp-area="" asp-page="/Dashboard">
+                        <div class="brand-icon">
+                            <i class="fas fa-calendar-alt text-primary"></i>
+                        </div>
+                        PlanifPRS
+                    </a>
+
+                    <!-- Mobile toggle -->
+                    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                        <i class="fas fa-bars text-light"></i>
+                    </button>
+
+                    <!-- Navigation -->
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav me-auto">
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-page="/Index">
+                                    <i class="fas fa-calendar me-1 text-warning"></i>Calendrier
+                                </a>
+                            </li>
+
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="prsDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-tasks me-1 text-primary"></i>PRS
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/Create">
+                                            <i class="fas fa-plus-circle text-success"></i>Créer une PRS
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/Validation">
+                                            <i class="fas fa-check-circle text-primary"></i>Valider les PRS
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/Milestones">
+                                            <i class="fas fa-flag text-warning"></i>Gestion des jalons
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/WeeklyMail">
+                                            <i class="fas fa-envelope text-info"></i>Mail hebdomadaire
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+
+                            <!-- ✅ MENU ÉVÉNEMENTS - COULEUR VERT -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle special-events-link" href="#" id="eventsDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-clipboard-check me-1 text-success"></i>Événements
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="/Audit?eventType=Audit">
+                                            <i class="fas fa-clipboard-check text-danger"></i>Créer un Audit
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="/Audit?eventType=Intervention">
+                                            <i class="fas fa-tools text-warning"></i>Créer une Intervention
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="/Audit?eventType=Visite Client">
+                                            <i class="fas fa-handshake text-info"></i>Créer une Visite Client
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+
+                            <!-- ✅ ADMINISTRATION - COULEUR DARK -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cog me-1 text-dark"></i>Administration
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/Users">
+                                            <i class="fas fa-users text-primary"></i>Utilisateurs
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/Export">
+                                            <i class="fas fa-file-excel text-success"></i>Export Excel
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/Settings">
+                                            <i class="fas fa-palette text-info"></i>Configuration
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                        <!-- User info -->
+                        <div class="user-info">
+                            @{
+                                string displayName = "Invité";
+                                string userInitials = "G";
+                                if (User?.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(User.Identity.Name))
+                                {
+                                    var name = User.Identity.Name;
+                                    var lastBackslash = name.LastIndexOf('\\');
+                                    displayName = lastBackslash >= 0 ? name.Substring(lastBackslash + 1) : name;
+
+                                    // ✅ BEAULINETTER = R + B = RB
+                                    if (displayName.Length >= 2)
+                                    {
+                                        string firstLetter = displayName.Substring(0, 1).ToUpper();
+                                        string lastLetter = displayName.Substring(displayName.Length - 1, 1).ToUpper();
+                                        userInitials = lastLetter + firstLetter; // Dernière + Première
+                                    }
+                                    else
+                                    {
+                                        userInitials = displayName.Substring(0, 1).ToUpper();
+                                    }
+                                }
+                            }
+                            <div class="user-avatar">@userInitials</div>
+                            <span>@displayName</span>
+                            <i class="fas fa-chevron-down ms-1 text-muted" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- ✅ MODAL SIMPLIFIÉE (gardée pour compatibilité) -->
+        <div class="modal fade" id="quickEventModal" tabindex="-1" aria-labelledby="quickEventModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-gradient">
+                        <h5 class="modal-title text-white" id="quickEventModalLabel">
+                            <i class="fas fa-plus-circle me-2 text-warning"></i>Création rapide
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="quickEventForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-tag me-1 text-primary"></i>Type d'événement
+                                    </label>
+                                    <input type="text" id="quickEventType" class="form-control" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-edit me-1 text-success"></i>Détails *
+                                    </label>
+                                    <input type="text" id="quickEventDetails" class="form-control" placeholder="Ex: Audit qualité ligne 1" required>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-calendar-alt me-1 text-info"></i>Date début
+                                    </label>
+                                    <input type="datetime-local" id="quickDateDebut" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-calendar-check me-1 text-warning"></i>Date fin
+                                    </label>
+                                    <input type="datetime-local" id="quickDateFin" class="form-control">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1 text-light"></i>Annuler
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="submitQuickEvent()">
+                            <i class="fas fa-save me-1 text-light"></i>Créer rapidement
+                        </button>
+                        <a href="/Audit" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-1"></i>Mode avancé
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="main-content">
+            <div class="container-fluid px-4">
+                <div class="content-container">
+                    <!-- Breadcrumb -->
+                    @if (ViewData["ShowBreadcrumb"] as bool? != false)
+                    {
+                        <nav class="page-breadcrumb" aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item">
+                                    <a asp-page="/Dashboard">
+                                        <i class="fas fa-home me-1 text-primary"></i>Accueil
+                                    </a>
+                                </li>
+                                <li class="breadcrumb-item active" aria-current="page">
+                                    <i class="fas fa-chevron-right me-1 text-muted"></i>
+                                    @(ViewData["Title"] ?? "Page")
+                                </li>
+                            </ol>
+                        </nav>
+                    }
+
+                    <main role="main">
+                        @RenderBody()
+                    </main>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer moderne -->
+        <footer class="modern-footer">
+            <div class="container-fluid px-4">
+                <div class="footer-content">
+                    <div class="footer-info">
+                        <i class="fas fa-copyright me-1 text-muted"></i>
+                        <strong>© 2025 PlanifPRS</strong> - Système de planification des ressources
+                    </div>
+
+                    <div class="footer-stats">
+                        <i class="fas fa-clock text-info"></i>
+                        <span id="currentTime">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <script src=@Html.Raw("\"https://unpkg.com/@popperjs/core@2\"")></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script>
+        // ✅ FONCTION CRÉATION RAPIDE ÉVÉNEMENT (gardée pour compatibilité)
+        function createQuickEvent(eventType) {
+            document.getElementById('quickEventType').value = eventType;
+            document.getElementById('quickEventModalLabel').innerHTML =
+                '<i class="fas fa-plus-circle me-2 text-warning"></i>Création rapide - ' + eventType;
+
+            const now = new Date();
+            const rounded = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0);
+            const endTime = new Date(rounded.getTime() + (2 * 60 * 60 * 1000));
+
+            document.getElementById('quickDateDebut').value = formatDateTimeLocal(rounded);
+            document.getElementById('quickDateFin').value = formatDateTimeLocal(endTime);
+
+            const modal = new bootstrap.Modal(document.getElementById('quickEventModal'));
+            modal.show();
+
+            setTimeout(function() {
+                document.getElementById('quickEventDetails').focus();
+            }, 500);
+        }
+
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+        }
+
+        function submitQuickEvent() {
+            const eventType = document.getElementById('quickEventType').value;
+            const eventDetails = document.getElementById('quickEventDetails').value;
+            const dateDebut = document.getElementById('quickDateDebut').value;
+            const dateFin = document.getElementById('quickDateFin').value;
+
+            if (!eventDetails.trim()) {
+                showToast('Veuillez saisir les détails de l\'événement', 'warning');
+                return;
+            }
+
+            if (!dateDebut || !dateFin) {
+                showToast('Veuillez saisir les dates', 'warning');
+                return;
+            }
+
+            if (new Date(dateFin) <= new Date(dateDebut)) {
+                showToast('La date de fin doit être postérieure à la date de début', 'warning');
+                return;
+            }
+
+            const params = new URLSearchParams({
+                eventType: eventType,
+                eventDetails: eventDetails,
+                dateDebut: dateDebut,
+                dateFin: dateFin,
+                quick: 'true'
+            });
+
+            window.location.href = '/Audit?' + params.toString();
+        }
+
+        // Gestion du loader de page
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.getElementById('pageLoader').classList.add('hidden');
+            }, 800);
+        });
+
+        // Animation du header au scroll
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('.modern-header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Mise à jour de l'heure
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleDateString('fr-FR') + ' ' +
+                             now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+            const timeElement = document.getElementById('currentTime');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+
+        setInterval(updateTime, 60000);
+
+        // Navigation active
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            navLinks.forEach(function(link) {
+                const href = link.getAttribute('href') || link.getAttribute('asp-page');
+                if (href && currentPath.includes(href)) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Gestion des messages de succès/erreur
+        function showToast(message, type) {
+            type = type || 'info';
+            const toast = document.createElement('div');
+            toast.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed';
+            toast.style.cssText = 'top: 100px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+            document.body.appendChild(toast);
+
+            setTimeout(function() {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 5000);
+        }
+
+        window.showToast = showToast;
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,196 @@
+﻿@page
+@model PlanifPRS.Pages.AccessDeniedModel
+@{
+    ViewData["Title"] = "Accès refusé";
+    var errorCode = Request.Query["code"].FirstOrDefault();
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white text-center">
+                    <i class="fas fa-shield-alt fa-2x mb-2"></i>
+                    <h2 class="mb-0">🔒 Accès refusé</h2>
+                    @if (!string.IsNullOrEmpty(errorCode))
+                    {
+                        <small>Code d'erreur : @errorCode</small>
+                    }
+                    <small class="d-block">@DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") UTC</small>
+                </div>
+                <div class="card-body text-center">
+                    <div class="alert alert-warning">
+                        <h4><i class="fas fa-exclamation-triangle me-2"></i>Droits insuffisants</h4>
+                        <p class="lead">Vous n'avez pas les droits nécessaires pour accéder à cette fonctionnalité.</p>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-header">
+                                    <h5><i class="fas fa-user-tag me-2"></i>Rôles requis</h5>
+                                </div>
+                                <div class="card-body">
+                                    <span class="badge bg-primary me-2 mb-2">👔 cdp</span>
+                                    <span class="badge bg-success me-2 mb-2">⚙️ Process</span>
+                                    <span class="badge bg-warning me-2 mb-2">🔧 Maintenance</span>
+                                    <span class="badge bg-danger me-2 mb-2">👨‍💼 Admin</span>
+                                    <span class="badge bg-info me-2 mb-2">✅ Validateur</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-header">
+                                    <h5><i class="fas fa-info-circle me-2"></i>Informations</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Utilisateur :</strong> @User.Identity?.Name</p>
+                                    <p><strong>Date :</strong> @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</p>
+                                    @{
+                                        var referer = Request.Headers["Referer"].FirstOrDefault();
+                                    }
+                                    @if (!string.IsNullOrEmpty(referer))
+                                    {
+                                        <p><strong>Page demandée :</strong> @referer</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ✅ SECTION ADMINISTRATEURS DYNAMIQUE -->
+                    <div class="mt-4">
+                        <h5><i class="fas fa-user-shield me-2"></i>Administrateurs système disponibles :</h5>
+                        <div class="alert alert-info">
+                            @if (Model.AdminUsers.Any())
+                            {
+                                <div class="row">
+                                    @foreach (var admin in Model.AdminUsers)
+                                    {
+                                        <div class="col-md-6 mb-2">
+                                            <div class="admin-card p-2 border rounded">
+                                                <strong><i class="fas fa-user-tie me-1"></i>@admin.NomComplet</strong>
+                                                <br>
+                                                @if (!string.IsNullOrEmpty(admin.Mail))
+                                                {
+                                                    <small>
+                                                        <i class="fas fa-envelope me-1"></i>
+                                                        <a href="mailto:@admin.Mail">@admin.Mail</a>
+                                                    </small>
+                                                    <br>
+                                                }
+                                                @if (!string.IsNullOrEmpty(admin.LoginWindows))
+                                                {
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-windows me-1"></i>@admin.LoginWindows
+                                                    </small>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p><i class="fas fa-exclamation-triangle me-2"></i>Aucun administrateur trouvé dans la base de données.</p>
+                                <small class="text-muted">Vérifiez la table [PlanifPRS].[dbo].[Utilisateurs]</small>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- ✅ SECTION DEBUG SIMPLIFIÉE -->
+                    <div class="mt-4">
+                        <div class="alert alert-secondary">
+                            <h6><i class="fas fa-bug me-2"></i>Informations de debug :</h6>
+                            <small>
+                                <strong>Rôles Windows détectés :</strong>
+                                @{
+                                    var roles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+                                }
+                                @if (roles.Any())
+                                {
+                                    @string.Join(", ", roles)
+                                }
+                                else
+                                {
+                                    <span class="text-danger">❌ Aucun rôle détecté</span>
+                                }
+                                <br>
+                                <strong>Login Windows :</strong> @User.Identity?.Name<br>
+                                <strong>Authentifié :</strong> @User.Identity?.IsAuthenticated<br>
+                                <strong>Type d'auth :</strong> @User.Identity?.AuthenticationType<br>
+                                <strong>Admins trouvés :</strong> @Model.AdminUsers.Count
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="/" class="btn btn-primary btn-lg me-3">
+                            <i class="fas fa-home me-2"></i>Retour à l'accueil
+                        </a>
+                        <a href="javascript:history.back()" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-arrow-left me-2"></i>Page précédente
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .badge {
+        font-size: 0.9em;
+        padding: 0.5em 0.8em;
+    }
+
+    .alert {
+        border-radius: 10px;
+    }
+
+    .btn {
+        border-radius: 25px;
+    }
+
+    .alert-secondary {
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+        color: #6c757d;
+    }
+
+        .alert-secondary small {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+        }
+
+    /* ✅ STYLE POUR LES CARTES ADMIN */
+    .admin-card {
+        background-color: #f8f9fa;
+        border-color: #dee2e6 !important;
+        transition: all 0.3s ease;
+    }
+
+        .admin-card:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .admin-card strong {
+            color: #495057;
+        }
+
+        .admin-card a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+            .admin-card a:hover {
+                text-decoration: underline;
+            }
+</style>

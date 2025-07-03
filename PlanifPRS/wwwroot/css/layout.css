@@ -1,0 +1,547 @@
+﻿/* Variables CSS globales */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    --glass-bg: rgba(255, 255, 255, 0.95);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.15);
+    --border-radius: 1rem;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Background global */
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    position: relative;
+    min-height: 100vh;
+}
+
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.03"><circle cx="7" cy="7" r="1"/><circle cx="37" cy="37" r="1"/></g></svg>');
+        pointer-events: none;
+        z-index: 0;
+    }
+
+/* Container principal */
+.main-wrapper {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header moderne */
+.modern-header {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-soft);
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    transition: var(--transition);
+}
+
+    .modern-header.scrolled {
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: var(--shadow-hover);
+    }
+
+/* Navbar brand */
+.navbar-brand {
+    font-weight: 800;
+    font-size: 1.8rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-decoration: none !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+}
+
+    .navbar-brand:hover {
+        transform: scale(1.05);
+    }
+
+.brand-icon {
+    background: var(--primary-gradient);
+    border-radius: 12px;
+    padding: 8px;
+    color: white;
+    font-size: 1.2rem;
+    animation: pulse 3s infinite;
+}
+
+/* Navigation links */
+.navbar-nav .nav-link {
+    font-weight: 600;
+    color: #495057 !important;
+    padding: 0.75rem 1rem !important;
+    border-radius: var(--border-radius);
+    margin: 0 0.25rem;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+    .navbar-nav .nav-link::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--primary-gradient);
+        opacity: 0;
+        transition: var(--transition);
+        z-index: -1;
+    }
+
+    .navbar-nav .nav-link:hover::before,
+    .navbar-nav .nav-link.active::before {
+        opacity: 1;
+    }
+
+    .navbar-nav .nav-link:hover,
+    .navbar-nav .nav-link.active {
+        color: white !important;
+        transform: translateY(-2px);
+    }
+
+    /* ✅ EFFETS HOVER SPÉCIAUX POUR ICÔNES COLORÉES */
+
+    /* Hover général sur les liens de navigation */
+    .navbar-nav .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px) scale(1.02);
+    }
+
+        /* Hover spécifique pour chaque couleur d'icône */
+        .navbar-nav .nav-link:hover i.text-warning {
+            color: #ffd700 !important; /* Jaune doré pour Calendrier */
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+            filter: brightness(1.3);
+        }
+
+        .navbar-nav .nav-link:hover i.text-primary {
+            color: #4dabf7 !important; /* Bleu clair pour PRS */
+            text-shadow: 0 0 15px rgba(77, 171, 247, 0.8);
+            filter: brightness(1.3);
+        }
+
+        .navbar-nav .nav-link:hover i.text-success {
+            color: #51cf66 !important; /* Vert vif pour Événements */
+            text-shadow: 0 0 15px rgba(81, 207, 102, 0.8);
+            filter: brightness(1.3);
+        }
+
+        .navbar-nav .nav-link:hover i.text-dark {
+            color: #ffffff !important; /* Blanc pour Administration */
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.9);
+            filter: brightness(1.5);
+        }
+
+/* Hover sur les éléments des dropdowns */
+.dropdown-menu .dropdown-item:hover {
+    background: linear-gradient(45deg, rgba(102, 126, 234, 0.2), rgba(116, 75, 162, 0.2)) !important;
+    border-radius: 6px;
+    transform: translateX(8px);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Renforcer les couleurs des icônes dans les dropdowns au hover */
+.dropdown-item:hover i.text-success {
+    color: #51cf66 !important;
+    text-shadow: 0 0 8px rgba(81, 207, 102, 0.8);
+    filter: brightness(1.2);
+}
+
+.dropdown-item:hover i.text-primary {
+    color: #4dabf7 !important;
+    text-shadow: 0 0 8px rgba(77, 171, 247, 0.8);
+    filter: brightness(1.2);
+}
+
+.dropdown-item:hover i.text-warning {
+    color: #ffd43b !important;
+    text-shadow: 0 0 8px rgba(255, 212, 59, 0.8);
+    filter: brightness(1.2);
+}
+
+.dropdown-item:hover i.text-info {
+    color: #74c0fc !important;
+    text-shadow: 0 0 8px rgba(116, 192, 252, 0.8);
+    filter: brightness(1.2);
+}
+
+.dropdown-item:hover i.text-danger {
+    color: #ff6b6b !important;
+    text-shadow: 0 0 8px rgba(255, 107, 107, 0.8);
+    filter: brightness(1.2);
+}
+
+/* Hover spécial pour le brand */
+.navbar-brand:hover i.text-primary {
+    color: #4dabf7 !important;
+    text-shadow: 0 0 15px rgba(77, 171, 247, 0.9);
+    filter: brightness(1.4);
+}
+
+/* Animation pour les chevrons des dropdowns */
+.dropdown-toggle:hover i.fa-chevron-down {
+    transform: rotate(180deg);
+    transition: transform 0.4s ease;
+    color: #ffd700 !important;
+}
+
+/* Hover spécial pour le menu Événements */
+.special-events-link:hover {
+    background: linear-gradient(45deg, rgba(81, 207, 102, 0.3), rgba(255, 212, 59, 0.2)) !important;
+    border-radius: 10px;
+    box-shadow: 0 0 25px rgba(81, 207, 102, 0.4);
+}
+
+/* ✅ Style pour le menu Événements spéciaux (sans loupe) */
+.special-events-link {
+    position: relative;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-soft);
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.dropdown-item {
+    border-radius: calc(var(--border-radius) - 0.25rem);
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+    .dropdown-item:hover {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        transform: translateX(5px);
+    }
+
+    .dropdown-item i {
+        width: 20px;
+        text-align: center;
+    }
+
+    /* ✅ CORRECTION DROPDOWN - FORCER LE VIOLET */
+
+    /* Forcer le style violet pour tous les dropdowns */
+    .dropdown-menu .dropdown-item:hover,
+    .dropdown-item:hover,
+    .dropdown-item:focus {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background-color: transparent !important;
+        color: white !important;
+        border-radius: 6px !important;
+        transform: translateX(8px) !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+        text-decoration: none !important;
+    }
+
+/* Spécifiquement pour le menu PRS */
+#prsDropdown + .dropdown-menu .dropdown-item:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+}
+
+/* Override Bootstrap defaults */
+.dropdown-item:hover,
+.dropdown-item:focus,
+.dropdown-item.active,
+.dropdown-item:active {
+    background-color: transparent !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+}
+
+/* User info */
+.user-info {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 25px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+    .user-info:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        background: rgba(255, 255, 255, 0.98);
+    }
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.user-info:hover .user-avatar {
+    background: linear-gradient(45deg, #ffd43b, #74c0fc);
+    transform: scale(1.15) rotate(5deg);
+    box-shadow: 0 0 20px rgba(255, 212, 59, 0.6);
+}
+
+/* Main content */
+.main-content {
+    flex: 1;
+    padding: 2rem 0;
+    position: relative;
+    z-index: 1;
+}
+
+.content-container {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-soft);
+    margin: 0 auto;
+    max-width: 1400px;
+    padding: 2rem;
+    min-height: calc(100vh - 200px);
+    animation: slideInUp 0.6s ease-out;
+}
+
+/* Footer moderne */
+.modern-footer {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-top: 2px solid transparent;
+    border-image: var(--primary-gradient) 1;
+    padding: 1.5rem 0;
+    margin-top: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.footer-info {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.footer-stats {
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 25px;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #667eea;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Modal styles */
+.bg-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Loading animation */
+.page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--primary-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
+
+    .page-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+.loader-content {
+    text-align: center;
+    color: white;
+}
+
+.loader-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+/* Breadcrumb style */
+.page-breadcrumb {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--glass-border);
+}
+
+.breadcrumb {
+    margin: 0;
+    background: none;
+}
+
+.breadcrumb-item a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+    .breadcrumb-item a:hover {
+        color: #4dabf7;
+        text-shadow: 0 0 8px rgba(77, 171, 247, 0.6);
+    }
+
+.breadcrumb-item.active {
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .content-container {
+        margin: 0 1rem;
+        padding: 1rem;
+        border-radius: 1rem;
+    }
+
+    .navbar-brand {
+        font-size: 1.5rem;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .user-info {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    /* Hover adapté pour mobile/tablette */
+    .navbar-nav .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        transform: translateY(-1px) scale(1.01);
+    }
+}
+
+/* ✅ ANIMATIONS SUPPLÉMENTAIRES */
+@keyframes glow-pulse {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(255, 255, 255, 0.6);
+    }
+}
+
+/* Animation glow pour les éléments actifs */
+.navbar-nav .nav-link.active {
+    animation: glow-pulse 2s infinite;
+}
+
+/* Transition fluide pour tous les éléments interactifs */
+* {
+    transition: var(--transition);
+}

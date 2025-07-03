@@ -1,0 +1,705 @@
+﻿@page
+@model PlanifPRS.Pages.Prs.CreateModel
+@{
+    ViewData["Title"] = "Créer une PRS";
+}
+
+@section Styles {
+    <!-- ✅ CSS EXTERNE COMPLET -->
+    <link rel="stylesheet" href="~/css/create-prs.css" asp-append-version="true" />
+}
+
+<div class="page-container">
+    <!-- En-tête moderne -->
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-plus-circle"></i>
+            @ViewData["Title"]
+        </h1>
+        <p class="page-subtitle">
+            <i class="fas fa-robot me-1"></i>
+            Créez une nouvelle planification avec l'assistance intelligente de ROB.I.A
+        </p>
+    </div>
+
+    <!-- Messages -->
+    @if (!string.IsNullOrEmpty(Model.Flash))
+    {
+        <div class="alert alert-success alert-modern">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-check-circle me-2 fs-5"></i>
+                <span>@Model.Flash</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger alert-modern">
+            <div>
+                <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+                <strong>Erreurs détectées :</strong>
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <div class="mt-1">• @error.ErrorMessage</div>
+                }
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Formulaire principal -->
+    <div class="form-container">
+        <form method="post" class="row g-3" id="create-form">
+            <div class="col-md-6">
+                <label asp-for="Prs.Titre" class="form-label">
+                    <i class="fas fa-tag"></i>
+                    Titre de la PRS
+                </label>
+                <input asp-for="Prs.Titre" class="form-control" placeholder="Ex: PRS Produit CMFB nouvelle version" />
+                <span asp-validation-for="Prs.Titre" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Prs.Equipement" class="form-label">
+                    <i class="fas fa-cogs"></i>
+                    Type d'équipement
+                </label>
+                <select asp-for="Prs.Equipement" class="form-select">
+                    <option value="">-- Sélectionner un type --</option>
+                    <option>🏭 CMS</option>
+                    <option>✨ Finition</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Prs.ReferenceProduit" class="form-label">
+                    <i class="fas fa-barcode"></i>
+                    Référence produit
+                </label>
+                <input asp-for="Prs.ReferenceProduit" class="form-control" placeholder="Ex: RE74782258" />
+            </div>
+
+            <div class="col-md-3">
+                <label asp-for="Prs.Quantite" class="form-label">
+                    <i class="fas fa-hashtag"></i>
+                    Quantité
+                </label>
+                <input asp-for="Prs.Quantite" type="number" min="1" class="form-control" placeholder="1" />
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Prs.BesoinOperateur" class="form-label">
+                    <i class="fas fa-user-hard-hat"></i>
+                    Besoin opérateur
+                </label>
+                <select asp-for="Prs.BesoinOperateur" class="form-select">
+                    <option value="">-- Sélectionner --</option>
+                    <option>👨‍🔧 Besoin opérateur</option>
+                    <option>❌ Aucun</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Prs.PresenceClient" class="form-label">
+                    <i class="fas fa-user-tie"></i>
+                    Présence client
+                </label>
+                <select asp-for="Prs.PresenceClient" class="form-select">
+                    <option value="">-- Sélectionner --</option>
+                    <option>✅ Client présent</option>
+                    <option>❌ Client absent</option>
+                    <option>❓ Non spécifié</option>
+                </select>
+            </div>
+
+            <!-- 🤖 SECTION ROB.I.A - PLANIFICATION INTELLIGENTE -->
+            <div class="col-md-12">
+                <div class="card robia-card border-info">
+                    <div class="card-header bg-gradient-info text-white">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-robot robot-icon me-2 fs-5"></i>
+                            <div>
+                                <h6 class="mb-0">🤖 ROB.I.A - Planification Intelligente</h6>
+                                <small>Rapid Optimal Booking Intelligent Assistant</small>
+                            </div>
+                            <div class="ms-auto">
+                                <div class="robia-status-indicator">
+                                    <span class="badge bg-success fs-6">
+                                        <i class="fas fa-circle me-1"></i>Prêt
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body bg-light">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label asp-for="Prs.DateDebut" class="form-label fw-bold">
+                                    <i class="fas fa-calendar-alt text-primary"></i> Date et heure de début
+                                </label>
+                                <input asp-for="Prs.DateDebut" type="datetime-local" class="form-control"
+                                       value="@Model.Prs.DateDebut.ToString("yyyy-MM-ddTHH:mm")" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label asp-for="Prs.DateFin" class="form-label fw-bold">
+                                    <i class="fas fa-calendar-check text-success"></i> Date et heure de fin
+                                </label>
+                                <input asp-for="Prs.DateFin" type="datetime-local" class="form-control"
+                                       value="@Model.Prs.DateFin.ToString("yyyy-MM-ddTHH:mm")" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-clock text-warning"></i> Durée nécessaire
+                                </label>
+                                <select id="duration-select" class="form-select">
+                                    <option value="1">⏱️ 1 heure</option>
+                                    <option value="2">⏱️ 2 heures</option>
+                                    <option value="4">🕐 4 heures (demi-journée)</option>
+                                    <option value="8" selected>🕓 8 heures (journée complète)</option>
+                                    <option value="16">📅 2 jours (16h)</option>
+                                    <option value="24">📅 3 jours (24h)</option>
+                                    <option value="40">📅 1 semaine (40h)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="button" class="btn btn-robia w-100" id="suggest-slot-btn">
+                                    🤖 ROB.I.A Analyser
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-3 bg-info bg-opacity-10 rounded">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle text-info me-1"></i>
+                                ROB.I.A analyse les créneaux disponibles en évitant les conflits de secteur et optimise selon l'équipement sélectionné.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Prs.Statut" class="form-label">
+                    <i class="fas fa-flag"></i>
+                    Statut
+                </label>
+                <select asp-for="Prs.Statut" class="form-select">
+                    <option>⏳ En attente</option>
+                    <option>✅ Validé</option>
+                    <option>⚠️ En retard</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Prs.LigneId" class="form-label">
+                    <i class="fas fa-industry"></i>
+                    Ligne
+                </label>
+                <select asp-for="Prs.LigneId" asp-items="Model.LigneList" class="form-select" id="ligne-select">
+                    <option value="">-- Choisir une ligne --</option>
+                </select>
+                <span asp-validation-for="Prs.LigneId" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Prs.FamilleId" class="form-label">
+                    <i class="fas fa-layer-group"></i>
+                    Famille de produit
+                </label>
+                <select asp-for="Prs.FamilleId" class="form-select">
+                    <option value="">-- Aucune famille --</option>
+                    @foreach (var fam in Model.Familles)
+                    {
+                        <option value="@fam.Id">@fam.Libelle</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-12">
+                <label asp-for="Prs.InfoDiverses" class="form-label">
+                    <i class="fas fa-comment-alt"></i>
+                    Informations complémentaires
+                </label>
+                <textarea asp-for="Prs.InfoDiverses" class="form-control" rows="3"
+                          placeholder="Ajoutez toute information utile pour cette PRS..."></textarea>
+            </div>
+
+            <div class="col-12 text-center">
+                <button type="submit" class="btn btn-primary btn-lg px-5">
+                    <i class="fas fa-plus-circle me-2"></i>Créer la PRS
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 🤖 ZONE ROB.I.A - SUGGESTIONS INTELLIGENTES -->
+    <div id="robia-suggestions" class="mt-4" style="display: none;">
+        <div class="card border-success shadow-lg">
+            <div class="card-header bg-gradient-success text-dark">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-robot robot-icon me-2 fs-4"></i>
+                    <div>
+                        <h5 class="mb-0">🎯 ROB.I.A - Suggestions Optimales</h5>
+                        <small>Rapid Optimal Booking Intelligent Assistant • v1.0</small>
+                    </div>
+                    <div class="ms-auto">
+                        <span class="badge bg-light text-dark">IA Active</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="suggestions-content"></div>
+                <div class="mt-4 text-center">
+                    <button type="button" class="btn btn-success btn-lg me-3" id="apply-suggestion">
+                        <i class="fas fa-check-circle me-2"></i>Appliquer cette suggestion
+                    </button>
+                    <button type="button" class="btn btn-warning me-3" id="show-alternatives">
+                        <i class="fas fa-sync-alt me-2"></i>Voir alternative suivante
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="close-suggestions">
+                        <i class="fas fa-times me-2"></i>Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ✅ FIN ABSOLUE du page-container ICI -->
+<!-- ✅ TITRE STYLÉ DU CALENDRIER -->
+<div class="calendar-section-title">
+    <h4 class="calendar-standalone-title">
+        <i class="fas fa-calendar-alt"></i>
+        Visualisation du planning (créneaux existants)
+    </h4>
+</div>
+
+<!-- ✅ CALENDRIER SANS ARRIÈRE-PLAN -->
+@Html.Partial("_CalendarBlock")
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // Variables globales
+        const dateDebutInput = document.querySelector("#Prs_DateDebut");
+        const dateFinInput = document.querySelector("#Prs_DateFin");
+        const durationSelect = document.querySelector("#duration-select");
+        const ligneSelect = document.querySelector("#ligne-select");
+        const equipementSelect = document.querySelector("#Prs_Equipement");
+        let currentSuggestions = [];
+        let selectedSuggestionIndex = 0;
+
+        // Initialisation avec la date actuelle (2 juillet 2025 09:16:31 UTC)
+        const now = new Date('2025-07-02T09:16:31');
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(8, 0, 0, 0);
+
+        function getTimezoneInfo() {
+            return {
+                isDST: true,
+                offset: 2,
+                name: 'UTC+2 (été)'
+            };
+        }
+
+        function convertUTCToLocalForInput(utcDateString) {
+            const utcDate = new Date(utcDateString + (utcDateString.includes('Z') ? '' : 'Z'));
+            const localDate = new Date(utcDate.toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }));
+            return localDate;
+        }
+
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        // Initialisation des dates par défaut
+        if (!dateDebutInput.value) {
+            dateDebutInput.value = formatDateTimeLocal(tomorrow);
+        }
+
+        // Synchronisation durée ↔ dates
+        durationSelect.addEventListener("change", function() {
+            if (dateDebutInput.value) {
+                updateEndDateFromDuration();
+            }
+        });
+
+        dateDebutInput.addEventListener("change", function() {
+            updateEndDateFromDuration();
+            validateDates();
+        });
+
+        dateFinInput.addEventListener("change", function() {
+            updateDurationFromDates();
+            validateDates();
+        });
+
+        function updateEndDateFromDuration() {
+            const startDate = new Date(dateDebutInput.value);
+            const durationHours = parseInt(durationSelect.value);
+
+            if (durationHours <= 8) {
+                const endDate = new Date(startDate.getTime() + (durationHours * 60 * 60 * 1000));
+                dateFinInput.value = formatDateTimeLocal(endDate);
+            } else {
+                const days = Math.floor(durationHours / 8);
+                const remainingHours = durationHours % 8;
+
+                let endDate = new Date(startDate);
+                let addedDays = 0;
+
+                while (addedDays < days) {
+                    endDate.setDate(endDate.getDate() + 1);
+                    if (endDate.getDay() !== 0 && endDate.getDay() !== 6) {
+                        addedDays++;
+                    }
+                }
+
+                if (remainingHours > 0) {
+                    endDate.setHours(startDate.getHours() + remainingHours);
+                } else {
+                    endDate.setHours(17, 0, 0, 0);
+                }
+
+                dateFinInput.value = formatDateTimeLocal(endDate);
+            }
+        }
+
+        function updateDurationFromDates() {
+            if (dateDebutInput.value && dateFinInput.value) {
+                const start = new Date(dateDebutInput.value);
+                const end = new Date(dateFinInput.value);
+                const diffHours = Math.round((end - start) / (1000 * 60 * 60));
+
+                const options = Array.from(durationSelect.options);
+                const closest = options.reduce((prev, curr) => {
+                    return Math.abs(parseInt(curr.value) - diffHours) < Math.abs(parseInt(prev.value) - diffHours) ? curr : prev;
+                });
+
+                durationSelect.value = closest.value;
+            }
+        }
+
+        function validateDates() {
+            const dateDebut = new Date(dateDebutInput.value);
+            const dateFin = new Date(dateFinInput.value);
+
+            if (dateFin <= dateDebut) {
+                dateFinInput.style.borderColor = '#dc3545';
+                dateFinInput.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+                return false;
+            } else {
+                dateFinInput.style.borderColor = '';
+                dateFinInput.style.boxShadow = '';
+                return true;
+            }
+        }
+
+        // ROB.I.A - Logique principale
+        document.getElementById('suggest-slot-btn').addEventListener('click', async function() {
+            const btn = this;
+            const ligneId = ligneSelect.value;
+            const durationHours = parseInt(durationSelect.value);
+            const equipement = equipementSelect.value || '';
+            const timezoneInfo = getTimezoneInfo();
+
+            if (!ligneId) {
+                showRobiaNotification('Veuillez d\'abord sélectionner une ligne pour une analyse optimale.', 'warning');
+                ligneSelect.focus();
+                ligneSelect.style.borderColor = '#ffc107';
+                setTimeout(() => ligneSelect.style.borderColor = '', 3000);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add('analyzing');
+            btn.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i>ROB.I.A analyse...';
+            updateRobiaStatus('Analyse en cours...', 'warning');
+
+            try {
+                const response = await fetch('/api/ai-suggestions/suggest-slot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Timezone': timezoneInfo.name
+                    },
+                    body: JSON.stringify({
+                        ligneId: parseInt(ligneId),
+                        equipement: equipement,
+                        durationHours: durationHours
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentSuggestions = result.suggestions || [];
+                    selectedSuggestionIndex = 0;
+                    showRobiaSuggestions(currentSuggestions);
+
+                    if (currentSuggestions.length > 0) {
+                        showRobiaNotification(`${currentSuggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
+                        updateRobiaStatus(`${currentSuggestions.length} suggestions trouvées`, 'success');
+                    } else {
+                        showRobiaNotification('Aucun créneau optimal trouvé avec ces critères.', 'info');
+                        updateRobiaStatus('Aucune suggestion trouvée', 'info');
+                    }
+                } else {
+                    showRobiaNotification('Erreur lors de l\'analyse : ' + result.message, 'danger');
+                    updateRobiaStatus('Erreur d\'analyse', 'danger');
+                }
+            } catch (error) {
+                showRobiaNotification('Erreur de communication avec ROB.I.A', 'danger');
+                updateRobiaStatus('Erreur de communication', 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('analyzing');
+                btn.innerHTML = '🤖 ROB.I.A Analyser';
+                setTimeout(() => updateRobiaStatus('Prêt', 'success'), 3000);
+            }
+        });
+
+        function showRobiaSuggestions(suggestions) {
+            const suggestionsDiv = document.getElementById('robia-suggestions');
+            const contentDiv = document.getElementById('suggestions-content');
+
+            if (suggestions && suggestions.length > 0) {
+                const suggestion = suggestions[selectedSuggestionIndex];
+                const durationText = getDurationText(parseInt(durationSelect.value));
+
+                contentDiv.innerHTML = `
+                    <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <h6 class="text-success mb-2">
+                                        <i class="fas fa-calendar-alt text-primary"></i>
+                                        Créneau Optimal Détecté (${durationText})
+                                    </h6>
+                                    <div class="fs-5 text-primary mb-3 fw-bold">
+                                        <div class="mb-2">
+                                            <i class="fas fa-play-circle text-success"></i>
+                                            <strong>Début :</strong> ${formatDateTimeFr(suggestion.dateDebut)}
+                                        </div>
+                                        <div>
+                                            <i class="fas fa-stop-circle text-danger"></i>
+                                            <strong>Fin :</strong> ${formatDateTimeFr(suggestion.dateFin)}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
+                                    <h6 class="text-info mb-2">
+                                        <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
+                                    </h6>
+                                    <p class="mb-0 text-muted">${suggestion.raison}</p>
+                                </div>
+
+                                ${suggestions.length > 1 ?
+                                    `<div class="mt-2">
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-list-ol"></i>
+                                            Suggestion ${selectedSuggestionIndex + 1} sur ${suggestions.length}
+                                        </span>
+                                    </div>` : ''
+                                }
+                            </div>
+
+                            <div class="col-md-4 text-center">
+                                <div class="robia-score">
+                                    <div class="mb-2">
+                                        <i class="fas fa-trophy text-white"></i>
+                                        <strong>Score ROB.I.A</strong>
+                                    </div>
+                                    <div class="score-number">${suggestion.score}</div>
+                                    <small class="opacity-75">/ 200 points</small>
+                                    <div class="mt-2">
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar bg-white" style="width: ${(suggestion.score / 200) * 100}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                suggestionsDiv.style.display = 'block';
+                suggestionsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="alert alert-warning border-0 shadow-sm">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                            <div>
+                                <h6 class="alert-heading mb-2">ROB.I.A n'a pas trouvé de créneau optimal</h6>
+                                <p class="mb-0">
+                                    <strong>Suggestions d'optimisation :</strong><br>
+                                    • Essayez une durée plus courte<br>
+                                    • Sélectionnez une autre ligne<br>
+                                    • Vérifiez que la période n'est pas surchargée<br>
+                                    • Consultez le planning existant ci-dessous
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                suggestionsDiv.style.display = 'block';
+            }
+        }
+
+        function getDurationText(hours) {
+            const durations = {
+                1: "1 heure",
+                2: "2 heures",
+                4: "4 heures (demi-journée)",
+                8: "8 heures (journée complète)",
+                16: "2 jours (16h)",
+                24: "3 jours (24h)",
+                40: "1 semaine (40h)"
+            };
+            return durations[hours] || `${hours} heures`;
+        }
+
+        function formatDateTimeFr(dateStr) {
+            const utcDate = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z'));
+            const localDate = new Date(utcDate.toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }));
+
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'Europe/Paris'
+            };
+            return localDate.toLocaleDateString('fr-FR', options);
+        }
+
+        function updateRobiaStatus(message, type) {
+            const statusIndicator = document.querySelector('.robia-status-indicator');
+            const colors = {
+                success: 'bg-success',
+                warning: 'bg-warning',
+                danger: 'bg-danger',
+                info: 'bg-info'
+            };
+
+            statusIndicator.innerHTML = `
+                <span class="badge ${colors[type]} fs-6">
+                    <i class="fas fa-circle me-1"></i>${message}
+                </span>
+            `;
+        }
+
+        // Actions sur les suggestions
+        document.getElementById('apply-suggestion').addEventListener('click', function() {
+            if (currentSuggestions.length > 0) {
+                const suggestion = currentSuggestions[selectedSuggestionIndex];
+
+                const localStart = convertUTCToLocalForInput(suggestion.dateDebut);
+                const localEnd = convertUTCToLocalForInput(suggestion.dateFin);
+
+                dateDebutInput.value = formatDateTimeLocal(localStart);
+                dateFinInput.value = formatDateTimeLocal(localEnd);
+
+                document.getElementById('robia-suggestions').style.display = 'none';
+
+                [dateDebutInput, dateFinInput].forEach(input => {
+                    input.classList.add('date-applied');
+                    input.style.transform = 'scale(1.05)';
+                    setTimeout(() => {
+                        input.classList.remove('date-applied');
+                        input.style.transform = '';
+                    }, 2000);
+                });
+
+                updateDurationFromDates();
+                showRobiaNotification('Créneau optimal appliqué avec succès !', 'success');
+                updateRobiaStatus('Créneau appliqué', 'success');
+            }
+        });
+
+        document.getElementById('show-alternatives').addEventListener('click', function() {
+            if (currentSuggestions.length > 1) {
+                selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+                showRobiaSuggestions(currentSuggestions);
+            }
+        });
+
+        document.getElementById('close-suggestions').addEventListener('click', function() {
+            document.getElementById('robia-suggestions').style.display = 'none';
+            updateRobiaStatus('Prêt', 'success');
+        });
+
+        function showRobiaNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} robia-notification border-0 shadow-lg`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                width: 380px;
+                max-width: 90vw;
+            `;
+
+            const icons = {
+                success: 'fas fa-check-circle',
+                warning: 'fas fa-exclamation-triangle',
+                danger: 'fas fa-times-circle',
+                info: 'fas fa-info-circle'
+            };
+
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-robot robot-icon me-2 fs-5"></i>
+                    <div class="flex-grow-1">
+                        <strong>ROB.I.A:</strong> ${message}
+                    </div>
+                    <i class="${icons[type]} ms-2"></i>
+                    <button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('closing');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 500);
+            }, 5000);
+        }
+
+        // Validation du formulaire
+        document.querySelector("#create-form").addEventListener("submit", function (e) {
+            if (!validateDates()) {
+                e.preventDefault();
+                showRobiaNotification('La date de début doit être antérieure à la date de fin.', 'danger');
+                return false;
+            }
+        });
+
+        // Initialisation
+        updateEndDateFromDuration();
+
+        setTimeout(() => {
+            showRobiaNotification('ROB.I.A prêt à optimiser vos planifications !', 'success');
+        }, 1000);
+    </script>
+}

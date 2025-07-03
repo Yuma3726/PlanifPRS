@@ -1,0 +1,428 @@
+﻿@page
+@model PlanifPRS.Pages.SettingsModel
+@{
+    ViewData["Title"] = "Paramètres";
+}
+
+<div class="container-fluid py-4">
+    <!-- En-tête avec style moderne -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm bg-gradient-primary text-white">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="settings-icon me-3">
+                            <i class="fas fa-cogs fa-2x"></i>
+                        </div>
+                        <div>
+                            <h1 class="mb-1 fw-bold">⚙️ Paramètres de l'application</h1>
+                            <p class="mb-0 opacity-75">Configurez les couleurs et familles de votre planning</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Gestion des familles -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-white border-bottom-0 p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3 class="mb-1 text-primary">
+                                <i class="fas fa-palette me-2"></i>Couleurs des familles
+                            </h3>
+                            <p class="text-muted mb-0">Gérez les couleurs d'affichage pour chaque famille de PRS</p>
+                        </div>
+                        <div class="badge bg-info fs-6">
+                            @(Model.Familles?.Count ?? 0) famille(s) configurée(s)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-0">
+                    @if (Model.Familles?.Any() == true)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="px-4 py-3 fw-semibold">
+                                            <i class="fas fa-tag me-1 text-primary"></i>Libellé
+                                        </th>
+                                        <th class="px-4 py-3 fw-semibold text-center">
+                                            <i class="fas fa-paint-brush me-1 text-success"></i>Couleur
+                                        </th>
+                                        <th class="px-4 py-3 fw-semibold text-center">
+                                            <i class="fas fa-eye me-1 text-info"></i>Aperçu
+                                        </th>
+                                        <th class="px-4 py-3 fw-semibold text-center">
+                                            <i class="fas fa-tools me-1 text-warning"></i>Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var famille in Model.Familles)
+                                    {
+                                        <tr class="famille-row">
+                                            <form method="post" class="w-100">
+                                                <input type="hidden" name="Familles[0].Id" value="@famille.Id" />
+                                            <td class="px-4 py-3">
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-light border-end-0">
+                                                        <i class="fas fa-font text-muted"></i>
+                                                    </span>
+                                                    <input name="Familles[0].Libelle"
+                                                           value="@famille.Libelle"
+                                                           class="form-control border-start-0 famille-libelle"
+                                                           placeholder="Nom de la famille" />
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                <div class="color-picker-container">
+                                                    <input name="Familles[0].CouleurHex"
+                                                           value="@famille.CouleurHex"
+                                                           type="color"
+                                                           class="form-control form-control-color color-picker"
+                                                           title="Choisir la couleur" />
+                                                    <div class="color-hex-display">@famille.CouleurHex</div>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                <div class="color-preview" style="background-color: @famille.CouleurHex;">
+                                                    <span class="preview-text">PRS @famille.Libelle</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="d-flex justify-content-center gap-2">
+                                                    <button type="submit"
+                                                            formaction="?handler=Update"
+                                                            formmethod="post"
+                                                            class="btn btn-success btn-sm btn-action"
+                                                            title="Sauvegarder">
+                                                        <i class="fas fa-save me-1"></i>Sauvegarder
+                                                    </button>
+                                                    <button type="submit"
+                                                            formaction="?handler=Delete&id=@famille.Id"
+                                                            formmethod="post"
+                                                            class="btn btn-danger btn-sm btn-action"
+                                                            onclick="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer la famille « @famille.Libelle » ?');"
+                                                            title="Supprimer">
+                                                        <i class="fas fa-trash me-1"></i>Supprimer
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            </form>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <div class="empty-state">
+                                <i class="fas fa-palette fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Aucune famille configurée</h5>
+                                <p class="text-muted">Ajoutez votre première famille ci-dessous</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Ajouter nouvelle famille -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-gradient-success text-white p-4">
+                    <h4 class="mb-0 fw-bold">
+                        <i class="fas fa-plus-circle me-2"></i>Ajouter une nouvelle famille
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" class="needs-validation" novalidate>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-tag me-1 text-primary"></i>Nom de la famille
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">
+                                        <i class="fas fa-font text-muted"></i>
+                                    </span>
+                                    <input name="NewFamille.Libelle"
+                                           placeholder="Ex: Production, Maintenance, Qualité..."
+                                           class="form-control"
+                                           required />
+                                    <div class="invalid-feedback">
+                                        Veuillez saisir un nom de famille.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-paint-brush me-1 text-success"></i>Couleur
+                                </label>
+                                <div class="color-picker-container">
+                                    <input name="NewFamille.CouleurHex"
+                                           type="color"
+                                           value="#3498db"
+                                           class="form-control form-control-color color-picker"
+                                           title="Choisir une couleur" />
+                                    <div class="color-preview-mini" id="newColorPreview" style="background-color: #3498db;"></div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-success btn-lg w-100 btn-add">
+                                    <i class="fas fa-plus me-2"></i>Ajouter la famille
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section conseils -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info border-0 shadow-sm">
+                <div class="d-flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-lightbulb fa-2x text-info"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="alert-heading">💡 Conseils d'utilisation</h5>
+                        <ul class="mb-0">
+                            <li><strong>Couleurs distinctes :</strong> Choisissez des couleurs bien contrastées pour faciliter la lecture du planning</li>
+                            <li><strong>Accessibilité :</strong> Évitez les couleurs trop claires ou trop sombres</li>
+                            <li><strong>Sauvegarde :</strong> N'oubliez pas de sauvegarder après chaque modification</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Validation du formulaire
+        (function() {
+            'use strict';
+            window.addEventListener('load', function() {
+                var forms = document.getElementsByClassName('needs-validation');
+                var validation = Array.prototype.filter.call(forms, function(form) {
+                    form.addEventListener('submit', function(event) {
+                        if (form.checkValidity() === false) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        form.classList.add('was-validated');
+                    }, false);
+                });
+            }, false);
+        })();
+
+        // Prévisualisation couleur en temps réel
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pour le formulaire d'ajout
+            const newColorPicker = document.querySelector('input[name="NewFamille.CouleurHex"]');
+            const newColorPreview = document.getElementById('newColorPreview');
+
+            if (newColorPicker && newColorPreview) {
+                newColorPicker.addEventListener('input', function() {
+                    newColorPreview.style.backgroundColor = this.value;
+                });
+            }
+
+            // Pour les formulaires d'édition
+            document.querySelectorAll('.color-picker').forEach(picker => {
+                picker.addEventListener('input', function() {
+                    const row = this.closest('tr');
+                    const preview = row.querySelector('.color-preview');
+                    const hexDisplay = row.querySelector('.color-hex-display');
+
+                    if (preview) {
+                        preview.style.backgroundColor = this.value;
+                    }
+                    if (hexDisplay) {
+                        hexDisplay.textContent = this.value;
+                    }
+                });
+            });
+
+            // Animation des boutons
+            document.querySelectorAll('.btn-action').forEach(btn => {
+                btn.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.05)';
+                });
+                btn.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            });
+        });
+    </script>
+
+    <style>
+        /* Styles personnalisés pour la page Settings */
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .settings-icon {
+            animation: rotate 20s infinite linear;
+        }
+
+        @@keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .famille-row {
+            transition: all 0.3s ease;
+        }
+
+            .famille-row:hover {
+                background-color: #f8f9fa;
+                transform: translateX(5px);
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+
+        .color-picker-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .color-picker {
+            width: 60px !important;
+            height: 40px !important;
+            border-radius: 8px !important;
+            border: 2px solid #dee2e6 !important;
+            cursor: pointer;
+        }
+
+            .color-picker:hover {
+                border-color: #007bff !important;
+                transform: scale(1.1);
+                transition: all 0.3s ease;
+            }
+
+        .color-hex-display {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 2px;
+            font-family: monospace;
+        }
+
+        .color-preview {
+            display: inline-block;
+            width: 120px;
+            height: 35px;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .preview-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            white-space: nowrap;
+        }
+
+        .color-preview-mini {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+
+        .btn-action {
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+            .btn-add:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
+            }
+
+        .empty-state i {
+            opacity: 0.5;
+        }
+
+        .card {
+            border-radius: 15px !important;
+        }
+
+        .table th {
+            border-top: none;
+            font-size: 0.9rem;
+        }
+
+        .input-group-text {
+            border-right: none;
+        }
+
+        .famille-libelle {
+            border-left: none;
+        }
+
+            .famille-libelle:focus {
+                border-color: #80bdff;
+                box-shadow: none;
+            }
+
+        @@media (max-width: 768px) {
+            .famille-row:hover {
+                transform: none;
+            }
+
+            .color-preview {
+                width: 80px;
+                height: 30px;
+            }
+
+            .preview-text {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+}

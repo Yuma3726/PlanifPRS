@@ -1,0 +1,324 @@
+﻿@page "{id:int}"
+@model PlanifPRS.Pages.Prs.EditModel
+@{
+    ViewData["Title"] = "Modifier une PRS";
+}
+
+@section Styles {
+    <!-- ✅ CSS EXTERNE COMPLET -->
+    <link rel="stylesheet" href="~/css/create-prs.css" asp-append-version="true" />
+}
+
+<div class="page-container">
+    <!-- En-tête moderne -->
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-edit"></i>
+            @ViewData["Title"]
+        </h1>
+        <p class="page-subtitle">
+            <i class="fas fa-info-circle me-1"></i>
+            Modifiez les détails de votre planification existante
+        </p>
+    </div>
+
+    @if (Model.Prs == null)
+    {
+        <div class="alert alert-danger alert-modern">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+                <span>⚠️ L'objet PRS est null.</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger alert-modern">
+                <div>
+                    <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+                    <strong>Erreurs détectées :</strong>
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <div class="mt-1">• @error.ErrorMessage</div>
+                    }
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <!-- Formulaire principal -->
+        <div class="form-container">
+            <form method="post" class="row g-3" id="edit-form">
+                <input type="hidden" asp-for="Prs.Id" />
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.Titre" class="form-label">
+                        <i class="fas fa-tag"></i>
+                        Titre de la PRS
+                    </label>
+                    <input asp-for="Prs.Titre" class="form-control" placeholder="Ex: Maintenance préventive ligne 1" />
+                    <span asp-validation-for="Prs.Titre" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.Equipement" class="form-label">
+                        <i class="fas fa-cogs"></i>
+                        Type d'équipement
+                    </label>
+                    <select asp-for="Prs.Equipement" class="form-select">
+                        <option value="">-- Sélectionner un type --</option>
+                        <option value="CMS" selected="@(Model.Prs.Equipement == "CMS" || Model.Prs.Equipement == "🏭 CMS")">🏭 CMS</option>
+                        <option value="Finition" selected="@(Model.Prs.Equipement == "Finition" || Model.Prs.Equipement == "✨ Finition")">✨ Finition</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.ReferenceProduit" class="form-label">
+                        <i class="fas fa-barcode"></i>
+                        Référence produit
+                    </label>
+                    <input asp-for="Prs.ReferenceProduit" class="form-control" placeholder="Ex: REF-2025-001" />
+                </div>
+
+                <div class="col-md-3">
+                    <label asp-for="Prs.Quantite" class="form-label">
+                        <i class="fas fa-hashtag"></i>
+                        Quantité
+                    </label>
+                    <input asp-for="Prs.Quantite" type="number" min="1" class="form-control" placeholder="1" />
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.BesoinOperateur" class="form-label">
+                        <i class="fas fa-user-hard-hat"></i>
+                        Besoin opérateur
+                    </label>
+                    <select asp-for="Prs.BesoinOperateur" class="form-select">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="Besoin opérateur"
+                                selected="@(Model.Prs.BesoinOperateur == "Besoin opérateur" || Model.Prs.BesoinOperateur == "👨‍🔧 Besoin opérateur")">
+                            👨‍🔧 Besoin opérateur
+                        </option>
+                        <option value="Aucun"
+                                selected="@(Model.Prs.BesoinOperateur == "Aucun" || Model.Prs.BesoinOperateur == "❌ Aucun")">
+                            ❌ Aucun
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.PresenceClient" class="form-label">
+                        <i class="fas fa-user-tie"></i>
+                        Présence client
+                    </label>
+                    <select asp-for="Prs.PresenceClient" class="form-select">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="Client présent"
+                                selected="@(Model.Prs.PresenceClient == "Client présent" || Model.Prs.PresenceClient == "✅ Client présent")">
+                            ✅ Client présent
+                        </option>
+                        <option value="Client absent"
+                                selected="@(Model.Prs.PresenceClient == "Client absent" || Model.Prs.PresenceClient == "❌ Client absent")">
+                            ❌ Client absent
+                        </option>
+                        <option value="Non spécifié"
+                                selected="@(Model.Prs.PresenceClient == "Non spécifié" || Model.Prs.PresenceClient == "❓ Non spécifié")">
+                            ❓ Non spécifié
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.DateDebut" class="form-label">
+                        <i class="fas fa-calendar-alt text-primary"></i>
+                        Date et heure de début
+                    </label>
+                    <input asp-for="Prs.DateDebut" type="datetime-local" class="form-control"
+                           value="@Model.Prs.DateDebut.ToString("yyyy-MM-ddTHH:mm")" />
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.DateFin" class="form-label">
+                        <i class="fas fa-calendar-check text-success"></i>
+                        Date et heure de fin
+                    </label>
+                    <input asp-for="Prs.DateFin" type="datetime-local" class="form-control"
+                           value="@Model.Prs.DateFin.ToString("yyyy-MM-ddTHH:mm")" />
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.Statut" class="form-label">
+                        <i class="fas fa-flag"></i>
+                        Statut
+                    </label>
+                    <select asp-for="Prs.Statut" class="form-select">
+                        <option value="En attente"
+                                selected="@(Model.Prs.Statut == "En attente" || Model.Prs.Statut == "⏳ En attente")">
+                            ⏳ En attente
+                        </option>
+                        <option value="Validé"
+                                selected="@(Model.Prs.Statut == "Validé" || Model.Prs.Statut == "✅ Validé")">
+                            ✅ Validé
+                        </option>
+                        <option value="En retard"
+                                selected="@(Model.Prs.Statut == "En retard" || Model.Prs.Statut == "⚠️ En retard")">
+                            ⚠️ En retard
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.LigneId" class="form-label">
+                        <i class="fas fa-industry"></i>
+                        Ligne
+                    </label>
+                    <select asp-for="Prs.LigneId" asp-items="Model.LignesSelectList" class="form-select">
+                        <option value="">-- Choisir une ligne --</option>
+                    </select>
+                    <span asp-validation-for="Prs.LigneId" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Prs.FamilleId" class="form-label">
+                        <i class="fas fa-layer-group"></i>
+                        Famille de produit
+                    </label>
+                    <select asp-for="Prs.FamilleId" class="form-select">
+                        <option value="">-- Aucune famille --</option>
+                        @if (Model.Familles != null)
+                        {
+                            @foreach (var fam in Model.Familles)
+                            {
+                                <option value="@fam.Id" selected="@(Model.Prs.FamilleId == fam.Id)">@fam.Libelle</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="Prs.InfoDiverses" class="form-label">
+                        <i class="fas fa-comment-alt"></i>
+                        Informations complémentaires
+                    </label>
+                    <textarea asp-for="Prs.InfoDiverses" class="form-control" rows="3"
+                              placeholder="Ajoutez toute information utile pour cette PRS..."></textarea>
+                </div>
+
+                <div class="col-12 text-center">
+                    <button type="submit" class="btn btn-primary btn-lg px-5 me-3">
+                        <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                    </button>
+                    <a asp-page="/Index" class="btn btn-secondary btn-lg px-5">
+                        <i class="fas fa-times me-2"></i>Annuler
+                    </a>
+                </div>
+            </form>
+        </div>
+    }
+</div>
+<!-- ✅ FIN ABSOLUE du page-container ICI -->
+<!-- ✅ TITRE STYLÉ DU CALENDRIER -->
+<div class="calendar-section-title">
+    <h4 class="calendar-standalone-title">
+        <i class="fas fa-calendar-alt"></i>
+        Visualisation du planning (créneaux existants)
+    </h4>
+</div>
+
+<!-- ✅ CALENDRIER SANS ARRIÈRE-PLAN -->
+@Html.Partial("_CalendarBlock")
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // Variables globales (2025-07-02 09:20:50 UTC)
+        const dateDebutInput = document.querySelector("#Prs_DateDebut");
+        const dateFinInput = document.querySelector("#Prs_DateFin");
+
+        function validateDates() {
+            const dateDebut = new Date(dateDebutInput.value);
+            const dateFin = new Date(dateFinInput.value);
+
+            if (dateFin <= dateDebut) {
+                dateFinInput.style.borderColor = '#dc3545';
+                dateFinInput.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+                return false;
+            } else {
+                dateFinInput.style.borderColor = '';
+                dateFinInput.style.boxShadow = '';
+                return true;
+            }
+        }
+
+        dateDebutInput.addEventListener("change", function() {
+            const dateDebut = new Date(dateDebutInput.value);
+            const dateFin = new Date(dateFinInput.value);
+
+            if (dateFin < dateDebut) {
+                dateFinInput.value = dateDebutInput.value;
+
+                // Ajouter 1 heure par défaut
+                const newEndDate = new Date(dateDebut.getTime() + (60 * 60 * 1000));
+                const year = newEndDate.getFullYear();
+                const month = String(newEndDate.getMonth() + 1).padStart(2, '0');
+                const day = String(newEndDate.getDate()).padStart(2, '0');
+                const hours = String(newEndDate.getHours()).padStart(2, '0');
+                const minutes = String(newEndDate.getMinutes()).padStart(2, '0');
+                dateFinInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+            validateDates();
+        });
+
+        dateFinInput.addEventListener("change", function() {
+            validateDates();
+        });
+
+        document.querySelector("#edit-form").addEventListener("submit", function (e) {
+            if (!validateDates()) {
+                e.preventDefault();
+
+                // Animation d'erreur
+                dateFinInput.classList.add('shake-animation');
+                setTimeout(() => {
+                    dateFinInput.classList.remove('shake-animation');
+                }, 500);
+
+                // Notification moderne
+                const notification = document.createElement('div');
+                notification.className = 'alert alert-danger alert-modern';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    width: 380px;
+                    max-width: 90vw;
+                `;
+
+                notification.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+                        <span>❌ La date de début doit être antérieure à la date de fin.</span>
+                        <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+                    </div>
+                `;
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 5000);
+
+                return false;
+            }
+        });
+
+        // Validation en temps réel
+        validateDates();
+    </script>
+}

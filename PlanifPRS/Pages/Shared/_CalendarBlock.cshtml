@@ -1,0 +1,545 @@
+﻿@* _CalendarBlock.cshtml - Version moderne et élégante *@
+
+<!-- FullCalendar CSS et JS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<!-- TippyJS pour info-bulles -->
+<script src="https://unpkg.com/tippy.js@6"></script>
+<link href="https://unpkg.com/tippy.js@6/themes/light-border.css" rel="stylesheet" />
+
+<!-- FontAwesome pour les icônes -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+
+<!-- CSS SÉPARÉ pour éviter les erreurs C# -->
+<link rel="stylesheet" href="~/css/calendarblock.css" asp-append-version="true" />
+
+<div class="calendar-container">
+    <!-- En-tête du calendrier -->
+    <div class="calendar-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="calendar-title">
+                    <i class="fas fa-calendar-alt me-2"></i>Planning PRS
+                </h2>
+                <p class="calendar-subtitle">
+                    <i class="fas fa-clock me-1"></i>Mise à jour : @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+                    <span class="ms-3"><i class="fas fa-user me-1"></i>@User.Identity.Name</span>
+                </p>
+            </div>
+            <div class="stats-badge">
+                <i class="fas fa-chart-line me-1"></i>
+                <span id="eventCount">Chargement...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panneau de filtres -->
+    <div class="filters-panel">
+        <!-- Filtres par type -->
+        <div class="filters-section">
+            <div class="filter-label">
+                <i class="fas fa-filter text-primary"></i>
+                Filtrer par type de PRS
+            </div>
+            <div class="filter-types">
+                <button id="toggleFiltersBtn" class="toggle-btn">
+                    <i class="fas fa-toggle-on me-1"></i>Tout décocher
+                </button>
+
+                <label class="filter-checkbox active" for="filterCMS">
+                    <input class="filter-check" type="checkbox" value="PRS CMS" id="filterCMS" checked>
+                    <i class="fas fa-cogs me-1"></i>PRS CMS
+                </label>
+
+                <label class="filter-checkbox active" for="filterFinition">
+                    <input class="filter-check" type="checkbox" value="PRS Finition" id="filterFinition" checked>
+                    <i class="fas fa-paint-brush me-1"></i>PRS Finition
+                </label>
+
+                <label class="filter-checkbox active" for="filterAbsence">
+                    <input class="filter-check" type="checkbox" value="Absence" id="filterAbsence" checked>
+                    <i class="fas fa-user-times me-1"></i>Absences
+                </label>
+
+                <label class="filter-checkbox active" for="filterAudit">
+                    <input class="filter-check" type="checkbox" value="Audit" id="filterAudit" checked>
+                    <i class="fas fa-search me-1"></i>Audit
+                </label>
+
+                <label class="filter-checkbox active" for="filterIntervention">
+                    <input class="filter-check" type="checkbox" value="Intervention" id="filterIntervention" checked>
+                    <i class="fas fa-tools me-1"></i>Intervention
+                </label>
+
+                <label class="filter-checkbox active" for="filterVisiteClient">
+                    <input class="filter-check" type="checkbox" value="Visite Client" id="filterVisiteClient" checked>
+                    <i class="fas fa-handshake me-1"></i>Visite Client
+                </label>
+            </div>
+        </div>
+
+        <!-- Filtre par secteur -->
+        <div class="filters-section">
+            <div class="filter-label">
+                <i class="fas fa-industry text-success"></i>
+                Filtrer par secteur
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <select id="sectorFilter" class="sector-filter">
+                    <option value="Tous" selected>
+                        <i class="fas fa-globe"></i> Tous les secteurs
+                    </option>
+                </select>
+                <div class="stats-badge" id="sectorCount">
+                    <i class="fas fa-building me-1"></i>Chargement...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loader -->
+    <div id="loader">
+        <i class="fas fa-spinner fa-spin me-2"></i>Chargement des événements...
+    </div>
+
+    <!-- Calendrier -->
+    <div id="calendar"></div>
+</div>
+
+<script>
+    // Fonction améliorée pour trouver le lundi
+    function getMonday(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = (day === 0 ? -6 : 1) - day;
+        d.setDate(d.getDate() + diff);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    function formatDateTimeLocal(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    // FONCTION POUR DÉTERMINER LA PAGE SELON LE TYPE D'ÉVÉNEMENT
+    function getEditPageForEvent(event) {
+        const equipement = event.extendedProps?.equipement || event.extendedProps?.Equipement || '';
+        const titre = event.title || '';
+
+        // VÉRIFIER D'ABORD PAR L'ÉQUIPEMENT
+        if (equipement === 'Audit' || equipement === 'Intervention' || equipement === 'Visite Client') {
+            return '/EditAudit';
+        }
+
+        // VÉRIFIER PAR LE TITRE SI ÉQUIPEMENT VIDE
+        if (titre.includes('Audit') || titre.includes('Intervention') || titre.includes('Visite Client')) {
+            return '/EditAudit';
+        }
+
+        // PRS CLASSIQUES → PAGE EDIT NORMALE
+        return '/Edit';
+    }
+
+    async function loadSecteurs() {
+        try {
+            const response = await fetch('/api/events/secteurs');
+            if (!response.ok) throw new Error('Erreur lors du chargement des secteurs');
+
+            const secteurs = await response.json();
+            const sectorFilter = document.getElementById('sectorFilter');
+            const sectorCount = document.getElementById('sectorCount');
+
+            while (sectorFilter.children.length > 1) {
+                sectorFilter.removeChild(sectorFilter.lastChild);
+            }
+
+            secteurs.forEach(secteur => {
+                const option = document.createElement('option');
+                option.value = secteur.nom;
+                option.textContent = secteur.nom;
+                sectorFilter.appendChild(option);
+            });
+
+            sectorCount.innerHTML = `<i class="fas fa-building me-1"></i>${secteurs.length} secteur(s)`;
+        } catch (error) {
+            console.error('Erreur lors du chargement des secteurs:', error);
+            document.getElementById('sectorCount').innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Erreur';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const calendarEl = document.getElementById('calendar');
+        const loader = document.getElementById('loader');
+        const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+        const sectorFilter = document.getElementById('sectorFilter');
+        const eventCount = document.getElementById('eventCount');
+        let allChecked = true;
+
+        loadSecteurs();
+
+        // Gestion des checkboxes visuelles
+        document.querySelectorAll('.filter-checkbox').forEach(label => {
+            const checkbox = label.querySelector('input');
+
+            label.addEventListener('click', function(e) {
+                e.preventDefault();
+                checkbox.checked = !checkbox.checked;
+
+                if (checkbox.checked) {
+                    label.classList.add('active');
+                } else {
+                    label.classList.remove('active');
+                }
+
+                checkbox.dispatchEvent(new Event('change'));
+            });
+
+            // État initial
+            if (checkbox.checked) {
+                label.classList.add('active');
+            }
+        });
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            locale: 'fr',
+            initialView: 'workWeek',
+            firstDay: 1,
+            slotMinTime: "06:00:00",
+            slotMaxTime: "20:00:00",
+            slotEventOverlap: false,
+            height: 'auto',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'timeGridDay,workWeek,fullWeek,week2,week3,dayGridMonth'
+            },
+            // Vues corrigées avec visibleRange pour toutes les vues semaine
+            views: {
+                timeGridDay: {
+                    type: 'timeGrid',
+                    duration: { days: 1 },
+                    buttonText: 'Jour'
+                },
+                workWeek: {
+                    type: 'timeGrid',
+                    duration: { days: 5 },
+                    buttonText: 'Semaine (L-V)',
+                    visibleRange: function (currentDate) {
+                        let start = getMonday(currentDate);
+                        let end = new Date(start);
+                        end.setDate(end.getDate() + 4);
+                        return { start: start, end: end };
+                    },
+                    dateIncrement: { weeks: 1 }
+                },
+                fullWeek: {
+                    type: 'timeGrid',
+                    duration: { days: 7 },
+                    buttonText: 'Semaine complète',
+                    visibleRange: function (currentDate) {
+                        let start = getMonday(currentDate);
+                        let end = new Date(start);
+                        end.setDate(end.getDate() + 6);
+                        return { start: start, end: end };
+                    },
+                    dateIncrement: { weeks: 1 }
+                },
+                week2: {
+                    type: 'dayGrid',
+                    duration: { weeks: 2 },
+                    buttonText: '2 semaines',
+                    visibleRange: function (currentDate) {
+                        let start = getMonday(currentDate);
+                        let end = new Date(start);
+                        end.setDate(end.getDate() + 13);
+                        return { start: start, end: end };
+                    },
+                    dateIncrement: { weeks: 1 }
+                },
+                week3: {
+                    type: 'dayGrid',
+                    duration: { weeks: 3 },
+                    buttonText: '3 semaines',
+                    visibleRange: function (currentDate) {
+                        let start = getMonday(currentDate);
+                        let end = new Date(start);
+                        end.setDate(end.getDate() + 20);
+                        return { start: start, end: end };
+                    },
+                    dateIncrement: { weeks: 1 }
+                },
+                dayGridMonth: {
+                    buttonText: 'Mois'
+                }
+            },
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+
+            // FORCER L'APPLICATION DES COULEURS
+            eventDidMount: function (info) {
+                // FORCER LA COULEUR DE FOND
+                if (info.event.backgroundColor) {
+                    info.el.style.backgroundColor = info.event.backgroundColor;
+                    info.el.style.borderColor = info.event.borderColor || info.event.backgroundColor;
+                    info.el.style.color = info.event.textColor || '#ffffff';
+
+                    // FORCER AUSSI LES ÉLÉMENTS ENFANTS
+                    const eventContent = info.el.querySelector('.fc-event-main');
+                    if (eventContent) {
+                        eventContent.style.backgroundColor = info.event.backgroundColor;
+                        eventContent.style.color = info.event.textColor || '#ffffff';
+                    }
+
+                    const eventTitle = info.el.querySelector('.fc-event-title');
+                    if (eventTitle) {
+                        eventTitle.style.color = info.event.textColor || '#ffffff';
+                    }
+
+                    const eventTime = info.el.querySelector('.fc-event-time');
+                    if (eventTime) {
+                        eventTime.style.color = info.event.textColor || '#ffffff';
+                    }
+                }
+
+                let infoDiverses = info.event.extendedProps.infoDiverses ||
+                                  info.event.extendedProps.InfoDiverses ||
+                                  'Aucune information complémentaire';
+
+                if (infoDiverses.length > 100) {
+                    infoDiverses = infoDiverses.substring(0, 97) + '...';
+                }
+
+                infoDiverses = infoDiverses.replace(/\n/g, '<br>');
+
+                // ICÔNE POUR INFO-BULLE
+                const eventIcon = '<i class="fas fa-info-circle" style="color: #667eea; margin-right: 6px;"></i>';
+
+                tippy(info.el, {
+                    content: `
+                        <div style="text-align: center; padding: 8px; max-width: 300px;">
+                            <strong style="font-size: 1.1em; color: #667eea;">${info.event.title}</strong><br>
+                            <div style="margin: 10px 0; padding: 8px 12px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; text-align: left; line-height: 1.4;">
+                                ${eventIcon}
+                                ${infoDiverses}
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.9em;">
+                                <span><i class="fas fa-industry" style="margin-right: 4px; color: #34A853;"></i>${info.event.extendedProps.ligne || 'N/A'}</span>
+                                <span><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: #fbbc05;"></i>${info.event.extendedProps.secteur || 'Non défini'}</span>
+                            </div>
+                        </div>
+                    `,
+                    allowHTML: true,
+                    placement: 'top',
+                    theme: 'light-border',
+                    animation: 'scale',
+                    duration: [300, 0],
+                    delay: [10, 0],
+                    hideOnClick: true,
+                    trigger: 'mouseenter',
+                    interactive: false
+                });
+            },
+
+            loading: function (isLoading) {
+                loader.style.display = isLoading ? 'block' : 'none';
+            },
+
+            events: function(fetchInfo, successCallback, failureCallback) {
+                loader.style.display = 'block';
+                fetch('/api/events')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Erreur réseau');
+                        return response.json();
+                    })
+                    .then(data => {
+                        const events = data.map(ev => {
+                            if (ev.start && ev.end) {
+                                const start = new Date(ev.start);
+                                const end = new Date(ev.end);
+                                const diff = end - start;
+                                ev.allDay = diff >= 86400000 && start.getHours() === 0 && end.getHours() === 0;
+                            }
+                            return ev;
+                        });
+
+                        eventCount.innerHTML = `<i class="fas fa-calendar-check me-1"></i>${events.length} événement(s)`;
+                        successCallback(events);
+                    })
+                    .catch(error => {
+                        console.error('Erreur de chargement des événements:', error);
+                        eventCount.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Erreur';
+                        failureCallback(error);
+                    })
+                    .finally(() => {
+                        loader.style.display = 'none';
+                    });
+            },
+
+            // CLIC SUR ÉVÉNEMENT - REDIRECTION INTELLIGENTE
+            eventClick: function (info) {
+                const prsId = info.event.id;
+                if (prsId) {
+                    // Animation visuelle
+                    info.el.style.transform = 'scale(0.95)';
+                    info.el.style.transition = 'transform 0.2s ease';
+
+                    // DÉTERMINER LA PAGE DE DESTINATION
+                    const editPage = getEditPageForEvent(info.event);
+                    const fullUrl = `${editPage}/${prsId}`;
+
+                    setTimeout(() => {
+                        window.location.href = fullUrl;
+                    }, 200);
+                }
+            },
+
+            dateClick: function (info) {
+                const clickedDate = new Date(info.date);
+                let localStart;
+
+                const viewType = info.view.type;
+                const isTimeGridView = viewType === 'timeGridDay' ||
+                                     viewType === 'workWeek' ||
+                                     viewType === 'fullWeek' ||
+                                     viewType.includes('timeGrid');
+
+                if (isTimeGridView) {
+                    localStart = new Date(
+                        clickedDate.getFullYear(),
+                        clickedDate.getMonth(),
+                        clickedDate.getDate(),
+                        clickedDate.getHours(),
+                        clickedDate.getMinutes(),
+                        0,
+                        0
+                    );
+                } else {
+                    localStart = new Date(
+                        clickedDate.getFullYear(),
+                        clickedDate.getMonth(),
+                        clickedDate.getDate(),
+                        9,
+                        0,
+                        0,
+                        0
+                    );
+                }
+
+                const localEnd = new Date(localStart.getTime() + 60 * 60 * 1000);
+
+                const inputDebut = document.querySelector('#Prs_DateDebut');
+                const inputFin = document.querySelector('#Prs_DateFin');
+
+                if (inputDebut && inputFin) {
+                    inputDebut.value = formatDateTimeLocal(localStart);
+                    inputFin.value = formatDateTimeLocal(localEnd);
+
+                    [inputDebut, inputFin].forEach(input => {
+                        input.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+                        input.style.color = 'white';
+                        input.style.transform = 'scale(1.02)';
+                        input.style.transition = 'all 0.5s ease';
+                        setTimeout(() => {
+                            input.style.background = '';
+                            input.style.color = '';
+                            input.style.transform = '';
+                        }, 1500);
+                    });
+
+                    inputDebut.dispatchEvent(new Event('change'));
+                }
+            },
+
+            eventContent: function (arg) {
+                const baseTitle = arg.event.title.split(' - ')[0];
+                const ligne = arg.event.extendedProps?.ligne || "—";
+
+                if (arg.view.type.startsWith("timeGrid")) {
+                    return {
+                        html: `
+                            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-weight: 700; font-size: 0.75em; opacity: 0.9;">
+                                    <i class="fas fa-industry" style="margin-right: 3px;"></i>${ligne}
+                                </div>
+                                <div style="font-weight: 600; font-size: 0.85em; margin-top: 2px;">
+                                    ${baseTitle}
+                                </div>
+                            </div>`
+                    };
+                }
+
+                return {
+                    html: `
+                        <div style="padding: 2px; border-radius: 6px; text-align: center;">
+                            <div style="font-weight: 600; font-size: 0.8em;">${baseTitle}</div>
+                            <div style="font-size: 0.7em; opacity: 0.9; margin-top: 1px;">
+                                <i class="fas fa-industry" style="margin-right: 2px;"></i>${ligne}
+                            </div>
+                        </div>`
+                };
+            },
+
+            // Gestion corrigée pour toutes les vues semaine
+            datesSet: function (info) {
+                const currentDate = calendar.getDate();
+                const viewType = info.view.type;
+
+                if (viewType === 'workWeek' || viewType === 'fullWeek' || viewType === 'week2' || viewType === 'week3') {
+                    const monday = getMonday(currentDate);
+                    if (currentDate.getTime() !== monday.getTime()) {
+                        calendar.gotoDate(monday);
+                    }
+                }
+            }
+        });
+
+        calendar.render();
+
+        const filterChecks = document.querySelectorAll(".filter-check");
+
+        function filterEvents() {
+            const checkedTypes = Array.from(filterChecks).filter(chk => chk.checked).map(chk => chk.value);
+            const selectedSector = sectorFilter.value;
+
+            let visibleCount = 0;
+            calendar.getEvents().forEach(ev => {
+                const matchType = checkedTypes.includes(ev.extendedProps.type);
+                const matchSector = (selectedSector === "Tous" || ev.extendedProps.secteur === selectedSector);
+                const isVisible = matchType && matchSector;
+
+                ev.setProp('display', isVisible ? 'auto' : 'none');
+                if (isVisible) visibleCount++;
+            });
+
+            eventCount.innerHTML = `<i class="fas fa-eye me-1"></i>${visibleCount} visible(s)`;
+        }
+
+        filterChecks.forEach(chk => chk.addEventListener("change", filterEvents));
+
+        toggleFiltersBtn.addEventListener("click", () => {
+            allChecked = !allChecked;
+            filterChecks.forEach(chk => {
+                chk.checked = allChecked;
+                const label = chk.closest('.filter-checkbox');
+                if (allChecked) {
+                    label.classList.add('active');
+                } else {
+                    label.classList.remove('active');
+                }
+            });
+
+            toggleFiltersBtn.innerHTML = allChecked
+                ? '<i class="fas fa-toggle-on me-1"></i>Tout décocher'
+                : '<i class="fas fa-toggle-off me-1"></i>Tout cocher';
+            filterEvents();
+        });
+
+        sectorFilter.addEventListener("change", filterEvents);
+        filterEvents();
+    });
+</script>

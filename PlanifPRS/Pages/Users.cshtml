@@ -1,0 +1,121 @@
+﻿@page
+@model UsersModel
+@{
+    ViewData["Title"] = "Gestion des utilisateurs";
+}
+
+<h1>Gestion des utilisateurs</h1>
+
+@if (!Model.IsAdmin)
+{
+    <div class="alert alert-danger">
+        ⚠️ Accès refusé. Vous n'avez pas les droits nécessaires pour consulter cette page.
+    </div>
+}
+else
+{
+    <form method="get" class="mb-3 d-flex" role="search">
+        <input type="text" name="searchTerm" class="form-control me-2" placeholder="Rechercher..." value="@Model.SearchTerm" />
+        <button type="submit" class="btn btn-outline-primary" aria-label="Rechercher">
+            🔍
+        </button>
+    </form>
+
+    <div class="mb-3">
+        <small class="text-muted">
+            <strong>Légende des droits :</strong>
+            <span class="badge bg-danger ms-2">Admin</span> Accès complet
+            <span class="badge bg-primary ms-2">CDP/Pilote</span> Gestion projets
+            <span class="badge bg-warning ms-2">Validateur</span> Validation PRS
+            <span class="badge bg-success ms-2">Process</span> Process / Equipements Indus
+            <span class="badge bg-info ms-2">Maintenance</span> Maintenance
+            <span class="badge bg-secondary ms-2">Visualiseur</span> Lecture seule
+        </small>
+    </div>
+
+    <table class="table table-bordered table-striped mt-2">
+        <thead class="thead-dark">
+            <tr>
+                <th>ID</th>
+                <th>Matricule</th>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Login Windows</th>
+                <th>Mail</th>
+                <th>Service</th>
+                <th style="min-width: 180px;">Droits</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model.ListeUtilisateurs)
+            {
+                <tr>
+                    <td>@user.Id</td>
+                    <td>@user.Matricule</td>
+                    <td>@user.Nom</td>
+                    <td>@user.Prenom</td>
+                    <td>@user.LoginWindows</td>
+                    <td>@user.Mail</td>
+                    <td>@user.Service</td>
+                    <td style="min-width: 180px;">
+                        <form method="post" asp-page-handler="UpdateDroit" class="m-0 p-0">
+                            <input type="hidden" name="id" value="@user.Id" />
+                            <select name="nouveauDroit" class="form-select form-select-sm" onchange="this.form.submit()">
+                                @{
+                                    var droits = user.Droits ?? "Visualiseur";
+                                }
+                                <option value="admin" selected="@(droits.ToLower() == "admin")">🔴 Admin</option>
+                                <option value="cdp" selected="@(droits.ToLower() == "cdp")">🔵 CDP / Pilote</option>
+                                <option value="validateur" selected="@(droits.ToLower() == "validateur")">🟡 Validateur</option>
+                                <option value="process" selected="@(droits.ToLower() == "process")">🟢 Process</option>
+                                <option value="maintenance" selected="@(droits.ToLower() == "maintenance")">🔵 Maintenance</option>
+                                <option value="visualiseur" selected="@(droits.ToLower() == "visualiseur")">⚫ Visualiseur</option>
+                            </select>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📊 Statistiques des droits</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    @{
+                        var stats = Model.ListeUtilisateurs
+                        .GroupBy(u => u.Droits?.ToLower() ?? "visualiseur")
+                        .ToDictionary(g => g.Key, g => g.Count());
+                    }
+                    <div class="col-md-2">
+                        <span class="badge bg-danger fs-6">@(stats.GetValueOrDefault("admin", 0))</span>
+                        <br><small>Admin</small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-primary fs-6">@(stats.GetValueOrDefault("cdp", 0))</span>
+                        <br><small>CDP/Pilote</small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-warning fs-6">@(stats.GetValueOrDefault("validateur", 0))</span>
+                        <br><small>Validateur</small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-success fs-6">@(stats.GetValueOrDefault("process", 0))</span>
+                        <br><small>Process</small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-info fs-6">@(stats.GetValueOrDefault("maintenance", 0))</span>
+                        <br><small>Maintenance</small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-secondary fs-6">@(stats.GetValueOrDefault("visualiseur", 0))</span>
+                        <br><small>Visualiseur</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
