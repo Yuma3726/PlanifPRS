@@ -6,114 +6,182 @@
 
 <div class="row">
     <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-gradient text-white">
+        <div class="card shadow-lg border-0">
+            <div class="card-header" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; border-radius: 15px 15px 0 0;">
                 <h2 class="mb-0">
                     <i class="fas fa-envelope me-2"></i>Génération du mail hebdomadaire
                 </h2>
                 <p class="mb-0 opacity-75">Synthèse automatique des PRS planifiées</p>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="background: #f8f9fa; padding: 30px;">
                 <!-- Sélection de semaine -->
                 <div class="row mb-4">
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-calendar-week me-1 text-primary"></i>Sélectionner la semaine
-                        </label>
-                        <div class="input-group">
-                            <input type="week" id="selectedWeek" class="form-control" value="@Model.CurrentWeek">
-                            <button class="btn btn-outline-primary" type="button" onclick="loadWeekData()">
-                                <i class="fas fa-sync-alt me-1"></i>Charger
-                            </button>
-                        </div>
-                        <small class="text-muted">
-                            Semaine actuelle : S@(Model.WeekNumber) | Semaine prochaine : S@(Model.NextWeekNumber)
-                        </small>
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="selectCurrentWeek()">
-                                <i class="fas fa-calendar-day me-1"></i>Semaine actuelle (S@(Model.WeekNumber))
-                            </button>
-                            <button type="button" class="btn btn-outline-info btn-sm" onclick="selectNextWeek()">
-                                <i class="fas fa-calendar-plus me-1"></i>Semaine prochaine (S@(Model.NextWeekNumber))
-                            </button>
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); border-radius: 15px;">
+                            <div class="card-body text-white">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-calendar-week me-1"></i>Sélectionner la semaine
+                                </label>
+                                <div class="input-group">
+                                    <input type="week" id="selectedWeek" class="form-control border-0 shadow-sm" value="@Model.CurrentWeek" style="border-radius: 10px;">
+                                    <button class="btn btn-light border-0 shadow-sm ms-2" type="button" onclick="loadWeekData()" style="border-radius: 10px;">
+                                        <i class="fas fa-sync-alt me-1"></i>Charger
+                                    </button>
+                                </div>
+                                <small class="opacity-75">
+                                    Semaine actuelle : S@(Model.WeekNumber) | Semaine prochaine : S@(Model.NextWeekNumber)
+                                </small>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="selectCurrentWeek()" style="border-radius: 10px;">
+                                        <i class="fas fa-calendar-day me-1"></i>Semaine actuelle (S@(Model.WeekNumber))
+                                    </button>
+                                    <button type="button" class="btn btn-outline-light btn-sm" onclick="selectNextWeek()" style="border-radius: 10px;">
+                                        <i class="fas fa-calendar-plus me-1"></i>Semaine prochaine (S@(Model.NextWeekNumber))
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-cog me-1 text-secondary"></i>Options
-                        </label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeWarnings" checked>
-                            <label class="form-check-label" for="includeWarnings">
-                                Inclure les avertissements/notes
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="groupBySection" checked>
-                            <label class="form-check-label" for="groupBySection">
-                                Grouper par section (FINITION, CMS, etc.)
-                            </label>
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); border-radius: 15px;">
+                            <div class="card-body text-white">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-cog me-1"></i>Options
+                                </label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="includeWarnings" checked>
+                                    <label class="form-check-label" for="includeWarnings">
+                                        Inclure les avertissements/notes
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="groupBySection" checked>
+                                    <label class="form-check-label" for="groupBySection">
+                                        Grouper par secteur
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Info semaine sélectionnée -->
-                <div class="alert alert-info mb-4" id="weekInfo">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <span id="weekInfoText">Prêt à générer le mail pour la semaine actuelle (S@(Model.WeekNumber))</span>
+                <div class="alert border-0 shadow-sm mb-4" id="weekInfo" style="background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%); border-radius: 15px;">
+                    <i class="fas fa-info-circle me-2 text-primary"></i>
+                    <span id="weekInfoText" class="text-dark fw-bold">Prêt à générer le mail pour la semaine actuelle (S@(Model.WeekNumber))</span>
                 </div>
 
-                <!-- Boutons d'action -->
+                <!-- Boutons d'action améliorés -->
                 <div class="row mb-4">
                     <div class="col-12">
-                        <button type="button" class="btn btn-primary btn-lg me-2" onclick="generateMail()">
-                            <i class="fas fa-magic me-2"></i>Générer le mail
-                        </button>
-                        <button type="button" class="btn btn-success btn-lg me-2" onclick="openInOutlook()" id="outlookBtn" disabled>
-                            <i class="fas fa-paper-plane me-2"></i>Ouvrir dans Outlook
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard()" id="copyBtn" disabled>
-                            <i class="fas fa-copy me-2"></i>Copier
-                        </button>
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%); border-radius: 15px;">
+                            <div class="card-body text-center">
+                                <button type="button" class="btn btn-light btn-lg me-2 shadow-sm" onclick="generateMail()" style="border-radius: 15px; border: none;">
+                                    <i class="fas fa-magic me-2"></i>Générer le mail
+                                </button>
+
+                                <!-- Dropdown avec plusieurs options d'envoi -->
+                                <div class="btn-group me-2" role="group">
+                                    <button type="button" class="btn btn-success btn-lg shadow-sm" onclick="tryOpenInOutlook()" id="outlookBtn" disabled style="border-radius: 15px 0 0 15px; border: none;">
+                                        <i class="fas fa-paper-plane me-2"></i>Envoyer
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-lg dropdown-toggle dropdown-toggle-split shadow-sm"
+                                            data-bs-toggle="dropdown" id="outlookDropdown" disabled style="border-radius: 0 15px 15px 0; border: none;">
+                                        <span class="visually-hidden">Options d'envoi</span>
+                                    </button>
+                                    <ul class="dropdown-menu shadow-lg border-0" style="border-radius: 15px;">
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="tryOpenInOutlook()">
+                                                <i class="fas fa-external-link-alt me-2 text-primary"></i>Essayer mailto
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="copyTextAndShowInstructions()">
+                                                <i class="fas fa-copy me-2 text-success"></i>Copier texte formaté + Instructions
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="copyHTMLAndShowInstructions()">
+                                                <i class="fas fa-palette me-2 text-info"></i>Copier HTML + Instructions
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="downloadHTMLFile()">
+                                                <i class="fas fa-download me-2 text-warning"></i>Télécharger fichier HTML
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="showManualInstructions()">
+                                                <i class="fas fa-question-circle me-2 text-secondary"></i>Aide - Comment envoyer
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <button type="button" class="btn btn-outline-light shadow-sm" onclick="copyToClipboard()" id="copyBtn" disabled style="border-radius: 15px;">
+                                    <i class="fas fa-copy me-2"></i>Copier HTML
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ NOUVELLE ALERTE : Limite mailto détectée -->
+                <div id="mailtoLimitAlert" class="d-none">
+                    <div class="alert alert-warning border-0 shadow-sm" style="border-radius: 15px;">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Mail volumineux détecté</h6>
+                        <p class="mb-2">Le contenu est trop volumineux pour l'ouverture automatique d'Outlook.</p>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button class="btn btn-success btn-sm" onclick="copyTextAndShowInstructions()">
+                                <i class="fas fa-copy me-1"></i>Copier & Coller manuellement
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick="generateShortVersion()">
+                                <i class="fas fa-compress me-1"></i>Version courte
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="downloadHTMLFile()">
+                                <i class="fas fa-download me-1"></i>Télécharger
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Aperçu du mail généré -->
                 <div id="mailPreview" class="d-none">
-                    <div class="card border-primary">
-                        <div class="card-header bg-light">
+                    <div class="card border-0 shadow-lg" style="background: #ffffff; border-radius: 20px; border: 1px solid #dee2e6;">
+                        <div class="card-header border-0 text-white" style="background: linear-gradient(135deg, #495057 0%, #6c757d 100%); border-radius: 20px 20px 0 0;">
                             <h5 class="mb-0">
-                                <i class="fas fa-eye me-2 text-primary"></i>Aperçu du mail
+                                <i class="fas fa-eye me-2"></i>Aperçu du mail
+                                <!-- ✅ INDICATEUR DE TAILLE -->
+                                <span id="mailSizeIndicator" class="badge ms-2" style="font-size: 11px;"></span>
                             </h5>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body p-4">
                             <!-- En-têtes du mail -->
                             <div class="row mb-3">
-                                <div class="col-md-2"><strong>À :</strong></div>
+                                <div class="col-md-2"><strong class="text-dark">À :</strong></div>
                                 <div class="col-md-10">
-                                    <input type="email" id="mailTo" class="form-control"
-                                           placeholder="destinataires@entreprise.com"
-                                           value="equipe.production@entreprise.com">
+                                    <input type="email" id="mailTo" class="form-control border-0 shadow-sm"
+                                           placeholder="destinataires@exemple.com" style="border-radius: 10px;">
                                 </div>
                             </div>
                             <div class="row mb-3">
-                                <div class="col-md-2"><strong>Cc :</strong></div>
+                                <div class="col-md-2"><strong class="text-dark">Cc :</strong></div>
                                 <div class="col-md-10">
-                                    <input type="email" id="mailCc" class="form-control"
-                                           placeholder="responsables@entreprise.com">
+                                    <input type="email" id="mailCc" class="form-control border-0 shadow-sm"
+                                           placeholder="responsables@exemple.com" style="border-radius: 10px;">
                                 </div>
                             </div>
                             <div class="row mb-3">
-                                <div class="col-md-2"><strong>Objet :</strong></div>
+                                <div class="col-md-2"><strong class="text-dark">Objet :</strong></div>
                                 <div class="col-md-10">
-                                    <input type="text" id="mailSubject" class="form-control"
-                                           value="" readonly>
+                                    <input type="text" id="mailSubject" class="form-control border-0 shadow-sm" value="" readonly style="border-radius: 10px; background: #f8f9fa;">
                                 </div>
                             </div>
 
                             <!-- Contenu du mail -->
-                            <div class="border rounded p-3 bg-light">
-                                <div id="mailContent" style="font-family: 'Segoe UI', sans-serif;"></div>
+                            <div class="border rounded shadow-sm p-4" style="background: #f8f9fa; border-radius: 15px; border: 1px solid #dee2e6;">
+                                <div id="mailContent" style="font-family: 'Segoe UI', sans-serif; background: white; padding: 20px; border-radius: 10px;"></div>
                             </div>
                         </div>
                     </div>
@@ -122,35 +190,35 @@
                 <!-- Statistiques -->
                 <div id="mailStats" class="d-none mt-4">
                     <div class="row text-center">
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); border-radius: 15px;">
                                 <div class="card-body">
                                     <h4 id="totalPrs">0</h4>
                                     <small>PRS planifiées</small>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); border-radius: 15px;">
                                 <div class="card-body">
                                     <h4 id="totalLines">0</h4>
                                     <small>Lignes utilisées</small>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); border-radius: 15px;">
                                 <div class="card-body">
                                     <h4 id="totalDays">0</h4>
                                     <small>Jours avec PRS</small>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%); border-radius: 15px;">
                                 <div class="card-body">
                                     <h4 id="totalSections">0</h4>
-                                    <small>Sections actives</small>
+                                    <small>Secteurs actifs</small>
                                 </div>
                             </div>
                         </div>
@@ -163,324 +231,905 @@
 
 @section Scripts {
     <script>
-        // Variables globales pour les semaines
-        const currentWeek = '@Model.CurrentWeek';
-        const nextWeek = '@Model.NextWeek';
-        const currentWeekNumber = @Model.WeekNumber;
-        const nextWeekNumber = @Model.NextWeekNumber;
+                // Variables globales pour les semaines
+                const currentWeek = '@Model.CurrentWeek';
+                const nextWeek = '@Model.NextWeek';
+                const currentWeekNumber = @Model.WeekNumber;
+                const nextWeekNumber = @Model.NextWeekNumber;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // Par défaut : semaine actuelle
-            document.getElementById('selectedWeek').value = currentWeek;
+                // ✅ CONSTANTE : Limite de sécurité pour mailto (conservateur)
+                const MAILTO_LIMIT = 4500; // Limite sécurisée
 
-            // Mettre à jour l'info de semaine
-            updateWeekInfo();
+                // ✅ VARIABLE GLOBALE POUR STOCKER LES SECTEURS
+                let availableSecteurs = [];
 
-            // Charger automatiquement les données de la semaine actuelle
-            loadWeekData();
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Par défaut : semaine actuelle
+                    document.getElementById('selectedWeek').value = currentWeek;
+                    updateWeekInfo();
 
-            // Écouter les changements de semaine
-            document.getElementById('selectedWeek').addEventListener('change', function() {
-                updateWeekInfo();
-                loadWeekData();
-            });
-        });
+                    // ✅ CHARGER LES SECTEURS EN PREMIER
+                    loadSecteurs().then(() => {
+                        loadWeekData();
+                    });
 
-        // Fonctions pour sélectionner rapidement
-        function selectCurrentWeek() {
-            document.getElementById('selectedWeek').value = currentWeek;
-            updateWeekInfo();
-            loadWeekData();
-            showToast(`Semaine actuelle sélectionnée (S${currentWeekNumber})`, 'info');
-        }
-
-        function selectNextWeek() {
-            document.getElementById('selectedWeek').value = nextWeek;
-            updateWeekInfo();
-            loadWeekData();
-            showToast(`Semaine prochaine sélectionnée (S${nextWeekNumber})`, 'info');
-        }
-
-        function updateWeekInfo() {
-            const selectedWeek = document.getElementById('selectedWeek').value;
-            if (!selectedWeek) return;
-
-            const [year, week] = selectedWeek.split('-W');
-            const weekNumber = parseInt(week);
-
-            let weekText = `Semaine S${weekNumber} de ${year}`;
-            let alertClass = 'alert-info';
-
-            if (weekNumber === currentWeekNumber) {
-                weekText += ' (semaine actuelle)';
-                alertClass = 'alert-success';
-            } else if (weekNumber === nextWeekNumber) {
-                weekText += ' (semaine prochaine)';
-                alertClass = 'alert-primary';
-            } else if (weekNumber < currentWeekNumber) {
-                weekText += ' (semaine passée)';
-                alertClass = 'alert-secondary';
-            } else {
-                weekText += ' (semaine future)';
-                alertClass = 'alert-warning';
-            }
-
-            const weekInfo = document.getElementById('weekInfo');
-            weekInfo.className = `alert ${alertClass} mb-4`;
-            document.getElementById('weekInfoText').textContent = `Mail à générer pour la ${weekText}`;
-        }
-
-        function loadWeekData() {
-            const selectedWeek = document.getElementById('selectedWeek').value;
-            if (!selectedWeek) return;
-
-            showToast('Chargement des données...', 'info');
-
-            // Appel AJAX pour récupérer les PRS de la semaine
-            fetch(`/api/events/week?week=${selectedWeek}`)
-                .then(response => response.json())
-                .then(data => {
-                    window.weeklyPrsData = data;
-                    showToast(`${data.length} PRS trouvées pour cette semaine`, 'success');
-                })
-                .catch(error => {
-                    console.error('Erreur:', error);
-                    showToast('Erreur lors du chargement des données', 'error');
-                    // Données de test en cas d'erreur
-                    window.weeklyPrsData = @Html.Raw(Json.Serialize(Model.SamplePrsData));
+                    // Écouter les changements de semaine
+                    document.getElementById('selectedWeek').addEventListener('change', function() {
+                        updateWeekInfo();
+                        loadWeekData();
+                    });
                 });
-        }
 
-        function generateMail() {
-            const weekInput = document.getElementById('selectedWeek').value;
-            if (!weekInput) {
-                showToast('Veuillez sélectionner une semaine', 'warning');
-                return;
-            }
+                // ✅ NOUVELLE FONCTION : Charger les secteurs depuis l'API
+                async function loadSecteurs() {
+                    try {
+                        const response = await fetch('/api/events/secteurs');
+                        if (!response.ok) throw new Error('Erreur lors du chargement des secteurs');
 
-            const prsData = window.weeklyPrsData || [];
-            if (prsData.length === 0) {
-                showToast('Aucune PRS trouvée pour cette semaine', 'warning');
-                return;
-            }
-
-            const [year, week] = weekInput.split('-W');
-            const weekNumber = parseInt(week);
-            const includeWarnings = document.getElementById('includeWarnings').checked;
-            const groupBySection = document.getElementById('groupBySection').checked;
-
-            // ✅ GÉNÉRER LE CONTENU HTML AVEC TABLEAUX
-            const mailContent = generateMailContentHTML(prsData, weekNumber, year, includeWarnings, groupBySection);
-            const subject = `Planning PRS S${weekNumber} - Semaine du ${getWeekDateRange(year, weekNumber)}`;
-
-            // Afficher l'aperçu
-            document.getElementById('mailSubject').value = subject;
-            // ✅ UTILISER innerHTML POUR AFFICHER LE HTML
-            document.getElementById('mailContent').innerHTML = mailContent;
-            document.getElementById('mailPreview').classList.remove('d-none');
-            document.getElementById('outlookBtn').disabled = false;
-            document.getElementById('copyBtn').disabled = false;
-
-            // Mettre à jour les statistiques
-            updateStats(prsData, groupBySection);
-            document.getElementById('mailStats').classList.remove('d-none');
-
-            showToast('Mail généré avec succès !', 'success');
-        }
-
-        // ✅ NOUVELLE FONCTION POUR GÉNÉRER LE HTML AVEC TABLEAUX
-        function generateMailContentHTML(prsData, weekNumber, year, includeWarnings, groupBySection) {
-            let content = `
-                <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-                    <p>Bonjour,</p>
-                    <div style="background: linear-gradient(45deg, #009dff, #00c6ff); color: white; padding: 10px; margin: 20px 0; border-radius: 5px; font-weight: bold; text-align: center;">
-                        Planning PRS S${weekNumber} et S${weekNumber + 1}
-                    </div>
-            `;
-
-            if (groupBySection) {
-                // Grouper par section (FINITION, CMS, etc.)
-                const sections = {};
-
-                prsData.forEach(prs => {
-                    const section = determineSection(prs.ligne);
-                    if (!sections[section]) {
-                        sections[section] = [];
+                        availableSecteurs = await response.json();
+                        console.log('Secteurs chargés:', availableSecteurs);
+                    } catch (error) {
+                        console.error('Erreur lors du chargement des secteurs:', error);
+                        // Secteurs par défaut en cas d'erreur
+                        availableSecteurs = [
+                            { nom: 'CMS' },
+                            { nom: 'FINITION' },
+                            { nom: 'AUTRES' }
+                        ];
                     }
-                    sections[section].push(prs);
-                });
-
-                // Générer le contenu par section
-                Object.keys(sections).sort().forEach(sectionName => {
-                    content += generateSectionHTML(sectionName, sections[sectionName], includeWarnings);
-                });
-            } else {
-                // Format chronologique simple
-                content += generateSectionHTML('PLANNING', prsData, includeWarnings);
-            }
-
-            content += `
-                    <p style="margin-top: 30px;">Cordialement,<br>PlanifPRS - Système automatique</p>
-                </div>
-            `;
-
-            return content;
-        }
-
-        // ✅ FONCTION POUR GÉNÉRER UNE SECTION HTML AVEC TABLEAU
-        function generateSectionHTML(sectionName, prsArray, includeWarnings) {
-            let content = `
-                <div style="margin: 30px 0;">
-                    <h3 style="background: #28a745; color: white; padding: 10px; margin: 0; border-radius: 5px 5px 0 0; font-size: 18px;">
-                        ${sectionName}
-                    </h3>
-                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; margin-bottom: 20px;">
-                        <thead>
-                            <tr style="background: #f8f9fa;">
-                                <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold; background: #e9ecef;">Date de PRS</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold; background: #e9ecef;">PROJET</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold; background: #e9ecef;">LIGNE</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            // Grouper par jour
-            const dayGroups = {};
-            prsArray.forEach(prs => {
-                const dayKey = formatPrsDate(prs.dateDebut);
-                if (!dayGroups[dayKey]) {
-                    dayGroups[dayKey] = [];
                 }
-                dayGroups[dayKey].push(prs);
-            });
 
-            // Générer les lignes du tableau
-            Object.keys(dayGroups).sort().forEach(day => {
-                dayGroups[day].forEach((prs, index) => {
-                    const isFirstPrsOfDay = index === 0;
-                    const rowSpan = dayGroups[day].length;
+                // Fonctions pour sélectionner rapidement
+                function selectCurrentWeek() {
+                    document.getElementById('selectedWeek').value = currentWeek;
+                    updateWeekInfo();
+                    loadWeekData();
+                    showToast(`Semaine actuelle sélectionnée (S${currentWeekNumber})`, 'info');
+                }
 
-                    // ✅ FORMATAGE SPÉCIAL POUR LES WARNINGS
-                    let projectText = prs.description;
-                    let commentairesHTML = '';
+                function selectNextWeek() {
+                    document.getElementById('selectedWeek').value = nextWeek;
+                    updateWeekInfo();
+                    loadWeekData();
+                    showToast(`Semaine prochaine sélectionnée (S${nextWeekNumber})`, 'info');
+                }
 
-                    if (includeWarnings && prs.commentaires) {
-                        const comments = prs.commentaires.split(' - ');
-                        comments.forEach(comment => {
-                            if (comment.toLowerCase().includes('warning') || comment.toLowerCase().includes('attention')) {
-                                commentairesHTML += `<div style="color: #dc3545; font-weight: bold; font-size: 12px;">${comment}</div>`;
-                            } else {
-                                commentairesHTML += `<div style="color: #666; font-size: 12px;">${comment}</div>`;
-                            }
-                        });
+                function updateWeekInfo() {
+                    const selectedWeek = document.getElementById('selectedWeek').value;
+                    if (!selectedWeek) return;
+
+                    const [year, week] = selectedWeek.split('-W');
+                    const weekNumber = parseInt(week);
+
+                    let weekText = `Semaine S${weekNumber} de ${year}`;
+                    let alertClass = 'alert-info';
+
+                    if (weekNumber === currentWeekNumber) {
+                        weekText += ' (semaine actuelle)';
+                        alertClass = 'alert-success';
+                    } else if (weekNumber === nextWeekNumber) {
+                        weekText += ' (semaine prochaine)';
+                        alertClass = 'alert-primary';
+                    } else if (weekNumber < currentWeekNumber) {
+                        weekText += ' (semaine passée)';
+                        alertClass = 'alert-secondary';
+                    } else {
+                        weekText += ' (semaine future)';
+                        alertClass = 'alert-warning';
                     }
 
-                    if (prs.presenceClient === 'Client présent') {
-                        commentairesHTML += `<div style="color: #007bff; font-weight: bold; font-size: 12px;">(Présence client requise)</div>`;
+                    const weekInfo = document.getElementById('weekInfo');
+                    document.getElementById('weekInfoText').textContent = `Mail à générer pour la ${weekText}`;
+                }
+
+                function loadWeekData() {
+                    const selectedWeek = document.getElementById('selectedWeek').value;
+                    if (!selectedWeek) return;
+
+                    showToast('Chargement des données...', 'info');
+
+                    // Appel AJAX pour récupérer les PRS de la semaine
+                    fetch(`/api/events/week?week=${selectedWeek}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            window.weeklyPrsData = data;
+                            showToast(`${data.length} PRS trouvées pour cette semaine`, 'success');
+                        })
+                        .catch(error => {
+                            console.error('Erreur:', error);
+                            showToast('Erreur lors du chargement des données', 'error');
+                            // Données de test en cas d'erreur
+                            window.weeklyPrsData = @Html.Raw(Json.Serialize(Model.SamplePrsData));
+                        });
+                }
+
+                function generateMail() {
+                    const weekInput = document.getElementById('selectedWeek').value;
+                    if (!weekInput) {
+                        showToast('Veuillez sélectionner une semaine', 'warning');
+                        return;
+                    }
+
+                    const prsData = window.weeklyPrsData || [];
+                    if (prsData.length === 0) {
+                        showToast('Aucune PRS trouvée pour cette semaine', 'warning');
+                        return;
+                    }
+
+                    const [year, week] = weekInput.split('-W');
+                    const weekNumber = parseInt(week);
+                    const includeWarnings = document.getElementById('includeWarnings').checked;
+                    const groupBySection = document.getElementById('groupBySection').checked;
+
+                    // Générer le contenu HTML avec tableaux propres pour email
+                    const mailContent = generateCleanEmailHTML(prsData, weekNumber, year, includeWarnings, groupBySection);
+                    const subject = `Planning PRS S${weekNumber} - Semaine du ${getWeekDateRange(year, weekNumber)}`;
+
+                    // ✅ VÉRIFIER LA TAILLE POUR MAILTO
+                    const textBody = generateFormattedTextEmail(prsData, weekNumber, year, includeWarnings, groupBySection);
+                    checkMailtoSize(textBody, subject);
+
+                    // Afficher l'aperçu
+                    document.getElementById('mailSubject').value = subject;
+                    document.getElementById('mailContent').innerHTML = mailContent;
+                    document.getElementById('mailPreview').classList.remove('d-none');
+
+                    // Activer tous les boutons
+                    document.getElementById('outlookBtn').disabled = false;
+                    document.getElementById('outlookDropdown').disabled = false;
+                    document.getElementById('copyBtn').disabled = false;
+
+                    // Mettre à jour les statistiques
+                    updateStats(prsData, groupBySection);
+                    document.getElementById('mailStats').classList.remove('d-none');
+
+                    showToast('Mail généré avec succès !', 'success');
+                }
+
+                // ✅ NOUVELLE FONCTION : Vérifier la taille du mailto
+                function checkMailtoSize(textBody, subject) {
+                    const mailtoContent = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(textBody)}`;
+                    const totalSize = mailtoContent.length;
+
+                    console.log(`Taille du mailto: ${totalSize} caractères`);
+
+                    // Mettre à jour l'indicateur visuel
+                    const indicator = document.getElementById('mailSizeIndicator');
+                    if (totalSize > MAILTO_LIMIT) {
+                        indicator.textContent = `${totalSize} car. - Trop volumineux`;
+                        indicator.className = 'badge bg-danger ms-2';
+
+                        // Afficher l'alerte
+                        document.getElementById('mailtoLimitAlert').classList.remove('d-none');
+
+                        // Modifier le bouton principal
+                        const outlookBtn = document.getElementById('outlookBtn');
+                        outlookBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Trop volumineux';
+                        outlookBtn.className = 'btn btn-warning btn-lg shadow-sm';
+                    } else {
+                        indicator.textContent = `${totalSize} car. - Compatible`;
+                        indicator.className = 'badge bg-success ms-2';
+
+                        // Masquer l'alerte
+                        document.getElementById('mailtoLimitAlert').classList.add('d-none');
+
+                        // Remettre le bouton normal
+                        const outlookBtn = document.getElementById('outlookBtn');
+                        outlookBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Envoyer';
+                        outlookBtn.className = 'btn btn-success btn-lg shadow-sm';
+                    }
+                }
+
+                // ✅ NOUVELLE FONCTION : Générer une version courte
+                function generateShortVersion() {
+                    const weekInput = document.getElementById('selectedWeek').value;
+                    const [year, week] = weekInput.split('-W');
+                    const weekNumber = parseInt(week);
+                    const prsData = window.weeklyPrsData || [];
+
+                    // Version courte : seulement l'essentiel
+                    let shortContent = `📅 PLANNING PRS S${weekNumber} - ${getWeekDateRange(year, weekNumber)}
+
+        Bonjour,
+
+        Planning de la semaine :
+
+        `;
+
+                    // Grouper par secteur mais version très courte
+                    const sections = {};
+                    prsData.forEach(prs => {
+                        const secteur = determineSecteurFromPRS(prs);
+                        if (!sections[secteur]) {
+                            sections[secteur] = [];
+                        }
+                        sections[secteur].push(prs);
+                    });
+
+                    Object.keys(sections).sort().forEach(secteurName => {
+                        shortContent += `🏭 ${secteurName}: ${sections[secteurName].length} PRS\n`;
+
+                        // Seulement les 3 premières PRS par secteur
+                        sections[secteurName].slice(0, 3).forEach(prs => {
+                            const day = formatPrsDate(prs.dateDebut);
+                            const time = new Date(prs.dateDebut).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+                            shortContent += `• ${day} ${time} - ${prs.description}\n`;
+                        });
+
+                        if (sections[secteurName].length > 3) {
+                            shortContent += `... et ${sections[secteurName].length - 3} autres\n`;
+                        }
+                        shortContent += '\n';
+                    });
+
+                    shortContent += `\nCordialement,\nPlanifPRS`;
+
+                    // Remplacer le contenu et re-vérifier
+                    const subject = `Planning PRS S${weekNumber} - Semaine du ${getWeekDateRange(year, weekNumber)}`;
+                    checkMailtoSize(shortContent, subject);
+
+                    // Mettre à jour l'aperçu avec la version courte
+                    const shortHtml = shortContent.replace(/\n/g, '<br>');
+                    document.getElementById('mailContent').innerHTML = `<div style="font-family: Arial, sans-serif; padding: 20px;">${shortHtml}</div>`;
+
+                    showToast('Version courte générée', 'info');
+                }
+
+                // ✅ FONCTION CORRIGÉE : Générer un email avec secteurs réels
+                function generateCleanEmailHTML(prsData, weekNumber, year, includeWarnings, groupBySection) {
+                    let content = `
+                        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto;">
+
+                            <!-- En-tête du mail -->
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 25px;">
+                                <h1 style="margin: 0; font-size: 24px; font-weight: bold;">📅 Planning PRS</h1>
+                                <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">
+                                    Semaine S${weekNumber} • ${getWeekDateRange(year, weekNumber)}
+                                </p>
+                            </div>
+
+                            <p style="font-size: 16px; margin-bottom: 20px;">Bonjour,</p>
+                            <p style="font-size: 16px; margin-bottom: 25px;">
+                                Veuillez trouver ci-dessous le planning des <strong>PRS planifiées</strong> pour cette semaine.
+                            </p>
+                    `;
+
+                    if (groupBySection) {
+                        // ✅ GROUPER PAR SECTEUR RÉEL
+                        const sections = {};
+
+                        prsData.forEach(prs => {
+                            const secteur = determineSecteurFromPRS(prs);
+                            if (!sections[secteur]) {
+                                sections[secteur] = [];
+                            }
+                            sections[secteur].push(prs);
+                        });
+
+                        // Générer le contenu par secteur
+                        Object.keys(sections).sort().forEach(secteurName => {
+                            content += generateCleanSectionHTML(secteurName, sections[secteurName], includeWarnings);
+                        });
+                    } else {
+                        // Format chronologique simple
+                        content += generateCleanSectionHTML('PLANNING', prsData, includeWarnings);
                     }
 
                     content += `
-                        <tr style="border: 1px solid #ddd;">
-                            ${isFirstPrsOfDay ? `<td style="border: 1px solid #ddd; padding: 12px; vertical-align: top; background: #f8f9fa; font-weight: bold;" rowspan="${rowSpan}">${day}</td>` : ''}
-                            <td style="border: 1px solid #ddd; padding: 12px; vertical-align: top;">
-                                <div style="font-weight: bold; margin-bottom: 5px;">${projectText}</div>
-                                ${commentairesHTML}
-                            </td>
-                            <td style="border: 1px solid #ddd; padding: 12px; text-align: center; font-weight: bold; color: #007bff;">
-                                ${prs.ligne}
-                            </td>
-                        </tr>
+                            <!-- Pied de page -->
+                            <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: center; border-top: 3px solid #007bff;">
+                                <p style="margin: 0; color: #6c757d; font-size: 14px;">
+                                    Cordialement,<br>
+                                    <strong>PlanifPRS</strong> - Système automatique de planification
+                                </p>
+                                <p style="margin: 8px 0 0 0; color: #adb5bd; font-size: 12px;">
+                                    📧 Email généré automatiquement le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+                                </p>
+                            </div>
+                        </div>
                     `;
-                });
-            });
 
-            content += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
+                    return content;
+                }
 
-            return content;
-        }
+                // ✅ FONCTION AMÉLIORÉE : Générer une section avec couleurs distinctes
+                function generateCleanSectionHTML(sectionName, prsArray, includeWarnings) {
+                    // ✅ COULEURS DISTINCTES PAR SECTEUR
+                    const sectionColors = getSecteurColor(sectionName);
 
-        function determineSection(ligne) {
-            if (ligne.includes('VERNI')) return 'FINITION - VERNI*';
-            if (ligne.includes('PACK')) return 'FINITION - PACK12';
-            if (ligne.includes('NXT')) return 'CMS';
-            return 'AUTRES';
-        }
+                    let content = `
+                        <div style="margin-bottom: 35px;">
+                            <h2 style="background: ${sectionColors.primary}; color: white; padding: 12px 15px; margin: 0; border-radius: 6px 6px 0 0; font-size: 18px; font-weight: bold;">
+                                🏭 ${sectionName}
+                            </h2>
 
-        function formatPrsDate(dateString) {
-            const date = new Date(dateString);
-            const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-            const day = days[date.getDay()];
-            const dayNum = date.getDate();
-            const month = date.getMonth() + 1;
-            return `${day} ${dayNum}/${month}`;
-        }
+                            <!-- ✅ TABLEAU OPTIMISÉ POUR OUTLOOK -->
+                            <table cellpadding="12" cellspacing="0" border="1" style="width: 100%; border-collapse: collapse; border: 2px solid ${sectionColors.primary}; margin: 0; font-family: Arial, sans-serif;">
+                                <tr style="background-color: ${sectionColors.light};">
+                                    <td style="border: 1px solid #ddd; padding: 12px; font-weight: bold; font-size: 14px; color: #495057; width: 15%; background-color: #f8f9fa;">
+                                        📅 <strong>Date</strong>
+                                    </td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; font-weight: bold; font-size: 14px; color: #495057; width: 50%; background-color: #f8f9fa;">
+                                        📋 <strong>Projet & Détails</strong>
+                                    </td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; font-weight: bold; font-size: 14px; color: #495057; width: 20%; text-align: center; background-color: #f8f9fa;">
+                                        🏭 <strong>Ligne</strong>
+                                    </td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; font-weight: bold; font-size: 14px; color: #495057; width: 15%; text-align: center; background-color: #f8f9fa;">
+                                        🕒 <strong>Heure</strong>
+                                    </td>
+                                </tr>
+                    `;
 
-        function getWeekDateRange(year, weekNumber) {
-            // Calcul correct des dates de semaine ISO 8601
-            const jan4 = new Date(year, 0, 4);
-            const jan4Day = jan4.getDay() || 7; // Dimanche = 7
-            const firstMonday = new Date(jan4.getTime() - (jan4Day - 1) * 24 * 60 * 60 * 1000);
+                    // Grouper par jour
+                    const dayGroups = {};
+                    prsArray.forEach(prs => {
+                        const dayKey = formatPrsDate(prs.dateDebut);
+                        if (!dayGroups[dayKey]) {
+                            dayGroups[dayKey] = [];
+                        }
+                        dayGroups[dayKey].push(prs);
+                    });
 
-            const weekStart = new Date(firstMonday.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
-            const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+                    // Générer les lignes du tableau avec style compatible Outlook
+                    Object.keys(dayGroups).sort().forEach((day, dayIndex) => {
+                        dayGroups[day].forEach((prs, index) => {
+                            const isEvenRow = dayIndex % 2 === 0;
+                            const rowBgColor = isEvenRow ? '#ffffff' : '#f8f9fa';
 
-            return `${weekStart.getDate()}/${weekStart.getMonth() + 1} au ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`;
-        }
+                            // ✅ FORMATAGE TEXTE STRUCTURÉ avec retours à la ligne
+                            let projectText = prs.description;
+                            let detailsText = '';
 
-        function updateStats(prsData, groupBySection) {
-            document.getElementById('totalPrs').textContent = prsData.length;
+                            // Gestion des commentaires avec retours à la ligne
+                            if (includeWarnings && prs.commentaires) {
+                                const comments = prs.commentaires.split(' - ');
+                                comments.forEach(comment => {
+                                    if (comment.toLowerCase().includes('warning') || comment.toLowerCase().includes('attention')) {
+                                        detailsText += `<br><span style="color: #dc3545; font-weight: bold;">⚠️ ${comment}</span>`;
+                                    } else if (comment.trim()) {
+                                        detailsText += `<br><span style="color: #6c757d;">ℹ️ ${comment}</span>`;
+                                    }
+                                });
+                            }
 
-            const uniqueLines = [...new Set(prsData.map(prs => prs.ligne))];
-            document.getElementById('totalLines').textContent = uniqueLines.length;
+                            // Badge présence client avec retour à la ligne
+                            if (prs.presenceClient === 'Client présent') {
+                                detailsText += `<br><span style="background: #007bff; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">👥 Client présent</span>`;
+                            }
 
-            const uniqueDays = [...new Set(prsData.map(prs => formatPrsDate(prs.dateDebut)))];
-            document.getElementById('totalDays').textContent = uniqueDays.length;
+                            // Heure de début
+                            let timeText = '';
+                            if (prs.dateDebut) {
+                                timeText = new Date(prs.dateDebut).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+                            }
 
-            if (groupBySection) {
-                const sections = [...new Set(prsData.map(prs => determineSection(prs.ligne)))];
-                document.getElementById('totalSections').textContent = sections.length;
-            } else {
-                document.getElementById('totalSections').textContent = '1';
-            }
-        }
+                            content += `
+                                <tr style="background-color: ${rowBgColor};">
+                                    <td style="border: 1px solid #ddd; padding: 12px; font-weight: bold; text-align: center; color: ${sectionColors.primary}; vertical-align: top;">
+                                        ${day}
+                                    </td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; vertical-align: top;">
+                                        <div style="font-weight: bold; margin-bottom: 4px; color: #495057; font-size: 15px;">
+                                            ${projectText}
+                                        </div>
+                                        ${detailsText}
+                                    </td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; text-align: center; vertical-align: middle;">
+                                        <span style="background: ${sectionColors.primary}; color: white; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 13px;">
+                                            ${prs.ligne}
+                                        </span>
+                                    </td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; text-align: center; vertical-align: middle; font-weight: bold; color: #6c757d;">
+                                        ${timeText}
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    });
 
-        function openInOutlook() {
-            const to = document.getElementById('mailTo').value;
-            const cc = document.getElementById('mailCc').value;
-            const subject = document.getElementById('mailSubject').value;
-            const body = document.getElementById('mailContent').innerHTML; // ✅ UTILISER innerHTML POUR LE HTML
+                    content += `
+                            </table>
+                        </div>
+                    `;
 
-            // ✅ POUR OUTLOOK, CONVERTIR EN TEXTE SIMPLE TEMPORAIREMENT
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = body;
-            const textBody = tempDiv.textContent || tempDiv.innerText || '';
+                    return content;
+                }
 
-            // Encoder les paramètres pour l'URL
-            const mailtoLink = `mailto:${encodeURIComponent(to)}?` +
-                              (cc ? `cc=${encodeURIComponent(cc)}&` : '') +
-                              `subject=${encodeURIComponent(subject)}&` +
-                              `body=${encodeURIComponent(textBody)}`;
+                // ✅ NOUVELLE FONCTION : Déterminer le secteur réel à partir de la PRS
+                function determineSecteurFromPRS(prs) {
+                    // Essayer de récupérer le secteur depuis la propriété secteur de la PRS
+                    if (prs.secteur && prs.secteur.trim()) {
+                        return prs.secteur;
+                    }
 
-            // Ouvrir le client de messagerie
-            window.location.href = mailtoLink;
+                    // Si pas de secteur dans la PRS, essayer de le déduire depuis les secteurs disponibles
+                    // en comparant avec la ligne ou d'autres propriétés
+                    const ligne = prs.ligne || '';
 
-            showToast('Ouverture du client de messagerie...', 'info');
-        }
+                    // Chercher dans les secteurs disponibles
+                    for (const secteur of availableSecteurs) {
+                        if (ligne.toLowerCase().includes(secteur.nom.toLowerCase())) {
+                            return secteur.nom;
+                        }
+                    }
 
-        function copyToClipboard() {
-            const content = document.getElementById('mailContent').innerHTML;
+                    // Fallback : essayer quelques correspondances connues
+                    if (ligne.includes('VERNI')) return 'FINITION';
+                    if (ligne.includes('PACK')) return 'FINITION';
+                    if (ligne.includes('NXT') || ligne.includes('CMS')) return 'CMS';
 
-            navigator.clipboard.writeText(content).then(function() {
-                showToast('Contenu HTML copié dans le presse-papiers !', 'success');
-            }, function(err) {
-                console.error('Erreur lors de la copie:', err);
-                showToast('Erreur lors de la copie', 'error');
-            });
-        }
+                    // Secteur par défaut
+                    return 'AUTRES';
+                }
+
+                // ✅ COULEURS DISTINCTES : Une couleur unique pour chaque secteur
+                function getSecteurColor(secteurName) {
+                    // ✅ PALETTE DE COULEURS PROFESSIONNELLES DISTINCTES
+                    const colors = {
+                        // Secteurs CMS avec différentes nuances de bleu
+                        'CMS': { primary: '#3498db', light: '#3498db20' },           // Bleu clair
+                        'CMS1': { primary: '#2980b9', light: '#2980b920' },         // Bleu moyen
+                        'CMS2': { primary: '#1f4e79', light: '#1f4e7920' },         // Bleu foncé
+                        'CMS3': { primary: '#5dade2', light: '#5dade220' },         // Bleu ciel
+
+                        // Secteurs FINITION avec différentes nuances de vert
+                        'FINITION': { primary: '#27ae60', light: '#27ae6020' },     // Vert classique
+                        'FINITION1': { primary: '#229954', light: '#22995420' },    // Vert foncé
+                        'FINITION2': { primary: '#58d68d', light: '#58d68d20' },    // Vert clair
+
+                        // Secteurs AUTO avec nuances d'orange
+                        'AUTO': { primary: '#e67e22', light: '#e67e2220' },         // Orange
+                        'AUTO1': { primary: '#d35400', light: '#d3540020' },        // Orange foncé
+                        'AUTO2': { primary: '#f39c12', light: '#f39c1220' },        // Orange doré
+
+                        // Secteurs PRODUCTION
+                        'PRODUCTION': { primary: '#8e44ad', light: '#8e44ad20' },   // Violet
+                        'PRODUCTION1': { primary: '#7d3c98', light: '#7d3c9820' },  // Violet foncé
+                        'PRODUCTION2': { primary: '#a569bd', light: '#a569bd20' },  // Violet clair
+
+                        // Secteurs MAINTENANCE avec nuances de rouge
+                        'MAINTENANCE': { primary: '#e74c3c', light: '#e74c3c20' },  // Rouge
+                        'MAINTENANCE1': { primary: '#c0392b', light: '#c0392b20' }, // Rouge foncé
+                        'MAINTENANCE2': { primary: '#ec7063', light: '#ec706320' }, // Rouge clair
+
+                        // Secteurs QUALITE avec nuances de turquoise
+                        'QUALITE': { primary: '#1abc9c', light: '#1abc9c20' },      // Turquoise
+                        'QUALITE1': { primary: '#17a2b8', light: '#17a2b820' },     // Turquoise foncé
+                        'QUALITE2': { primary: '#48c9b0', light: '#48c9b020' },     // Turquoise clair
+
+                        // Secteurs LOGISTIQUE avec nuances de jaune/doré
+                        'LOGISTIQUE': { primary: '#f1c40f', light: '#f1c40f20' },   // Jaune
+                        'LOGISTIQUE1': { primary: '#d4ac0d', light: '#d4ac0d20' },  // Jaune foncé
+                        'LOGISTIQUE2': { primary: '#f7dc6f', light: '#f7dc6f20' },  // Jaune clair
+
+                        // Secteurs spéciaux
+                        'PLANNING': { primary: '#34495e', light: '#34495e20' },     // Gris-bleu
+                        'ADMINISTRATIF': { primary: '#85929e', light: '#85929e20' }, // Gris moyen
+                        'FORMATION': { primary: '#af7ac5', light: '#af7ac520' },    // Violet clair
+                        'SECURITE': { primary: '#dc7633', light: '#dc763320' },     // Orange brique
+                        'ENVIRONNEMENT': { primary: '#82e0aa', light: '#82e0aa20' }, // Vert menthe
+
+                        // Fallback par défaut
+                        'AUTRES': { primary: '#95a5a6', light: '#95a5a620' }        // Gris neutre
+                    };
+
+                    // Chercher la couleur exacte
+                    if (colors[secteurName]) {
+                        return colors[secteurName];
+                    }
+
+                    // Si pas trouvé, générer une couleur basée sur le hash du nom
+                    return generateColorFromSectorName(secteurName);
+                }
+
+                // ✅ FONCTION BONUS : Générer une couleur unique basée sur le nom du secteur
+                function generateColorFromSectorName(sectorName) {
+                    // Couleurs professionnelles prédéfinies
+                    const professionalColors = [
+                        '#3498db', '#2980b9', '#1f4e79', '#5dade2',    // Bleus
+                        '#27ae60', '#229954', '#58d68d', '#2ecc71',    // Verts
+                        '#e67e22', '#d35400', '#f39c12', '#ff9f43',    // Oranges
+                        '#8e44ad', '#7d3c98', '#a569bd', '#9b59b6',    // Violets
+                        '#e74c3c', '#c0392b', '#ec7063', '#ff6b6b',    // Rouges
+                        '#1abc9c', '#17a2b8', '#48c9b0', '#00d2d3',    // Turquoises
+                        '#f1c40f', '#d4ac0d', '#f7dc6f', '#feca57',    // Jaunes
+                        '#34495e', '#2c3e50', '#95a5a6', '#7f8c8d'     // Gris
+                    ];
+
+                    // Générer un hash simple du nom
+                    let hash = 0;
+                    for (let i = 0; i < sectorName.length; i++) {
+                        const char = sectorName.charCodeAt(i);
+                        hash = ((hash << 5) - hash) + char;
+                        hash = hash & hash; // Convertir en 32bit int
+                    }
+
+                    // Utiliser le hash pour sélectionner une couleur
+                    const colorIndex = Math.abs(hash) % professionalColors.length;
+                    const primary = professionalColors[colorIndex];
+                    const light = primary + '20'; // Ajouter transparence
+
+                    return { primary, light };
+                }
+
+                // ✅ FONCTION CORRIGÉE : Générer un texte formaté avec secteurs réels
+                function generateFormattedTextEmail(prsData, weekNumber, year, includeWarnings, groupBySection) {
+                    let textContent = `📅 PLANNING PRS - SEMAINE S${weekNumber}
+        ${getWeekDateRange(year, weekNumber)}
+
+        =========================================================
+
+        Bonjour,
+
+        Veuillez trouver ci-dessous le planning des PRS planifiées pour cette semaine.
+
+        `;
+
+                    if (groupBySection) {
+                        // ✅ GROUPER PAR SECTEUR RÉEL
+                        const sections = {};
+                        prsData.forEach(prs => {
+                            const secteur = determineSecteurFromPRS(prs);
+                            if (!sections[secteur]) {
+                                sections[secteur] = [];
+                            }
+                            sections[secteur].push(prs);
+                        });
+
+                        // Générer le contenu par secteur
+                        Object.keys(sections).sort().forEach(secteurName => {
+                            textContent += generateFormattedSectionText(secteurName, sections[secteurName], includeWarnings);
+                        });
+                    } else {
+                        textContent += generateFormattedSectionText('PLANNING', prsData, includeWarnings);
+                    }
+
+                    textContent += `
+        =========================================================
+
+        Cordialement,
+        PlanifPRS - Système automatique de planification
+
+        📧 Email généré automatiquement le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`;
+
+                    return textContent;
+                }
+
+                // Fonction : Générer une section en texte formaté
+                function generateFormattedSectionText(sectionName, prsArray, includeWarnings) {
+                    let content = `🏭 ${sectionName}
+        ---------------------------------------------------------
+
+        `;
+
+                    // Grouper par jour
+                    const dayGroups = {};
+                    prsArray.forEach(prs => {
+                        const dayKey = formatPrsDate(prs.dateDebut);
+                        if (!dayGroups[dayKey]) {
+                            dayGroups[dayKey] = [];
+                        }
+                        dayGroups[dayKey].push(prs);
+                    });
+
+                    // Générer le contenu par jour
+                    Object.keys(dayGroups).sort().forEach(day => {
+                        content += `📅 ${day}
+        `;
+                        dayGroups[day].forEach(prs => {
+                            let timeText = '';
+                            if (prs.dateDebut) {
+                                timeText = new Date(prs.dateDebut).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+                            }
+
+                            content += `   • ${prs.description}
+             Ligne: ${prs.ligne} | Heure: ${timeText}
+        `;
+
+                            // Commentaires
+                            if (includeWarnings && prs.commentaires) {
+                                const comments = prs.commentaires.split(' - ');
+                                comments.forEach(comment => {
+                                    if (comment.trim()) {
+                                        content += `     ℹ️ ${comment}
+        `;
+                                    }
+                                });
+                            }
+
+                            // Présence client
+                            if (prs.presenceClient === 'Client présent') {
+                                content += `     👥 Client présent requis
+        `;
+                            }
+
+                            content += `
+        `;
+                        });
+                        content += `
+        `;
+                    });
+
+                    return content;
+                }
+
+                function formatPrsDate(dateString) {
+                    const date = new Date(dateString);
+                    const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                    const day = days[date.getDay()];
+                    const dayNum = date.getDate();
+                    const month = date.getMonth() + 1;
+                    return `${day} ${dayNum}/${month}`;
+                }
+
+                function getWeekDateRange(year, weekNumber) {
+                    const jan4 = new Date(year, 0, 4);
+                    const jan4Day = jan4.getDay() || 7;
+                    const firstMonday = new Date(jan4.getTime() - (jan4Day - 1) * 24 * 60 * 60 * 1000);
+                    const weekStart = new Date(firstMonday.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+                    const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+                    return `${weekStart.getDate()}/${weekStart.getMonth() + 1} au ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`;
+                }
+
+                function updateStats(prsData, groupBySection) {
+                    document.getElementById('totalPrs').textContent = prsData.length;
+                    const uniqueLines = [...new Set(prsData.map(prs => prs.ligne))];
+                    document.getElementById('totalLines').textContent = uniqueLines.length;
+                    const uniqueDays = [...new Set(prsData.map(prs => formatPrsDate(prs.dateDebut)))];
+                    document.getElementById('totalDays').textContent = uniqueDays.length;
+
+                    if (groupBySection) {
+                        const sections = [...new Set(prsData.map(prs => determineSecteurFromPRS(prs)))];
+                        document.getElementById('totalSections').textContent = sections.length;
+                    } else {
+                        document.getElementById('totalSections').textContent = '1';
+                    }
+                }
+
+                // ✅ FONCTION MODIFIÉE : Vérifier la taille avant d'essayer mailto
+                function tryOpenInOutlook() {
+                    const to = document.getElementById('mailTo').value;
+                    const cc = document.getElementById('mailCc').value;
+                    const subject = document.getElementById('mailSubject').value;
+
+                    const [year, week] = document.getElementById('selectedWeek').value.split('-W');
+                    const weekNumber = parseInt(week);
+                    const includeWarnings = document.getElementById('includeWarnings').checked;
+                    const groupBySection = document.getElementById('groupBySection').checked;
+                    const prsData = window.weeklyPrsData || [];
+
+                    // Générer le texte formaté
+                    const textBody = generateFormattedTextEmail(prsData, weekNumber, year, includeWarnings, groupBySection);
+
+                    const mailtoContent = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(textBody)}`;
+                    const totalSize = mailtoContent.length;
+
+                    if (totalSize > MAILTO_LIMIT) {
+                        // Trop volumineux, proposer des alternatives
+                        showToast('⚠️ Mail trop volumineux pour mailto. Utilisez une alternative.', 'warning');
+                        showAlternativeOptions();
+                        return;
+                    }
+
+                    const mailtoLink = `mailto:${encodeURIComponent(to)}?` +
+                                      (cc ? `cc=${encodeURIComponent(cc)}&` : '') +
+                                      mailtoContent;
+
+                    console.log(`Ouverture mailto (${totalSize} caractères):`, mailtoLink);
+
+                    try {
+                        // Essayer d'ouvrir mailto
+                        const link = document.createElement('a');
+                        link.href = mailtoLink;
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        showToast('✅ Ouverture d\'Outlook...', 'success');
+
+                    } catch (error) {
+                        console.error('Erreur mailto:', error);
+                        showAlternativeOptions();
+                    }
+                }
+
+                // Fonction simple : Proposer des alternatives si Outlook ne s'ouvre pas
+                function showAlternativeOptions() {
+                    // Créer une alerte Bootstrap simple
+                    const alertDiv = document.createElement('div');
+                    alertDiv.innerHTML = `
+                        <div class="alert alert-warning alert-dismissible fade show position-fixed"
+                             style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" id="alternativeAlert">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Client de messagerie non ouvert ?</h6>
+                            <p class="mb-2">Pas de problème ! Choisissez une alternative :</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-success btn-sm" onclick="copyTextAndShowInstructions(); document.getElementById('alternativeAlert').remove();">
+                                    <i class="fas fa-copy me-1"></i>Copier texte formaté
+                                </button>
+                                <button class="btn btn-info btn-sm" onclick="copyHTMLAndShowInstructions(); document.getElementById('alternativeAlert').remove();">
+                                    <i class="fas fa-palette me-1"></i>Copier HTML stylé
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadHTMLFile(); document.getElementById('alternativeAlert').remove();">
+                                    <i class="fas fa-download me-1"></i>Télécharger fichier
+                                </button>
+                            </div>
+                            <button type="button" class="btn-close" onclick="document.getElementById('alternativeAlert').remove()"></button>
+                        </div>
+                    `;
+                    document.body.appendChild(alertDiv);
+
+                    // Auto-supprimer l'alerte après 10 secondes
+                    setTimeout(() => {
+                        const alert = document.getElementById('alternativeAlert');
+                        if (alert) {
+                            alert.remove();
+                        }
+                    }, 10000);
+                }
+
+                // Fonction : Copier texte formaté
+                function copyTextAndShowInstructions() {
+                    const [year, week] = document.getElementById('selectedWeek').value.split('-W');
+                    const weekNumber = parseInt(week);
+                    const includeWarnings = document.getElementById('includeWarnings').checked;
+                    const groupBySection = document.getElementById('groupBySection').checked;
+                    const prsData = window.weeklyPrsData || [];
+
+                    const content = generateFormattedTextEmail(prsData, weekNumber, year, includeWarnings, groupBySection);
+
+                    navigator.clipboard.writeText(content).then(function() {
+                        showToast('✅ Texte formaté copié ! Instructions affichées.', 'success');
+                        showTextInstructions();
+                    }, function(err) {
+                        console.error('Erreur lors de la copie:', err);
+                        showToast('❌ Erreur lors de la copie', 'error');
+                    });
+                }
+
+                // Fonction : Instructions pour texte formaté
+                function showTextInstructions() {
+                    const instructionsDiv = document.createElement('div');
+                    instructionsDiv.innerHTML = `
+                        <div class="alert alert-success alert-dismissible fade show position-fixed"
+                             style="top: 80px; right: 20px; z-index: 9999; max-width: 500px;" id="textInstructionsAlert">
+                            <h6><i class="fas fa-check-circle me-2"></i>Texte formaté copié !</h6>
+                            <p class="mb-2"><strong>Étapes pour envoyer :</strong></p>
+                            <ol class="mb-2">
+                                <li>Ouvrez Outlook ou votre messagerie</li>
+                                <li>Nouveau message</li>
+                                <li>Collez (Ctrl+V) dans le corps</li>
+                                <li>Destinataires : <code>${document.getElementById('mailTo').value}</code></li>
+                                <li>Objet : <code>${document.getElementById('mailSubject').value}</code></li>
+                                <li>Envoyez !</li>
+                            </ol>
+                            <p class="mb-0"><small><strong>Note :</strong> Le texte formaté s'affichera correctement avec des retours à la ligne.</small></p>
+                            <button type="button" class="btn-close" onclick="document.getElementById('textInstructionsAlert').remove()"></button>
+                        </div>
+                    `;
+                    document.body.appendChild(instructionsDiv);
+
+                    // Auto-supprimer après 15 secondes
+                    setTimeout(() => {
+                        const alert = document.getElementById('textInstructionsAlert');
+                        if (alert) {
+                            alert.remove();
+                        }
+                    }, 15000);
+                }
+
+                // Fonction : Copier HTML et afficher instructions simples
+                function copyHTMLAndShowInstructions() {
+                    const content = document.getElementById('mailContent').innerHTML;
+
+                    navigator.clipboard.writeText(content).then(function() {
+                        showToast('✅ HTML copié ! Instructions affichées.', 'success');
+                        showSimpleInstructions();
+                    }, function(err) {
+                        console.error('Erreur lors de la copie:', err);
+                        showToast('❌ Erreur lors de la copie', 'error');
+                    });
+                }
+
+                // Fonction : Instructions simples dans une alerte
+                function showSimpleInstructions() {
+                    const instructionsDiv = document.createElement('div');
+                    instructionsDiv.innerHTML = `
+                        <div class="alert alert-success alert-dismissible fade show position-fixed"
+                             style="top: 80px; right: 20px; z-index: 9999; max-width: 500px;" id="instructionsAlert">
+                            <h6><i class="fas fa-check-circle me-2"></i>Email HTML copié !</h6>
+                            <p class="mb-2"><strong>Étapes pour envoyer :</strong></p>
+                            <ol class="mb-2">
+                                <li>Ouvrez Outlook ou Gmail</li>
+                                <li>Nouveau message</li>
+                                <li>Collez (Ctrl+V) dans le corps</li>
+                                <li>Destinataires : <code>${document.getElementById('mailTo').value}</code></li>
+                                <li>Objet : <code>${document.getElementById('mailSubject').value}</code></li>
+                                <li>Envoyez !</li>
+                            </ol>
+                            <button type="button" class="btn-close" onclick="document.getElementById('instructionsAlert').remove()"></button>
+                        </div>
+                    `;
+                    document.body.appendChild(instructionsDiv);
+
+                    // Auto-supprimer après 15 secondes
+                    setTimeout(() => {
+                        const alert = document.getElementById('instructionsAlert');
+                        if (alert) {
+                            alert.remove();
+                        }
+                    }, 15000);
+                }
+
+                // Fonction : Télécharger fichier HTML
+                function downloadHTMLFile() {
+                    const content = document.getElementById('mailContent').innerHTML;
+                    const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Planning_PRS_S${document.getElementById('selectedWeek').value.split('-W')[1]}.html`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    showToast('📁 Fichier téléchargé ! Ouvrez-le puis copiez le contenu dans votre messagerie.', 'success');
+                }
+
+                // Fonction : Aide manuelle
+                function showManualInstructions() {
+                    const helpDiv = document.createElement('div');
+                    helpDiv.innerHTML = `
+                        <div class="alert alert-info alert-dismissible fade show position-fixed"
+                             style="top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; max-width: 600px;" id="helpAlert">
+                            <h6><i class="fas fa-question-circle me-2"></i>Comment envoyer le mail ?</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>📝 Option 1 - Texte formaté</h6>
+                                    <ol>
+                                        <li>Cliquez "Copier texte formaté"</li>
+                                        <li>Ouvrez votre messagerie</li>
+                                        <li>Nouveau message</li>
+                                        <li>Collez (Ctrl+V)</li>
+                                    </ol>
+                                    <small>✅ Recommandé pour Outlook</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>🎨 Option 2 - HTML stylé</h6>
+                                    <ol>
+                                        <li>Cliquez "Copier HTML"</li>
+                                        <li>Ouvrez Gmail ou Outlook web</li>
+                                        <li>Nouveau message</li>
+                                        <li>Collez (Ctrl+V)</li>
+                                    </ol>
+                                    <small>✅ Recommandé pour Gmail</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" onclick="document.getElementById('helpAlert').remove()"></button>
+                        </div>
+                    `;
+                    document.body.appendChild(helpDiv);
+
+                    // Auto-supprimer après 20 secondes
+                    setTimeout(() => {
+                        const alert = document.getElementById('helpAlert');
+                        if (alert) {
+                            alert.remove();
+                        }
+                    }, 20000);
+                }
+
+                function copyToClipboard() {
+                    const content = document.getElementById('mailContent').innerHTML;
+
+                    navigator.clipboard.writeText(content).then(function() {
+                        showToast('Contenu HTML copié dans le presse-papiers !', 'success');
+                    }, function(err) {
+                        console.error('Erreur lors de la copie:', err);
+                        showToast('Erreur lors de la copie', 'error');
+                    });
+                }
     </script>
 }
