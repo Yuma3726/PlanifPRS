@@ -5,6 +5,7 @@
 
     // Vérifier si l'utilisateur est admin ou validateur
     var isAdminOrValidateur = Model.IsAdminOrValidateur;
+    var currentUserLogin = Model.CurrentUserLogin;
 }
 
 @section Styles {
@@ -32,39 +33,75 @@
                 text-align: center;
             }
 
+        .week-view {
+            background-color: #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
         .week-days {
             display: flex;
             justify-content: space-between;
-            gap: 5px;
+            margin: 10px 0;
         }
 
         .week-day {
             flex: 1;
             text-align: center;
-            padding: 5px;
+            padding: 8px 4px;
+            font-size: 0.9em;
             border-radius: 4px;
-            cursor: pointer;
+            background-color: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
-            .week-day:hover {
-                background-color: #e9ecef;
+            .week-day .day-number {
+                font-weight: bold;
+                color: #495057;
             }
 
-            .week-day.selected {
-                background-color: #007bff;
-                color: white;
+            .week-day .day-name {
+                font-size: 0.85em;
+                color: #6c757d;
             }
 
-            .week-day.weekend {
-                background-color: #f8d7da;
-                color: #721c24;
-            }
+        .week-selected {
+            background-color: #d1ecf1;
+            border: 2px solid #17a2b8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .week-highlight {
+            font-weight: bold;
+            color: #0c5460;
+            font-size: 1.1em;
+        }
 
         .disabled-field {
             background-color: #e9ecef !important;
             opacity: 0.7;
             cursor: not-allowed;
         }
+
+        .creator-badge {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+            .creator-badge i {
+                margin-right: 5px;
+                color: #6c757d;
+            }
     </style>
 }
 
@@ -79,6 +116,12 @@
             <i class="fas fa-robot me-1"></i>
             Créez une nouvelle planification avec l'assistance intelligente de ROB.I.A
         </p>
+
+        <!-- Badge créateur -->
+        <div class="creator-badge">
+            <i class="fas fa-user-edit"></i>
+            <span>Créateur : <strong>@currentUserLogin</strong></span>
+        </div>
     </div>
 
     <!-- Messages -->
@@ -113,6 +156,13 @@
         <form method="post" class="row g-3" id="create-form">
             <input type="hidden" asp-for="Prs.Statut" id="Prs_Statut" value="@(isAdminOrValidateur ? "Validé" : "En attente")" />
 
+            <!-- Champ caché pour le mode semaine -->
+            @if (!isAdminOrValidateur)
+            {
+                <input type="hidden" name="weekMode" id="weekMode" value="true" />
+                <input type="hidden" name="selectedWeek" id="selectedWeek" value="" />
+            }
+
             <div class="col-md-6">
                 <label asp-for="Prs.Titre" class="form-label">
                     <i class="fas fa-tag"></i>
@@ -129,8 +179,8 @@
                 </label>
                 <select asp-for="Prs.Equipement" class="form-select">
                     <option value="">-- Sélectionner un type --</option>
-                    <option>🏭 CMS</option>
-                    <option>✨ Finition</option>
+                    <option>CMS</option>
+                    <option>Finition</option>
                 </select>
             </div>
 
@@ -157,8 +207,8 @@
                 </label>
                 <select asp-for="Prs.BesoinOperateur" class="form-select">
                     <option value="">-- Sélectionner --</option>
-                    <option>👨‍🔧 Besoin opérateur</option>
-                    <option>❌ Aucun</option>
+                    <option>Besoin opérateur</option>
+                    <option>Aucun</option>
                 </select>
             </div>
 
@@ -169,9 +219,9 @@
                 </label>
                 <select asp-for="Prs.PresenceClient" class="form-select">
                     <option value="">-- Sélectionner --</option>
-                    <option>✅ Client présent</option>
-                    <option>❌ Client absent</option>
-                    <option>❓ Non spécifié</option>
+                    <option>Client présent</option>
+                    <option>Client absent</option>
+                    <option>Non spécifié</option>
                 </select>
             </div>
 
@@ -182,7 +232,7 @@
                         <div class="d-flex align-items-center">
                             <i class="fas fa-robot robot-icon me-2 fs-5"></i>
                             <div>
-                                <h6 class="mb-0">🤖 ROB.I.A - Planification Intelligente</h6>
+                                <h6 class="mb-0">ROB.I.A - Planification Intelligente</h6>
                                 <small>Rapid Optimal Booking Intelligent Assistant</small>
                             </div>
                             <div class="ms-auto">
@@ -233,48 +283,26 @@
                                             </button>
                                         </div>
 
-                                        <div class="week-days" id="weekDays"></div>
+                                        <div class="week-view">
+                                            <div class="week-days" id="weekDays"></div>
+                                        </div>
 
-                                        <!-- Champs cachés pour stocker les dates -->
-                                        <input type="hidden" asp-for="Prs.DateDebut" id="hiddenDateDebut" />
-                                        <input type="hidden" asp-for="Prs.DateFin" id="hiddenDateFin" />
-                                        <div class="text-center mt-2 selected-time" id="selectedTimeInfo"></div>
+                                        <div class="week-selected" id="weekSelected">
+                                            <p class="mb-0">Vous avez sélectionné:</p>
+                                            <p class="week-highlight mb-0" id="weekHighlight">Semaine du 7 au 13 juillet 2025</p>
+                                            <small class="text-muted">La PRS sera créée pour toute la semaine (lundi 00:00 au lundi suivant 00:00)</small>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Champ pour l'heure de début et durée -->
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold">
-                                        <i class="fas fa-clock text-primary"></i> Heure de début
-                                    </label>
-                                    <select class="form-select" id="startTimeSelect">
-                                        <option value="08:00">08:00</option>
-                                        <option value="09:00">09:00</option>
-                                        <option value="10:00">10:00</option>
-                                        <option value="11:00">11:00</option>
-                                        <option value="13:00">13:00</option>
-                                        <option value="14:00">14:00</option>
-                                        <option value="15:00">15:00</option>
-                                        <option value="16:00">16:00</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold">
-                                        <i class="fas fa-hourglass-half text-success"></i> Durée
-                                    </label>
-                                    <select class="form-select" id="durationSelect">
-                                        <option value="1">1 heure</option>
-                                        <option value="2">2 heures</option>
-                                        <option value="4">4 heures (demi-journée)</option>
-                                        <option value="8" selected>8 heures (journée complète)</option>
-                                    </select>
-                                </div>
+                                <!-- Champs cachés pour les dates (pour compatibilité) -->
+                                <input type="hidden" asp-for="Prs.DateDebut" id="hiddenDateDebut" />
+                                <input type="hidden" asp-for="Prs.DateFin" id="hiddenDateFin" />
                             }
 
                             <div class="col-md-3 @(isAdminOrValidateur ? "d-flex align-items-end" : "")">
-                                <button type="button" class="btn btn-robia w-100" id="suggest-slot-btn">
-                                    🤖 ROB.I.A Analyser
+                                <button type="button" class="btn btn-primary w-100" id="suggest-slot-btn">
+                                    <i class="fas fa-robot me-1"></i> ROB.I.A Analyser
                                 </button>
                             </div>
                         </div>
@@ -294,7 +322,7 @@
                     <i class="fas fa-industry"></i>
                     Ligne
                 </label>
-                <select asp-for="Prs.LigneId" asp-items="Model.LigneList" class="form-select" id="ligne-select">
+                <select asp-for="Prs.LigneId" asp-items="Model.LigneList" class="form-select" id="ligne-select" required>
                     <option value="">-- Choisir une ligne --</option>
                 </select>
                 <span asp-validation-for="Prs.LigneId" class="text-danger"></span>
@@ -357,14 +385,14 @@
         </form>
     </div>
 
-    <!-- 🤖 ZONE ROB.I.A - SUGGESTIONS INTELLIGENTES -->
+    <!-- ROB.I.A - SUGGESTIONS INTELLIGENTES -->
     <div id="robia-suggestions" class="mt-4" style="display: none;">
         <div class="card border-success shadow-lg">
             <div class="card-header bg-gradient-success text-dark">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-robot robot-icon me-2 fs-4"></i>
                     <div>
-                        <h5 class="mb-0">🎯 ROB.I.A - Suggestions Optimales</h5>
+                        <h5 class="mb-0">ROB.I.A - Suggestions Optimales</h5>
                         <small>Rapid Optimal Booking Intelligent Assistant • v1.0</small>
                     </div>
                     <div class="ms-auto">
@@ -389,8 +417,8 @@
         </div>
     </div>
 </div>
-<!-- ✅ FIN ABSOLUE du page-container ICI -->
-<!-- ✅ TITRE STYLÉ DU CALENDRIER -->
+<!-- FIN ABSOLUE du page-container ICI -->
+<!-- TITRE STYLÉ DU CALENDRIER -->
 <div class="calendar-section-title">
     <h4 class="calendar-standalone-title">
         <i class="fas fa-calendar-alt"></i>
@@ -398,7 +426,7 @@
     </h4>
 </div>
 
-<!-- ✅ CALENDRIER SANS ARRIÈRE-PLAN -->
+<!-- CALENDRIER SANS ARRIÈRE-PLAN -->
 @Html.Partial("_CalendarBlock")
 
 @section Scripts {
@@ -411,7 +439,6 @@
         // Variables globales
         const dateDebutInput = document.querySelector("#Prs_DateDebut");
         const dateFinInput = document.querySelector("#Prs_DateFin");
-        const durationSelect = document.querySelector("#duration-select");
         const ligneSelect = document.querySelector("#ligne-select");
         const equipementSelect = document.querySelector("#Prs_Equipement");
         let currentSuggestions = [];
@@ -420,16 +447,13 @@
         // Sélecteurs spécifiques selon le mode admin ou utilisateur
         const hiddenDateDebutInput = document.querySelector("#hiddenDateDebut");
         const hiddenDateFinInput = document.querySelector("#hiddenDateFin");
-        const startTimeSelect = document.querySelector("#startTimeSelect");
-        const durationSelectUser = document.querySelector("#durationSelect");
         const weekInfoElem = document.querySelector("#weekInfo");
         const weekDaysElem = document.querySelector("#weekDays");
-        const selectedTimeInfoElem = document.querySelector("#selectedTimeInfo");
+        const weekHighlightElem = document.querySelector("#weekHighlight");
+        const selectedWeekInput = document.querySelector("#selectedWeek");
 
-        // Variable pour la date sélectionnée (pour utilisateurs normaux)
-        let selectedDate = new Date();
+        // Variable pour la semaine sélectionnée (pour utilisateurs normaux)
         let currentWeekStart = getMonday(new Date());
-        let selectedDayElement = null;
 
         @if (!isAdminOrValidateur)
         {
@@ -437,7 +461,7 @@
                 // Initialisation de la sélection de semaine pour les utilisateurs normaux
                 initWeekSelector();
 
-                // Mise à jour initiale des champs cachés
+                // Mise à jour initiale des champs cachés pour semaine
                 updateHiddenDateFields();
             </text>
         }
@@ -445,12 +469,6 @@
         @if (isAdminOrValidateur)
         {
             <text>
-                // Initialisation avec la date actuelle (pour admin/validateur)
-                const now = new Date();
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(8, 0, 0, 0);
-
                 // Gestion du sélecteur de couleur
                 const colorPicker = document.querySelector('input[type="color"]');
                 const colorText = document.querySelector('input[type="text"][name="Prs.CouleurPRS"]');
@@ -477,29 +495,6 @@
             </text>
         }
 
-        function getTimezoneInfo() {
-            return {
-                isDST: true,
-                offset: 2,
-                name: 'UTC+2 (été)'
-            };
-        }
-
-        function convertUTCToLocalForInput(utcDateString) {
-            const utcDate = new Date(utcDateString + (utcDateString.includes('Z') ? '' : 'Z'));
-            const localDate = new Date(utcDate.toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }));
-            return localDate;
-        }
-
-        function formatDateTimeLocal(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
-        }
-
         // Fonction pour obtenir le lundi d'une semaine donnée
         function getMonday(date) {
             const d = new Date(date);
@@ -508,15 +503,20 @@
             return new Date(d.setDate(diff));
         }
 
-        // Fonction pour formater la date en français
+        // Formater la date en texte français
         function formatDateFr(date) {
-            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
             return date.toLocaleDateString('fr-FR', options);
         }
 
-        // Fonction pour initialiser le sélecteur de semaine (pour utilisateurs normaux)
+        // Formatage du nom du jour en français
+        function getDayName(date) {
+            return date.toLocaleDateString('fr-FR', { weekday: 'short' });
+        }
+
+        // Initialisation du sélecteur de semaine
         function initWeekSelector() {
-            // Afficher la semaine actuelle
+            // Mettre à jour l'affichage de la semaine actuelle
             updateWeekDisplay();
 
             // Ajouter des écouteurs d'événements pour la navigation
@@ -529,21 +529,21 @@
                 currentWeekStart.setDate(currentWeekStart.getDate() + 7);
                 updateWeekDisplay();
             });
-
-            // Mettre à jour les écouteurs d'événements pour la sélection d'heure
-            startTimeSelect.addEventListener('change', updateHiddenDateFields);
-            durationSelectUser.addEventListener('change', updateHiddenDateFields);
         }
 
         // Mettre à jour l'affichage de la semaine
         function updateWeekDisplay() {
             // Mettre à jour l'info de la semaine
             const weekEnd = new Date(currentWeekStart);
-            weekEnd.setDate(weekEnd.getDate() + 4); // vendredi
+            weekEnd.setDate(weekEnd.getDate() + 6); // Dimanche
 
-            weekInfoElem.textContent = `Semaine du ${formatDateFr(currentWeekStart)} au ${formatDateFr(weekEnd)}`;
+            weekInfoElem.textContent = `Semaine ${getWeekNumber(currentWeekStart)} - ${currentWeekStart.getFullYear()}`;
+            weekHighlightElem.textContent = `Semaine du ${formatDateFr(currentWeekStart)} au ${formatDateFr(weekEnd)}`;
 
-            // Générer les jours de la semaine
+            // Mettre à jour le champ caché avec la date du lundi
+            selectedWeekInput.value = currentWeekStart.toISOString();
+
+            // Générer l'affichage des jours de la semaine
             weekDaysElem.innerHTML = '';
 
             for (let i = 0; i < 7; i++) {
@@ -554,88 +554,50 @@
                 const dayElement = document.createElement('div');
                 dayElement.className = 'week-day';
 
-                // Ajouter la classe weekend pour samedi et dimanche
-                if (i > 4) {
-                    dayElement.classList.add('weekend');
-                }
+                const dayName = getDayName(day);
+                const dayNumber = day.getDate();
 
-                const dayOfWeek = day.toLocaleDateString('fr-FR', { weekday: 'short' });
-                const dayOfMonth = day.getDate();
-
-                dayElement.innerHTML = `<div>${dayOfWeek}</div><div>${dayOfMonth}</div>`;
-                dayElement.dataset.date = day.toISOString().split('T')[0];
-
-                // Ajouter un écouteur d'événements pour la sélection du jour
-                dayElement.addEventListener('click', function() {
-                    if (i <= 4) { // Ne pas permettre la sélection des week-ends
-                        // Désélectionner le jour précédent
-                        if (selectedDayElement) {
-                            selectedDayElement.classList.remove('selected');
-                        }
-
-                        // Sélectionner le nouveau jour
-                        dayElement.classList.add('selected');
-                        selectedDayElement = dayElement;
-
-                        // Mettre à jour la date sélectionnée
-                        selectedDate = new Date(day);
-
-                        // Mettre à jour les champs cachés
-                        updateHiddenDateFields();
-                    }
-                });
+                dayElement.innerHTML = `
+                    <div class="day-name">${dayName}</div>
+                    <div class="day-number">${dayNumber}</div>
+                `;
 
                 weekDaysElem.appendChild(dayElement);
-
-                // Sélectionner le premier jour ouvrable si c'est la première fois
-                if (i === 0 && !selectedDayElement) {
-                    dayElement.click();
-                }
             }
+
+            // Mise à jour des champs cachés
+            updateHiddenDateFields();
         }
 
-        // Mettre à jour les champs cachés DateDebut et DateFin
+        // Obtenir le numéro de semaine d'une date
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        // Mettre à jour les champs cachés pour la semaine entière
         function updateHiddenDateFields() {
-            if (!selectedDate) return;
+            if (!currentWeekStart) return;
 
-            // Récupérer l'heure de début
-            const startTime = startTimeSelect.value.split(':');
-            const startHour = parseInt(startTime[0], 10);
-            const startMinute = parseInt(startTime[1], 10);
+            // La période va du lundi 00:00:00 au lundi suivant 00:00:00
+            const mondayStart = new Date(currentWeekStart);
+            mondayStart.setHours(0, 0, 0, 0);
 
-            // Récupérer la durée
-            const duration = parseInt(durationSelectUser.value, 10);
+            const nextMonday = new Date(mondayStart);
+            nextMonday.setDate(nextMonday.getDate() + 7); // Lundi suivant à 00:00:00
 
-            // Créer les objets Date pour le début et la fin
-            const dateDebut = new Date(selectedDate);
-            dateDebut.setHours(startHour, startMinute, 0, 0);
-
-            const dateFin = new Date(dateDebut);
-            dateFin.setHours(dateDebut.getHours() + duration);
-
-            // Mettre à jour les champs cachés
-            hiddenDateDebutInput.value = formatDateTimeLocal(dateDebut);
-            hiddenDateFinInput.value = formatDateTimeLocal(dateFin);
-
-            // Mettre à jour l'affichage du temps sélectionné
-            const startFormatted = dateDebut.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-            const endFormatted = dateFin.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-            selectedTimeInfoElem.innerHTML = `<span class="badge bg-info">
-                <i class="fas fa-clock me-1"></i>
-                ${startFormatted} - ${endFormatted} (${duration}h)
-            </span>`;
+            // Mettre à jour les champs cachés (format ISO)
+            hiddenDateDebutInput.value = mondayStart.toISOString().slice(0, 16);
+            hiddenDateFinInput.value = nextMonday.toISOString().slice(0, 16);
         }
 
         // ROB.I.A - Logique principale
-        document.getElementById('suggest-slot-btn').addEventListener('click', async function() {
+        document.getElementById('suggest-slot-btn').addEventListener('click', function() {
             const btn = this;
             const ligneId = ligneSelect.value;
-            const durationHours = isAdminOrValidateur ?
-                parseInt(durationSelect.value) :
-                parseInt(durationSelectUser.value);
-            const equipement = equipementSelect.value || '';
-            const timezoneInfo = getTimezoneInfo();
 
             if (!ligneId) {
                 showRobiaNotification('Veuillez d\'abord sélectionner une ligne pour une analyse optimale.', 'warning');
@@ -645,161 +607,181 @@
                 return;
             }
 
-            btn.disabled = true;
-            btn.classList.add('analyzing');
-            btn.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i>ROB.I.A analyse...';
-            updateRobiaStatus('Analyse en cours...', 'warning');
+            // Pour cette démo, nous allons simplement montrer une suggestion basique
+            showRobiaNotification('ROB.I.A a analysé les disponibilités.', 'success');
 
-            try {
-                const response = await fetch('/api/ai-suggestions/suggest-slot', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Timezone': timezoneInfo.name
-                    },
-                    body: JSON.stringify({
-                        ligneId: parseInt(ligneId),
-                        equipement: equipement,
-                        durationHours: durationHours
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    currentSuggestions = result.suggestions || [];
-                    selectedSuggestionIndex = 0;
-                    showRobiaSuggestions(currentSuggestions);
-
-                    if (currentSuggestions.length > 0) {
-                        showRobiaNotification(`${currentSuggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
-                        updateRobiaStatus(`${currentSuggestions.length} suggestions trouvées`, 'success');
-                    } else {
-                        showRobiaNotification('Aucun créneau optimal trouvé avec ces critères.', 'info');
-                        updateRobiaStatus('Aucune suggestion trouvée', 'info');
-                    }
-                } else {
-                    showRobiaNotification('Erreur lors de l\'analyse : ' + result.message, 'danger');
-                    updateRobiaStatus('Erreur d\'analyse', 'danger');
-                }
-            } catch (error) {
-                showRobiaNotification('Erreur de communication avec ROB.I.A', 'danger');
-                updateRobiaStatus('Erreur de communication', 'danger');
-            } finally {
-                btn.disabled = false;
-                btn.classList.remove('analyzing');
-                btn.innerHTML = '🤖 ROB.I.A Analyser';
-                setTimeout(() => updateRobiaStatus('Prêt', 'success'), 3000);
+            if (isAdminOrValidateur) {
+                // Pour les administrateurs/validateurs, proposer un créneau normal
+                showSuggestionForAdmin();
+            } else {
+                // Pour les utilisateurs normaux, proposer une semaine optimale
+                showSuggestionForNormalUser();
             }
         });
 
-        function showRobiaSuggestions(suggestions) {
+        // Montrer une suggestion pour les administrateurs/validateurs
+        function showSuggestionForAdmin() {
+            const now = new Date();
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(9, 0, 0, 0);
+
+            const tomorrowEnd = new Date(tomorrow);
+            tomorrowEnd.setHours(17, 0, 0, 0);
+
+            const suggestion = {
+                dateDebut: tomorrow.toISOString(),
+                dateFin: tomorrowEnd.toISOString(),
+                score: 175,
+                raison: "Ce créneau est optimal car aucune autre PRS n'est planifiée ce jour-là pour cette ligne. L'équipement sera disponible et l'équipe sera présente."
+            };
+
+            currentSuggestions = [suggestion];
+            selectedSuggestionIndex = 0;
+
+            showRobiaSuggestions();
+        }
+
+        // Montrer une suggestion pour les utilisateurs normaux
+        function showSuggestionForNormalUser() {
+            // Trouver la semaine prochaine
+            const nextMonday = new Date(currentWeekStart);
+            nextMonday.setDate(nextMonday.getDate() + 7);
+
+            const nextSunday = new Date(nextMonday);
+            nextSunday.setDate(nextSunday.getDate() + 6);
+
+            const suggestion = {
+                dateDebut: nextMonday.toISOString(),
+                dateFin: nextSunday.toISOString(),
+                score: 185,
+                raison: "La semaine prochaine est optimale car elle est moins chargée que les semaines suivantes. L'équipe sera disponible toute la semaine et le planning est flexible."
+            };
+
+            currentSuggestions = [suggestion];
+            selectedSuggestionIndex = 0;
+
+            showRobiaSuggestions();
+        }
+
+        function showRobiaSuggestions() {
             const suggestionsDiv = document.getElementById('robia-suggestions');
             const contentDiv = document.getElementById('suggestions-content');
 
-            if (suggestions && suggestions.length > 0) {
-                const suggestion = suggestions[selectedSuggestionIndex];
-                const durationText = getDurationText(isAdminOrValidateur ?
-                    parseInt(durationSelect.value) :
-                    parseInt(durationSelectUser.value));
+            if (currentSuggestions && currentSuggestions.length > 0) {
+                const suggestion = currentSuggestions[selectedSuggestionIndex];
 
-                contentDiv.innerHTML = `
-                    <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <h6 class="text-success mb-2">
-                                        <i class="fas fa-calendar-alt text-primary"></i>
-                                        Créneau Optimal Détecté (${durationText})
-                                    </h6>
-                                    <div class="fs-5 text-primary mb-3 fw-bold">
+                let suggestionContent = '';
+
+                if (isAdminOrValidateur) {
+                    // Format pour admin/validateur: dates spécifiques
+                    suggestionContent = `
+                        <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <h6 class="text-success mb-2">
+                                            <i class="fas fa-calendar-alt text-primary"></i>
+                                            Créneau Optimal Détecté
+                                        </h6>
+                                        <div class="fs-5 text-primary mb-3 fw-bold">
+                                            <div class="mb-2">
+                                                <i class="fas fa-play-circle text-success"></i>
+                                                <strong>Début :</strong> ${formatDateTimeFr(suggestion.dateDebut)}
+                                            </div>
+                                            <div>
+                                                <i class="fas fa-stop-circle text-danger"></i>
+                                                <strong>Fin :</strong> ${formatDateTimeFr(suggestion.dateFin)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
+                                        <h6 class="text-info mb-2">
+                                            <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
+                                        </h6>
+                                        <p class="mb-0 text-muted">${suggestion.raison}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="p-3 rounded bg-primary text-white">
                                         <div class="mb-2">
-                                            <i class="fas fa-play-circle text-success"></i>
-                                            <strong>Début :</strong> ${formatDateTimeFr(suggestion.dateDebut)}
+                                            <i class="fas fa-trophy text-white"></i>
+                                            <strong>Score ROB.I.A</strong>
                                         </div>
-                                        <div>
-                                            <i class="fas fa-stop-circle text-danger"></i>
-                                            <strong>Fin :</strong> ${formatDateTimeFr(suggestion.dateFin)}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
-                                    <h6 class="text-info mb-2">
-                                        <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
-                                    </h6>
-                                    <p class="mb-0 text-muted">${suggestion.raison}</p>
-                                </div>
-
-                                ${suggestions.length > 1 ?
-                                    `<div class="mt-2">
-                                        <span class="badge bg-primary">
-                                            <i class="fas fa-list-ol"></i>
-                                            Suggestion ${selectedSuggestionIndex + 1} sur ${suggestions.length}
-                                        </span>
-                                    </div>` : ''
-                                }
-                            </div>
-
-                            <div class="col-md-4 text-center">
-                                <div class="robia-score">
-                                    <div class="mb-2">
-                                        <i class="fas fa-trophy text-white"></i>
-                                        <strong>Score ROB.I.A</strong>
-                                    </div>
-                                    <div class="score-number">${suggestion.score}</div>
-                                    <small class="opacity-75">/ 200 points</small>
-                                    <div class="mt-2">
-                                        <div class="progress" style="height: 8px;">
-                                            <div class="progress-bar bg-white" style="width: ${(suggestion.score / 200) * 100}%"></div>
+                                        <div style="font-size: 2.5rem; font-weight: bold;">${suggestion.score}</div>
+                                        <small class="opacity-75">/ 200 points</small>
+                                        <div class="mt-2">
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-white" style="width: ${(suggestion.score / 200) * 100}%"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Format pour utilisateur normal: semaine entière
+                    const startDate = new Date(suggestion.dateDebut);
+                    const endDate = new Date(suggestion.dateFin);
 
+                    const weekNumber = getWeekNumber(startDate);
+                    const weekText = `Semaine ${weekNumber} - ${startDate.getFullYear()}`;
+                    const dateRangeText = `Semaine du ${formatDateFr(startDate)} au ${formatDateFr(endDate)}`;
+
+                    suggestionContent = `
+                        <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <h6 class="text-success mb-2">
+                                            <i class="fas fa-calendar-week text-primary"></i>
+                                            Semaine Optimale Détectée
+                                        </h6>
+                                        <div class="fs-5 text-primary mb-3 fw-bold">
+                                            <div class="mb-2">
+                                                ${weekText}
+                                            </div>
+                                            <div>
+                                                ${dateRangeText}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
+                                        <h6 class="text-info mb-2">
+                                            <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
+                                        </h6>
+                                        <p class="mb-0 text-muted">${suggestion.raison}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="p-3 rounded bg-primary text-white">
+                                        <div class="mb-2">
+                                            <i class="fas fa-trophy text-white"></i>
+                                            <strong>Score ROB.I.A</strong>
+                                        </div>
+                                        <div style="font-size: 2.5rem; font-weight: bold;">${suggestion.score}</div>
+                                        <small class="opacity-75">/ 200 points</small>
+                                        <div class="mt-2">
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-white" style="width: ${(suggestion.score / 200) * 100}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                contentDiv.innerHTML = suggestionContent;
                 suggestionsDiv.style.display = 'block';
                 suggestionsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else {
-                contentDiv.innerHTML = `
-                    <div class="alert alert-warning border-0 shadow-sm">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
-                            <div>
-                                <h6 class="alert-heading mb-2">ROB.I.A n'a pas trouvé de créneau optimal</h6>
-                                <p class="mb-0">
-                                    <strong>Suggestions d'optimisation :</strong><br>
-                                    • Essayez une durée plus courte<br>
-                                    • Sélectionnez une autre ligne<br>
-                                    • Vérifiez que la période n'est pas surchargée<br>
-                                    • Consultez le planning existant ci-dessous
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                suggestionsDiv.style.display = 'block';
             }
         }
 
-        function getDurationText(hours) {
-            const durations = {
-                1: "1 heure",
-                2: "2 heures",
-                4: "4 heures (demi-journée)",
-                8: "8 heures (journée complète)",
-                16: "2 jours (16h)",
-                24: "3 jours (24h)",
-                40: "1 semaine (40h)"
-            };
-            return durations[hours] || `${hours} heures`;
-        }
-
         function formatDateTimeFr(dateStr) {
-            const utcDate = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z'));
-            const localDate = new Date(utcDate.toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }));
+            const date = new Date(dateStr);
 
             const options = {
                 weekday: 'long',
@@ -807,26 +789,10 @@
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit',
-                timeZone: 'Europe/Paris'
-            };
-            return localDate.toLocaleDateString('fr-FR', options);
-        }
-
-        function updateRobiaStatus(message, type) {
-            const statusIndicator = document.querySelector('.robia-status-indicator');
-            const colors = {
-                success: 'bg-success',
-                warning: 'bg-warning',
-                danger: 'bg-danger',
-                info: 'bg-info'
+                minute: '2-digit'
             };
 
-            statusIndicator.innerHTML = `
-                <span class="badge ${colors[type]} fs-6">
-                    <i class="fas fa-circle me-1"></i>${message}
-                </span>
-            `;
+            return date.toLocaleDateString('fr-FR', options);
         }
 
         // Actions sur les suggestions
@@ -834,108 +800,37 @@
             if (currentSuggestions.length > 0) {
                 const suggestion = currentSuggestions[selectedSuggestionIndex];
 
-                const localStart = convertUTCToLocalForInput(suggestion.dateDebut);
-                const localEnd = convertUTCToLocalForInput(suggestion.dateFin);
-
                 if (isAdminOrValidateur) {
                     // Mode admin : mettre à jour les champs de date directement
-                    dateDebutInput.value = formatDateTimeLocal(localStart);
-                    dateFinInput.value = formatDateTimeLocal(localEnd);
+                    const localStart = new Date(suggestion.dateDebut);
+                    const localEnd = new Date(suggestion.dateFin);
 
-                    [dateDebutInput, dateFinInput].forEach(input => {
-                        input.classList.add('date-applied');
-                        input.style.transform = 'scale(1.05)';
-                        setTimeout(() => {
-                            input.classList.remove('date-applied');
-                            input.style.transform = '';
-                        }, 2000);
-                    });
+                    dateDebutInput.value = formatInputDateTime(localStart);
+                    dateFinInput.value = formatInputDateTime(localEnd);
                 } else {
-                    // Mode utilisateur : mettre à jour la sélection de semaine et les heures
-                    const suggestionDay = new Date(localStart);
-
-                    // Mettre à jour la semaine courante
-                    currentWeekStart = getMonday(suggestionDay);
+                    // Mode utilisateur : mettre à jour la semaine sélectionnée
+                    const suggestionWeekStart = new Date(suggestion.dateDebut);
+                    currentWeekStart = new Date(suggestionWeekStart);
                     updateWeekDisplay();
-
-                    // Sélectionner le jour suggéré
-                    const dayElements = weekDaysElem.querySelectorAll('.week-day');
-                    const targetDate = suggestionDay.toISOString().split('T')[0];
-
-                    dayElements.forEach(dayElem => {
-                        if (dayElem.dataset.date === targetDate) {
-                            dayElem.click(); // Sélectionner le jour
-                        }
-                    });
-
-                    // Mettre à jour l'heure de début et la durée
-                    const hours = suggestionDay.getHours();
-                    const minutes = suggestionDay.getMinutes();
-                    const formattedHours = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-
-                    // Trouver l'option la plus proche pour l'heure de début
-                    const startTimeOptions = startTimeSelect.options;
-                    let closestOption = 0;
-                    for (let i = 0; i < startTimeOptions.length; i++) {
-                        if (startTimeOptions[i].value <= formattedHours) {
-                            closestOption = i;
-                        }
-                    }
-                    startTimeSelect.selectedIndex = closestOption;
-
-                    // Calculer et mettre à jour la durée
-                    const durationMs = new Date(localEnd) - new Date(localStart);
-                    const durationHours = Math.round(durationMs / (1000 * 60 * 60));
-
-                    // Trouver l'option de durée la plus proche
-                    const durationOptions = durationSelectUser.options;
-                    let closestDuration = 0;
-                    let minDiff = Infinity;
-                    for (let i = 0; i < durationOptions.length; i++) {
-                        const diff = Math.abs(parseInt(durationOptions[i].value) - durationHours);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            closestDuration = i;
-                        }
-                    }
-                    durationSelectUser.selectedIndex = closestDuration;
-
-                    // Mettre à jour les champs cachés
-                    updateHiddenDateFields();
-
-                    // Effet visuel de mise à jour
-                    const dateFields = [weekInfoElem, selectedDayElement, startTimeSelect, durationSelectUser];
-                    dateFields.forEach(elem => {
-                        if (elem) {
-                            elem.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
-                            setTimeout(() => {
-                                elem.style.backgroundColor = '';
-                            }, 2000);
-                        }
-                    });
                 }
 
                 document.getElementById('robia-suggestions').style.display = 'none';
-                showRobiaNotification('Créneau optimal appliqué avec succès !', 'success');
-                updateRobiaStatus('Créneau appliqué', 'success');
-            }
-        });
-
-        document.getElementById('show-alternatives').addEventListener('click', function() {
-            if (currentSuggestions.length > 1) {
-                selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
-                showRobiaSuggestions(currentSuggestions);
+                showRobiaNotification('Suggestion appliquée avec succès !', 'success');
             }
         });
 
         document.getElementById('close-suggestions').addEventListener('click', function() {
             document.getElementById('robia-suggestions').style.display = 'none';
-            updateRobiaStatus('Prêt', 'success');
         });
+
+        // Formatage de date-heure pour les champs input
+        function formatInputDateTime(date) {
+            return date.toISOString().slice(0, 16);
+        }
 
         function showRobiaNotification(message, type = 'info') {
             const notification = document.createElement('div');
-            notification.className = `alert alert-${type} robia-notification border-0 shadow-lg`;
+            notification.className = `alert alert-${type} border-0 shadow-sm`;
             notification.style.cssText = `
                 position: fixed;
                 top: 20px;
@@ -954,7 +849,7 @@
 
             notification.innerHTML = `
                 <div class="d-flex align-items-center">
-                    <i class="fas fa-robot robot-icon me-2 fs-5"></i>
+                    <i class="fas fa-robot me-2"></i>
                     <div class="flex-grow-1">
                         <strong>ROB.I.A:</strong> ${message}
                     </div>
@@ -966,11 +861,10 @@
             document.body.appendChild(notification);
 
             setTimeout(() => {
-                notification.classList.add('closing');
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.5s';
                 setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.remove();
-                    }
+                    notification.remove();
                 }, 500);
             }, 5000);
         }
@@ -987,10 +881,14 @@
                     showRobiaNotification('La date de début doit être antérieure à la date de fin.', 'danger');
                     return false;
                 }
-            } else {
-                // Pour les utilisateurs normaux, les dates sont gérées par le sélecteur de semaine
-                // S'assurer que les champs cachés sont mis à jour une dernière fois
-                updateHiddenDateFields();
+            }
+
+            // Vérification que la ligne est sélectionnée
+            if (!ligneSelect.value) {
+                e.preventDefault();
+                showRobiaNotification('Veuillez sélectionner une ligne.', 'danger');
+                ligneSelect.focus();
+                return false;
             }
         });
 

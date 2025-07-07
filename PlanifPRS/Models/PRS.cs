@@ -41,9 +41,13 @@ namespace PlanifPRS.Models
 
         public DateTime DerniereModification { get; set; } = DateTime.Now;
 
-        // Nouvelle propriété pour la couleur PRS
+        // Propriété pour la couleur PRS
         [MaxLength(7)]
         public string? CouleurPRS { get; set; }
+
+        // Nouvelle propriété pour stocker le login du créateur
+        [MaxLength(100)]
+        public string? CreatedByLogin { get; set; }
 
         // Relations
         [ValidateNever]
