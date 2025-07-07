@@ -197,6 +197,32 @@
                     </select>
                 </div>
 
+                @if (Model.IsAdminOrValidateur)
+                {
+                    <div class="col-md-6">
+                        <label asp-for="Prs.CouleurPRS" class="form-label">
+                            <i class="fas fa-palette"></i>
+                            Couleur PRS
+                            <span class="badge bg-warning text-dark ms-2">Admin/Validateur</span>
+                        </label>
+                        <div class="input-group">
+                            <input asp-for="Prs.CouleurPRS" type="color" class="form-control form-control-color"
+                                   style="width: 60px; height: 38px;"
+                                   value="@(string.IsNullOrEmpty(Model.Prs.CouleurPRS) ? "#007bff" : Model.Prs.CouleurPRS)" />
+                            <input asp-for="Prs.CouleurPRS" type="text" class="form-control"
+                                   placeholder="#FF5733" pattern="^#[0-9A-Fa-f]{6}$"
+                                   value="@Model.Prs.CouleurPRS" />
+                            <button type="button" class="btn btn-outline-secondary" id="clearColor">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Choisissez une couleur personnalisée pour cette PRS (optionnel)
+                        </small>
+                    </div>
+                }
+
                 <div class="col-md-12">
                     <label asp-for="Prs.InfoDiverses" class="form-label">
                         <i class="fas fa-comment-alt"></i>
@@ -237,6 +263,29 @@
         // Variables globales (2025-07-02 09:20:50 UTC)
         const dateDebutInput = document.querySelector("#Prs_DateDebut");
         const dateFinInput = document.querySelector("#Prs_DateFin");
+        const colorPicker = document.querySelector('input[type="color"]');
+        const colorText = document.querySelector('input[type="text"][name="Prs.CouleurPRS"]');
+        const clearButton = document.getElementById('clearColor');
+
+        // ✅ Gestion du sélecteur de couleur
+        if (colorPicker && colorText) {
+            colorPicker.addEventListener('change', function() {
+                colorText.value = this.value;
+            });
+
+            colorText.addEventListener('input', function() {
+                if (this.value.match(/^#[0-9A-Fa-f]{6}$/)) {
+                    colorPicker.value = this.value;
+                }
+            });
+
+            if (clearButton) {
+                clearButton.addEventListener('click', function() {
+                    colorPicker.value = '#007bff';
+                    colorText.value = '';
+                });
+            }
+        }
 
         function validateDates() {
             const dateDebut = new Date(dateDebutInput.value);

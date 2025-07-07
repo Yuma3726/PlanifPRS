@@ -30,6 +30,9 @@ namespace PlanifPRS.Pages.Prs
         [TempData]
         public string Flash { get; set; }
 
+        // ✅ Propriété pour vérifier les droits utilisateur
+        public bool IsAdminOrValidateur => HasRequiredRole();
+
         public void OnGet()
         {
             ChargerFamilles();
@@ -82,6 +85,12 @@ namespace PlanifPRS.Pages.Prs
                 Prs.DateCreation = DateTime.Now;
                 Prs.DerniereModification = DateTime.Now;
 
+                // ✅ Gestion de la couleur PRS
+                if (string.IsNullOrWhiteSpace(Prs.CouleurPRS))
+                {
+                    Prs.CouleurPRS = null;
+                }
+
                 _context.Prs.Add(Prs);
                 await _context.SaveChangesAsync();
 
@@ -94,6 +103,42 @@ namespace PlanifPRS.Pages.Prs
                 ModelState.AddModelError(string.Empty, "Erreur lors de l'ajout de la PRS.");
                 Console.WriteLine(">>>> ERREUR : " + ex.Message);
                 return Page();
+            }
+        }
+
+        /// <summary>
+        /// ✅ Vérification des droits utilisateur (admin ou validateur)
+        /// </summary>
+        private bool HasRequiredRole()
+        {
+            try
+            {
+                // ✅ Nettoyer le login comme dans votre code Users
+                var login = User.Identity?.Name?.Split('\\').LastOrDefault();
+
+                if (string.IsNullOrEmpty(login))
+                {
+                    return false;
+                }
+
+                // ✅ Chercher l'utilisateur dans la base
+                var user = _context.Utilisateurs.FirstOrDefault(u => u.LoginWindows == login);
+
+                if (user == null || user.DateDeleted.HasValue)
+                {
+                    return false;
+                }
+
+                // ✅ Vérifier les droits requis (admin ou validateur)
+                var droitsAutorises = new[] { "admin", "validateur" };
+                var droitUser = user.Droits?.ToLower() ?? "";
+
+                return droitsAutorises.Contains(droitUser);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Erreur vérification droits: {ex.Message}");
+                return false;
             }
         }
 

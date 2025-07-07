@@ -28,6 +28,9 @@ namespace PlanifPRS.Pages.Prs
         public SelectList LignesSelectList { get; set; }
         public IList<PrsFamille> Familles { get; set; } // ✅ Ajouté pour la nouvelle structure
 
+        // ✅ Propriété pour vérifier les droits utilisateur
+        public bool IsAdminOrValidateur => HasRequiredRole();
+
         public async Task<IActionResult> OnGetAsync(int id)
         {
             Prs = await _context.Prs.FindAsync(id);
@@ -77,9 +80,55 @@ namespace PlanifPRS.Pages.Prs
             prsFromDb.LigneId = Prs.LigneId;
             prsFromDb.DerniereModification = DateTime.Now;
 
+            // ✅ Gestion de la couleur PRS
+            if (string.IsNullOrWhiteSpace(Prs.CouleurPRS))
+            {
+                prsFromDb.CouleurPRS = null;
+            }
+            else
+            {
+                prsFromDb.CouleurPRS = Prs.CouleurPRS;
+            }
+
             await _context.SaveChangesAsync();
 
             return RedirectToPage("/Index");
+        }
+
+        /// <summary>
+        /// ✅ Vérification des droits utilisateur (admin ou validateur)
+        /// </summary>
+        private bool HasRequiredRole()
+        {
+            try
+            {
+                // ✅ Nettoyer le login comme dans votre code Users
+                var login = User.Identity?.Name?.Split('\\').LastOrDefault();
+
+                if (string.IsNullOrEmpty(login))
+                {
+                    return false;
+                }
+
+                // ✅ Chercher l'utilisateur dans la base
+                var user = _context.Utilisateurs.FirstOrDefault(u => u.LoginWindows == login);
+
+                if (user == null || user.DateDeleted.HasValue)
+                {
+                    return false;
+                }
+
+                // ✅ Vérifier les droits requis (admin ou validateur)
+                var droitsAutorises = new[] { "admin", "validateur" };
+                var droitUser = user.Droits?.ToLower() ?? "";
+
+                return droitsAutorises.Contains(droitUser);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Erreur vérification droits: {ex.Message}");
+                return false;
+            }
         }
 
         // ✅ Méthode pour charger les familles avec fallback SQL

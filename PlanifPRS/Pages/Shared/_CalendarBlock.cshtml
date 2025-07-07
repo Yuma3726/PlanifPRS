@@ -319,6 +319,19 @@
                 // ICÔNE POUR INFO-BULLE
                 const eventIcon = '<i class="fas fa-info-circle" style="color: #667eea; margin-right: 6px;"></i>';
 
+                // ✅ GESTION DE LA COULEUR PRS DANS L'INFO-BULLE
+                const couleurPrs = info.event.extendedProps.couleurPRS || info.event.extendedProps.CouleurPRS;
+                let couleurPrsDisplay = '';
+                if (couleurPrs && couleurPrs.trim() !== '') {
+                    couleurPrsDisplay = `
+                        <div style="margin-top: 8px; text-align: center;">
+                            <span style="font-size: 0.85em; color: #666;">Couleur PRS: </span>
+                            <span style="display: inline-block; width: 20px; height: 20px; background-color: ${couleurPrs}; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); vertical-align: middle; margin-left: 4px;"></span>
+                            <span style="font-size: 0.8em; color: #666; margin-left: 4px;">${couleurPrs}</span>
+                        </div>
+                    `;
+                }
+
                 tippy(info.el, {
                     content: `
                         <div style="text-align: center; padding: 8px; max-width: 300px;">
@@ -331,6 +344,7 @@
                                 <span><i class="fas fa-industry" style="margin-right: 4px; color: #34A853;"></i>${info.event.extendedProps.ligne || 'N/A'}</span>
                                 <span><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: #fbbc05;"></i>${info.event.extendedProps.secteur || 'Non défini'}</span>
                             </div>
+                            ${couleurPrsDisplay}
                         </div>
                     `,
                     allowHTML: true,
@@ -344,6 +358,7 @@
                     interactive: false
                 });
             },
+
 
             loading: function (isLoading) {
                 loader.style.display = isLoading ? 'block' : 'none';
@@ -459,6 +474,17 @@
                 const baseTitle = arg.event.title.split(' - ')[0];
                 const ligne = arg.event.extendedProps?.ligne || "—";
 
+                // ✅ RÉCUPÉRATION DE LA COULEUR PRS
+                const couleurPrs = arg.event.extendedProps?.couleurPRS || arg.event.extendedProps?.CouleurPRS;
+
+                // ✅ INDICATEUR COULEUR PRS (UNIQUEMENT SI DÉFINIE)
+                let couleurIndicator = '';
+                if (couleurPrs && couleurPrs.trim() !== '') {
+                    couleurIndicator = `
+                        <div style="position: absolute; bottom: 2px; right: 2px; width: 8px; height: 8px; background-color: ${couleurPrs}; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 1px 2px rgba(0,0,0,0.3);"></div>
+                    `;
+                }
+
                 if (arg.view.type.startsWith("timeGrid")) {
                     return {
                         html: `
@@ -469,17 +495,19 @@
                                 <div style="font-weight: 600; font-size: 0.85em; margin-top: 2px;">
                                     ${baseTitle}
                                 </div>
+                                ${couleurIndicator}
                             </div>`
                     };
                 }
 
                 return {
                     html: `
-                        <div style="padding: 2px; border-radius: 6px; text-align: center;">
+                        <div style="position: relative; padding: 2px; border-radius: 6px; text-align: center;">
                             <div style="font-weight: 600; font-size: 0.8em;">${baseTitle}</div>
                             <div style="font-size: 0.7em; opacity: 0.9; margin-top: 1px;">
                                 <i class="fas fa-industry" style="margin-right: 2px;"></i>${ligne}
                             </div>
+                            ${couleurIndicator}
                         </div>`
                 };
             },
