@@ -1,4 +1,25 @@
-﻿@* _CalendarBlock.cshtml - Version moderne et élégante *@
+﻿@* _CalendarBlock.cshtml - Version moderne avec affichage des couleurs PRS selon droits utilisateur *@
+@using System.Security.Claims
+@using PlanifPRS.Data
+@inject PlanifPrsDbContext DbContext
+
+@{
+    // Vérifier si l'utilisateur actuel a les droits "admin" ou "valideur"
+    var hasColorViewRights = false;
+    var loginName = User.Identity?.Name?.Split('\\').LastOrDefault();
+
+    if (!string.IsNullOrEmpty(loginName))
+    {
+        // Utiliser le DbContext injecté pour vérifier les droits
+        var currentUser = DbContext.Utilisateurs.FirstOrDefault(u => u.LoginWindows == loginName && u.DateDeleted == null);
+
+        if (currentUser != null)
+        {
+            var userRights = currentUser.Droits?.ToLower();
+            hasColorViewRights = userRights == "admin" || userRights == "valideur";
+        }
+    }
+}
 
 <!-- FullCalendar CSS et JS -->
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
@@ -13,6 +34,37 @@
 
 <!-- CSS SÉPARÉ pour éviter les erreurs C# -->
 <link rel="stylesheet" href="~/css/calendarblock.css" asp-append-version="true" />
+
+<!-- Style directement intégré pour la barre de couleur PRS -->
+<style>
+    /* Style pour la barre de couleur PRS en bas de l'événement */
+    .prs-color-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        width: 100%;
+        border-bottom-left-radius: 3px;
+        border-bottom-right-radius: 3px;
+    }
+
+    /* Assurer que l'événement a un padding pour éviter que le contenu ne touche la barre de couleur */
+    .fc-event-main {
+        padding-bottom: 5px !important;
+    }
+
+    /* Style pour l'infobulle de la couleur PRS */
+    .prs-color-tooltip {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 3px;
+        border: 2px solid rgba(255,255,255,0.8);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        vertical-align: middle;
+    }
+</style>
 
 <div class="calendar-container">
     <!-- En-tête du calendrier -->
@@ -108,6 +160,9 @@
 </div>
 
 <script>
+    // Variable indiquant si l'utilisateur a les droits pour voir les couleurs PRS
+    const hasColorViewRights = @Json.Serialize(hasColorViewRights);
+
     // Fonction améliorée pour trouver le lundi
     function getMonday(date) {
         const d = new Date(date);
@@ -280,7 +335,7 @@
             },
             eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
 
-            // FORCER L'APPLICATION DES COULEURS
+            // FORCER L'APPLICATION DES COULEURS ET AJOUTER LA BARRE DE COULEUR PRS
             eventDidMount: function (info) {
                 // FORCER LA COULEUR DE FOND
                 if (info.event.backgroundColor) {
@@ -293,6 +348,9 @@
                     if (eventContent) {
                         eventContent.style.backgroundColor = info.event.backgroundColor;
                         eventContent.style.color = info.event.textColor || '#ffffff';
+
+                        // S'assurer que l'événement a une position relative pour le positionnement absolu de la barre
+                        eventContent.style.position = 'relative';
                     }
 
                     const eventTitle = info.el.querySelector('.fc-event-title');
@@ -303,6 +361,25 @@
                     const eventTime = info.el.querySelector('.fc-event-time');
                     if (eventTime) {
                         eventTime.style.color = info.event.textColor || '#ffffff';
+                    }
+                }
+
+                // AJOUTER LA BARRE DE COULEUR PRS SI DÉFINIE ET SI L'UTILISATEUR A LES DROITS
+                const couleurPRS = info.event.extendedProps.couleurPRS;
+                if (hasColorViewRights && couleurPRS && couleurPRS.trim() !== '') {
+                    // Trouver l'élément conteneur de l'événement
+                    const eventMain = info.el.querySelector('.fc-event-main');
+                    if (eventMain) {
+                        // Créer la barre de couleur
+                        const colorBar = document.createElement('div');
+                        colorBar.className = 'prs-color-bar';
+                        colorBar.style.backgroundColor = couleurPRS;
+
+                        // L'ajouter au bas de l'événement
+                        eventMain.appendChild(colorBar);
+
+                        // Assurer que l'élément parent a une position relative
+                        eventMain.style.position = 'relative';
                     }
                 }
 
@@ -319,15 +396,14 @@
                 // ICÔNE POUR INFO-BULLE
                 const eventIcon = '<i class="fas fa-info-circle" style="color: #667eea; margin-right: 6px;"></i>';
 
-                // ✅ GESTION DE LA COULEUR PRS DANS L'INFO-BULLE
-                const couleurPrs = info.event.extendedProps.couleurPRS || info.event.extendedProps.CouleurPRS;
+                // GESTION DE LA COULEUR PRS DANS L'INFO-BULLE (SEULEMENT SI L'UTILISATEUR A LES DROITS)
                 let couleurPrsDisplay = '';
-                if (couleurPrs && couleurPrs.trim() !== '') {
+                if (hasColorViewRights && couleurPRS && couleurPRS.trim() !== '') {
                     couleurPrsDisplay = `
                         <div style="margin-top: 8px; text-align: center;">
                             <span style="font-size: 0.85em; color: #666;">Couleur PRS: </span>
-                            <span style="display: inline-block; width: 20px; height: 20px; background-color: ${couleurPrs}; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); vertical-align: middle; margin-left: 4px;"></span>
-                            <span style="font-size: 0.8em; color: #666; margin-left: 4px;">${couleurPrs}</span>
+                            <span class="prs-color-tooltip" style="background-color: ${couleurPRS};"></span>
+                            <span style="font-size: 0.8em; color: #666; margin-left: 4px;">${couleurPRS}</span>
                         </div>
                     `;
                 }
@@ -359,7 +435,6 @@
                 });
             },
 
-
             loading: function (isLoading) {
                 loader.style.display = isLoading ? 'block' : 'none';
             },
@@ -372,6 +447,19 @@
                         return response.json();
                     })
                     .then(data => {
+                        // Log des couleurs PRS pour débogage uniquement si l'utilisateur a les droits
+                        if (hasColorViewRights) {
+                            const eventsWithPrsColor = data.filter(ev =>
+                                ev.extendedProps && ev.extendedProps.couleurPRS);
+
+                            if (eventsWithPrsColor.length > 0) {
+                                console.log(`${eventsWithPrsColor.length} événement(s) avec couleur PRS trouvé(s)`);
+                                console.log('Exemple de couleur:', eventsWithPrsColor[0].extendedProps.couleurPRS);
+                            } else {
+                                console.log('Aucune couleur PRS trouvée dans les événements');
+                            }
+                        }
+
                         const events = data.map(ev => {
                             if (ev.start && ev.end) {
                                 const start = new Date(ev.start);
@@ -470,46 +558,38 @@
                 }
             },
 
+            // CONTENU DES ÉVÉNEMENTS
             eventContent: function (arg) {
                 const baseTitle = arg.event.title.split(' - ')[0];
                 const ligne = arg.event.extendedProps?.ligne || "—";
 
-                // ✅ RÉCUPÉRATION DE LA COULEUR PRS
-                const couleurPrs = arg.event.extendedProps?.couleurPRS || arg.event.extendedProps?.CouleurPRS;
-
-                // ✅ INDICATEUR COULEUR PRS (UNIQUEMENT SI DÉFINIE)
-                let couleurIndicator = '';
-                if (couleurPrs && couleurPrs.trim() !== '') {
-                    couleurIndicator = `
-                        <div style="position: absolute; bottom: 2px; right: 2px; width: 8px; height: 8px; background-color: ${couleurPrs}; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 1px 2px rgba(0,0,0,0.3);"></div>
-                    `;
-                }
-
                 if (arg.view.type.startsWith("timeGrid")) {
+                    // Vue semaine ou jour (avec heures)
                     return {
                         html: `
-                            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: center;">
-                                <div style="font-weight: 700; font-size: 0.75em; opacity: 0.9;">
+                            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: center; padding-bottom: 6px;">
+                                <div style="font-weight: 700; font-size: 0.75em; opacity: 0.9; display: flex; align-items: center;">
                                     <i class="fas fa-industry" style="margin-right: 3px;"></i>${ligne}
                                 </div>
                                 <div style="font-weight: 600; font-size: 0.85em; margin-top: 2px;">
                                     ${baseTitle}
                                 </div>
-                                ${couleurIndicator}
+                            </div>`
+                    };
+                } else {
+                    // Vue mois ou plusieurs semaines
+                    return {
+                        html: `
+                            <div style="position: relative; padding: 2px; padding-bottom: 6px; border-radius: 6px; text-align: left;">
+                                <div style="font-weight: 600; font-size: 0.8em;">
+                                    ${baseTitle}
+                                </div>
+                                <div style="font-size: 0.7em; opacity: 0.9; margin-top: 1px; display: flex; align-items: center;">
+                                    <i class="fas fa-industry" style="margin-right: 2px;"></i>${ligne}
+                                </div>
                             </div>`
                     };
                 }
-
-                return {
-                    html: `
-                        <div style="position: relative; padding: 2px; border-radius: 6px; text-align: center;">
-                            <div style="font-weight: 600; font-size: 0.8em;">${baseTitle}</div>
-                            <div style="font-size: 0.7em; opacity: 0.9; margin-top: 1px;">
-                                <i class="fas fa-industry" style="margin-right: 2px;"></i>${ligne}
-                            </div>
-                            ${couleurIndicator}
-                        </div>`
-                };
             },
 
             // Gestion corrigée pour toutes les vues semaine

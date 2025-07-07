@@ -6,8 +6,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Net; // ✅ AJOUTÉ pour WebUtility.HtmlDecode
-using System.Globalization; // ✅ AJOUTÉ pour les semaines
+using System.Net; // Pour WebUtility.HtmlDecode
+using System.Globalization; // Pour les semaines
 
 namespace PlanifPRS.Controllers
 {
@@ -22,7 +22,7 @@ namespace PlanifPRS.Controllers
             _context = context;
         }
 
-        // ✅ MÉTHODE UTILITAIRE POUR DÉCODER LES ENTITÉS HTML
+        // MÉTHODE UTILITAIRE POUR DÉCODER LES ENTITÉS HTML
         private static string DecodeHtmlEntities(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -43,7 +43,7 @@ namespace PlanifPRS.Controllers
             return $"{statutIcon} {prs.Titre} - {prs.ReferenceProduit} ({prs.DateDebut:HH:mm}-{prs.DateFin:HH:mm})";
         }
 
-        // ✅ NOUVELLE MÉTHODE POUR LE MAIL HEBDOMADAIRE
+        // MÉTHODE POUR LE MAIL HEBDOMADAIRE
         [HttpGet("week")]
         public async Task<IActionResult> GetWeeklyPrs(string week)
         {
@@ -74,6 +74,7 @@ namespace PlanifPRS.Controllers
                         p.PresenceClient,
                         p.LigneId,
                         p.FamilleId,
+                        p.CouleurPRS,
                         l.Nom as LigneNom,
                         l.idSecteur,
                         s.nom as SecteurNom,
@@ -118,13 +119,14 @@ namespace PlanifPRS.Controllers
                         var infoDiverses = DecodeHtmlEntities(reader["InfoDiverses"]?.ToString()) ?? "";
                         var besoinOperateur = DecodeHtmlEntities(reader["BesoinOperateur"]?.ToString()) ?? "";
                         var presenceClient = DecodeHtmlEntities(reader["PresenceClient"]?.ToString()) ?? "Client absent";
+                        var couleurPRS = reader["CouleurPRS"]?.ToString(); // Récupération de la couleur PRS
 
-                        // ✅ CONSTRUIRE LA DESCRIPTION POUR LE MAIL
+                        // CONSTRUIRE LA DESCRIPTION POUR LE MAIL
                         var description = titre;
                         if (!string.IsNullOrEmpty(reference))
                             description += $" {reference}";
 
-                        // ✅ CONSTRUIRE LES COMMENTAIRES
+                        // CONSTRUIRE LES COMMENTAIRES
                         var commentaires = new List<string>();
 
                         if (!string.IsNullOrEmpty(infoDiverses))
@@ -150,7 +152,8 @@ namespace PlanifPRS.Controllers
                             commentaires = string.Join(" - ", commentaires),
                             presenceClient = presenceClient,
                             equipement = equipement,
-                            besoinOperateur = besoinOperateur
+                            besoinOperateur = besoinOperateur,
+                            couleurPRS = couleurPRS // Inclure la couleur PRS dans la réponse
                         };
 
                         prsData.Add(prs);
@@ -174,7 +177,7 @@ namespace PlanifPRS.Controllers
             }
         }
 
-        // ✅ MÉTHODE UTILITAIRE POUR PARSER LA SEMAINE
+        // MÉTHODE UTILITAIRE POUR PARSER LA SEMAINE
         private bool TryParseWeek(string weekString, out DateTime weekStart, out DateTime weekEnd)
         {
             weekStart = DateTime.MinValue;
@@ -236,7 +239,7 @@ namespace PlanifPRS.Controllers
                     results.Add(new
                     {
                         Id = reader["Id"],
-                        Libelle = DecodeHtmlEntities(reader["Libelle"]?.ToString()), // ✅ DÉCODAGE
+                        Libelle = DecodeHtmlEntities(reader["Libelle"]?.ToString()), // DÉCODAGE
                         CouleurHex = reader["CouleurHex"]
                     });
                 }
@@ -253,7 +256,7 @@ namespace PlanifPRS.Controllers
             }
         }
 
-        // Version principale AVEC les couleurs des familles ET InfoDiverses
+        // Version principale AVEC les couleurs des familles, InfoDiverses, et CouleurPRS
         [HttpGet]
         public async Task<IActionResult> GetPrs(DateTime? start, DateTime? end)
         {
@@ -271,6 +274,7 @@ namespace PlanifPRS.Controllers
                         p.InfoDiverses,
                         p.LigneId,
                         p.FamilleId,
+                        p.CouleurPRS,
                         l.Nom as LigneNom,
                         l.idSecteur,
                         s.nom as SecteurNom,
@@ -314,7 +318,7 @@ namespace PlanifPRS.Controllers
                 {
                     try
                     {
-                        // ✅ DÉCODAGE HTML DE TOUS LES CHAMPS TEXTE
+                        // DÉCODAGE HTML DE TOUS LES CHAMPS TEXTE
                         var titre = DecodeHtmlEntities(reader["Titre"]?.ToString()) ?? "Sans titre";
                         var reference = DecodeHtmlEntities(reader["ReferenceProduit"]?.ToString()) ?? "Sans ref";
                         var statut = DecodeHtmlEntities(reader["Statut"]?.ToString()) ?? "";
@@ -325,8 +329,10 @@ namespace PlanifPRS.Controllers
                         var secteurNom = DecodeHtmlEntities(reader["SecteurNom"]?.ToString()) ?? "Non défini";
                         var familleLibelle = DecodeHtmlEntities(reader["FamilleLibelle"]?.ToString()) ?? "Non défini";
                         var familleCouleur = reader["FamilleCouleur"]?.ToString() ?? "#009dff";
+                        // Récupération de la couleur PRS personnalisée
+                        var couleurPRS = reader["CouleurPRS"]?.ToString();
 
-                        // ✅ DÉCODAGE HTML pour InfoDiverses
+                        // DÉCODAGE HTML pour InfoDiverses
                         var infoDiverses = DecodeHtmlEntities(reader["InfoDiverses"]?.ToString()) ?? "";
 
                         string statutIcon = statut switch
@@ -337,7 +343,7 @@ namespace PlanifPRS.Controllers
                             _ => ""
                         };
 
-                        // ✅ DÉTECTION DU TYPE D'ÉVÉNEMENT AMÉLIORÉE
+                        // DÉTECTION DU TYPE D'ÉVÉNEMENT AMÉLIORÉE
                         string eventType = "Autre";
 
                         // Vérifier d'abord par l'équipement (priorité aux événements)
@@ -366,7 +372,7 @@ namespace PlanifPRS.Controllers
                                 eventType = "Visite Client";
                         }
 
-                        // ✅ VÉRIFIER AUSSI PAR LA FAMILLE EN DERNIER RECOURS
+                        // VÉRIFIER AUSSI PAR LA FAMILLE EN DERNIER RECOURS
                         if (eventType == "Autre" && !string.IsNullOrEmpty(familleLibelle))
                         {
                             if (familleLibelle.Contains("Audit"))
@@ -409,14 +415,15 @@ namespace PlanifPRS.Controllers
                             textColor = ComputeTextColor(familleCouleur),
                             extendedProps = new
                             {
-                                type = eventType, // ✅ UTILISER LE TYPE DÉTECTÉ
+                                type = eventType, // UTILISER LE TYPE DÉTECTÉ
                                 statut = statut,
-                                equipement = equipement, // ✅ AJOUTÉ pour debug
+                                equipement = equipement,
                                 familleLibelle = familleLibelle,
                                 familyColor = familleCouleur,
                                 ligne = ligneNom,
                                 secteur = secteurNom,
-                                infoDiverses = infoDiverses
+                                infoDiverses = infoDiverses,
+                                couleurPRS = couleurPRS // Inclure la couleur PRS dans les propriétés étendues
                             }
                         };
 
@@ -472,7 +479,7 @@ namespace PlanifPRS.Controllers
                 var secteurs = await _context.Secteurs
                     .Where(s => s.Activation == true && !string.IsNullOrEmpty(s.Nom))
                     .OrderBy(s => s.Nom)
-                    .Select(s => new { id = s.Id, nom = DecodeHtmlEntities(s.Nom) }) // ✅ DÉCODAGE
+                    .Select(s => new { id = s.Id, nom = DecodeHtmlEntities(s.Nom) }) // DÉCODAGE
                     .ToListAsync();
 
                 return Ok(secteurs);
