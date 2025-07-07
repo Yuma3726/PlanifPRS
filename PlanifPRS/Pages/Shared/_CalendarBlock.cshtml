@@ -64,6 +64,28 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         vertical-align: middle;
     }
+
+    /* Style pour les événements en attente */
+    .event-pending {
+        background-color: #fff3cd !important;
+        border-color: #ffecb5 !important;
+        color: #856404 !important;
+    }
+
+        .event-pending .fc-event-title,
+        .event-pending .fc-event-time {
+            color: #856404 !important;
+        }
+
+    .badge-pending {
+        background-color: #ffc107;
+        color: #212529;
+        font-size: 0.75em;
+        padding: 0.25em 0.5em;
+        border-radius: 0.25rem;
+        margin-right: 0.5em;
+        font-weight: bold;
+    }
 </style>
 
 <div class="calendar-container">
@@ -127,6 +149,11 @@
                 <label class="filter-checkbox active" for="filterVisiteClient">
                     <input class="filter-check" type="checkbox" value="Visite Client" id="filterVisiteClient" checked>
                     <i class="fas fa-handshake me-1"></i>Visite Client
+                </label>
+
+                <label class="filter-checkbox active" for="filterPending">
+                    <input class="filter-check" type="checkbox" value="En attente" id="filterPending" checked>
+                    <i class="fas fa-clock me-1"></i>PRS en attente
                 </label>
             </div>
         </div>
@@ -199,6 +226,26 @@
 
         // PRS CLASSIQUES → PAGE EDIT NORMALE
         return '/Edit';
+    }
+
+    // Fonction pour déterminer si un événement est une semaine complète
+    function isFullWeek(event) {
+        // Si on a un événement "En attente"
+        if (event.extendedProps.statut === "En attente") {
+            // Vérifier si c'est une semaine entière
+            const start = new Date(event.start);
+            const end = new Date(event.end);
+
+            // Calculer la durée en jours
+            const durationMs = end - start;
+            const durationDays = durationMs / (1000 * 60 * 60 * 24);
+
+            // Si la durée est proche de 7 jours (6.5-7.5), considérer comme semaine complète
+            if (durationDays >= 6.5 && durationDays <= 7.5) {
+                return true;
+            }
+        }
+        return false;
     }
 
     async function loadSecteurs() {
@@ -337,6 +384,11 @@
 
             // FORCER L'APPLICATION DES COULEURS ET AJOUTER LA BARRE DE COULEUR PRS
             eventDidMount: function (info) {
+                // Gérer les événements en attente
+                if (info.event.extendedProps.statut === "En attente" && isFullWeek(info.event)) {
+                    info.el.classList.add('event-pending');
+                }
+
                 // FORCER LA COULEUR DE FOND
                 if (info.event.backgroundColor) {
                     info.el.style.backgroundColor = info.event.backgroundColor;
@@ -408,10 +460,32 @@
                     `;
                 }
 
+                // Ajouter une badge si c'est une PRS en attente
+                let statusBadge = '';
+                if (info.event.extendedProps.statut === "En attente") {
+                    statusBadge = `
+                        <div class="mt-2">
+                            <span class="badge bg-warning">En attente</span>
+                        </div>
+                    `;
+                }
+
+                // Ajouter information sur le créateur
+                let creatorInfo = '';
+                if (info.event.extendedProps.createdByLogin) {
+                    creatorInfo = `
+                        <div style="margin-top: 5px; font-size: 0.8em; color: #666;">
+                            <i class="fas fa-user-edit" style="margin-right: 3px;"></i>
+                            Créé par: <strong>${info.event.extendedProps.createdByLogin}</strong>
+                        </div>
+                    `;
+                }
+
                 tippy(info.el, {
                     content: `
                         <div style="text-align: center; padding: 8px; max-width: 300px;">
-                            <strong style="font-size: 1.1em; color: #667eea;">${info.event.title}</strong><br>
+                            <strong style="font-size: 1.1em; color: #667eea;">${info.event.title}</strong>
+                            ${statusBadge}
                             <div style="margin: 10px 0; padding: 8px 12px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; text-align: left; line-height: 1.4;">
                                 ${eventIcon}
                                 ${infoDiverses}
@@ -420,6 +494,7 @@
                                 <span><i class="fas fa-industry" style="margin-right: 4px; color: #34A853;"></i>${info.event.extendedProps.ligne || 'N/A'}</span>
                                 <span><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: #fbbc05;"></i>${info.event.extendedProps.secteur || 'Non défini'}</span>
                             </div>
+                            ${creatorInfo}
                             ${couleurPrsDisplay}
                         </div>
                     `,
@@ -460,7 +535,18 @@
                             }
                         }
 
+                        // Vérifier si certaines PRS sont en attente
+                        const pendingEvents = data.filter(ev =>
+                            ev.extendedProps && ev.extendedProps.statut === "En attente");
+
+                        console.log(`${pendingEvents.length} PRS en attente trouvées`);
+
                         const events = data.map(ev => {
+                            // Conserver le statut dans extendedProps pour filtrage
+                            if (!ev.extendedProps) ev.extendedProps = {};
+                            if (ev.statut) ev.extendedProps.statut = ev.statut;
+
+                            // Traiter les allDay et semaines complètes
                             if (ev.start && ev.end) {
                                 const start = new Date(ev.start);
                                 const end = new Date(ev.end);
@@ -562,8 +648,24 @@
             eventContent: function (arg) {
                 const baseTitle = arg.event.title.split(' - ')[0];
                 const ligne = arg.event.extendedProps?.ligne || "—";
+                const isPending = arg.event.extendedProps?.statut === "En attente";
+                const isFullWeekEvent = isFullWeek(arg.event);
 
-                if (arg.view.type.startsWith("timeGrid")) {
+                // Si c'est une PRS en attente pour une semaine complète, afficher un style spécial
+                if (isPending && isFullWeekEvent) {
+                    return {
+                        html: `
+                            <div style="position: relative; padding: 2px; text-align: left;">
+                                <div style="font-weight: 600; font-size: 0.85em;">
+                                    <span class="badge-pending">En attente</span>
+                                    ${baseTitle}
+                                </div>
+                                <div style="font-size: 0.75em; margin-top: 2px; display: flex; align-items: center;">
+                                    <i class="fas fa-industry" style="margin-right: 3px;"></i>${ligne}
+                                </div>
+                            </div>`
+                    };
+                } else if (arg.view.type.startsWith("timeGrid")) {
                     // Vue semaine ou jour (avec heures)
                     return {
                         html: `
@@ -572,6 +674,7 @@
                                     <i class="fas fa-industry" style="margin-right: 3px;"></i>${ligne}
                                 </div>
                                 <div style="font-weight: 600; font-size: 0.85em; margin-top: 2px;">
+                                    ${isPending ? '<span class="badge-pending">En attente</span>' : ''}
                                     ${baseTitle}
                                 </div>
                             </div>`
@@ -582,6 +685,7 @@
                         html: `
                             <div style="position: relative; padding: 2px; padding-bottom: 6px; border-radius: 6px; text-align: left;">
                                 <div style="font-weight: 600; font-size: 0.8em;">
+                                    ${isPending ? '<span class="badge-pending">En attente</span>' : ''}
                                     ${baseTitle}
                                 </div>
                                 <div style="font-size: 0.7em; opacity: 0.9; margin-top: 1px; display: flex; align-items: center;">
@@ -613,10 +717,18 @@
         function filterEvents() {
             const checkedTypes = Array.from(filterChecks).filter(chk => chk.checked).map(chk => chk.value);
             const selectedSector = sectorFilter.value;
+            const showPending = document.getElementById("filterPending").checked;
 
             let visibleCount = 0;
             calendar.getEvents().forEach(ev => {
-                const matchType = checkedTypes.includes(ev.extendedProps.type);
+                // Types standards
+                let matchType = checkedTypes.includes(ev.extendedProps.type);
+
+                // Pour les événements "En attente"
+                if (ev.extendedProps.statut === "En attente") {
+                    matchType = showPending;
+                }
+
                 const matchSector = (selectedSector === "Tous" || ev.extendedProps.secteur === selectedSector);
                 const isVisible = matchType && matchSector;
 

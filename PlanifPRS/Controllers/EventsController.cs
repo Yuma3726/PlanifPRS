@@ -36,7 +36,7 @@ namespace PlanifPRS.Controllers
             string statutIcon = prs.Statut switch
             {
                 "Validé" => "✅",
-                "En attente" => "🔴",
+                "En attente" => "",
                 "En retard" => "🕒",
                 _ => ""
             };
@@ -338,7 +338,7 @@ namespace PlanifPRS.Controllers
                         string statutIcon = statut switch
                         {
                             "Validé" => "✅",
-                            "En attente" => "🔴",
+                            "En attente" => "",
                             "En retard" => "🕒",
                             _ => ""
                         };
