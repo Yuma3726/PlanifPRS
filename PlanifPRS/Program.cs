@@ -1,16 +1,33 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PlanifPRS.Data;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    // Configuration des conventions de routage
+    options.Conventions.AllowAnonymousToPage("/AccessDenied");
+
+    // Route explicite pour la page Edit, nécessaire si vous avez l'erreur 404
+    options.Conventions.AddPageRoute("/Prs/Edit", "/Edit/{id:int?}");
+});
+
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Server.IISIntegration.IISDefaults.AuthenticationScheme);
 
-// ✅ CONFIGURATION POUR GÉRER LES ACCÈS REFUSÉS
+// Configuration de l'autorisation
+builder.Services.AddAuthorization(options =>
+{
+    // Politique qui permet à tous les utilisateurs authentifiés d'accéder aux pages
+    options.AddPolicy("PrsAccessPolicy", policy =>
+        policy.RequireAuthenticatedUser());
+});
+
+// Configuration pour gérer les accès refusés
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.AccessDeniedPath = "/AccessDenied"; // ✅ CHEMIN SIMPLE
+    options.AccessDeniedPath = "/AccessDenied";
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
 });
@@ -32,12 +49,65 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ MIDDLEWARE POUR REDIRIGER LES 403
-app.UseStatusCodePagesWithRedirects("/AccessDenied?code={0}");
+// Middleware de journalisation pour le débogage
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+    var username = context.User?.Identity?.Name ?? "Non authentifié";
+    var isAuthenticated = context.User?.Identity?.IsAuthenticated ?? false;
+
+    Console.WriteLine($"[2025-07-07 15:04:35] Requête: {path} | Utilisateur: {username} | Authentifié: {isAuthenticated}");
+
+    await next();
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Middleware personnalisé pour gérer les erreurs 404/403
+app.Use(async (context, next) =>
+{
+    var originalPath = context.Request.Path.Value;
+
+    await next();
+
+    var statusCode = context.Response.StatusCode;
+
+    // Si on a un code 404 et que c'est une tentative d'accès à la page Edit
+    if (statusCode == 404 &&
+        (originalPath?.Contains("/Edit/") == true || originalPath?.StartsWith("/Prs/Edit/") == true))
+    {
+        // Extraire l'ID de l'URL
+        var pathParts = originalPath.Split('/');
+        string id = null;
+        for (int i = 0; i < pathParts.Length; i++)
+        {
+            if (pathParts[i].Equals("Edit", StringComparison.OrdinalIgnoreCase) && i + 1 < pathParts.Length)
+            {
+                id = pathParts[i + 1];
+                break;
+            }
+        }
+
+        // Si on a trouvé un ID, rediriger vers la bonne URL
+        if (!string.IsNullOrEmpty(id) && int.TryParse(id, out _))
+        {
+            Console.WriteLine($"[2025-07-07 15:04:35] Redirection de {originalPath} vers /Prs/Edit/{id}");
+            context.Response.Redirect($"/Prs/Edit/{id}");
+            return;
+        }
+    }
+
+    // Pour les autres erreurs 404/403, rediriger vers AccessDenied
+    if ((statusCode == 404 || statusCode == 403) &&
+        !originalPath.Contains("/AccessDenied"))
+    {
+        Console.WriteLine($"[2025-07-07 15:04:35] Redirection vers AccessDenied pour: {originalPath} (code: {statusCode})");
+        context.Response.Redirect($"/AccessDenied?code={statusCode}");
+    }
+});
+
+// Enregistrement des endpoints
 app.MapControllers();
 app.MapRazorPages();
 
