@@ -11,21 +11,26 @@ namespace PlanifPRS.Models
         public int Id { get; set; }
 
         [ForeignKey("Prs")]
-        public int PRSId { get; set; }
+        public int PrsId { get; set; }
 
-        [ValidateNever]
-        public Prs Prs { get; set; }
+        [Required, MaxLength(255)]
+        public string NomOriginal { get; set; }
 
-        [Required]
-        [MaxLength(255)]
-        public string NomFichier { get; set; }
-
-        [Required]
-        [MaxLength(500)]
+        [Required, MaxLength(500)]
         public string CheminFichier { get; set; }
 
-        public long TailleFichier { get; set; }
+        [MaxLength(100)]
+        public string TypeMime { get; set; }
 
-        public DateTime DateCreation { get; set; } = DateTime.Now;
+        public long Taille { get; set; }
+
+        public DateTime DateUpload { get; set; } = DateTime.Now;
+
+        [MaxLength(100)]
+        public string UploadParLogin { get; set; }
+
+        // Propriété de navigation
+        [ValidateNever]
+        public virtual Prs Prs { get; set; }
     }
 }

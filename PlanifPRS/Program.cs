@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PlanifPRS.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
+using PlanifPRS.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +34,24 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
 });
 
+// Ajout du service de gestion des fichiers
+builder.Services.AddScoped<FileService>();
+
+// Configuration du téléchargement de fichiers volumineux
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 104857600; // 100 MB
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartHeadersLengthLimit = int.MaxValue;
+    options.BufferBodyLengthLimit = int.MaxValue;
+});
+
+// Configuration de Kestrel pour permettre les uploads volumineux
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 104857600; // 100 MB
+});
+
 builder.Services.AddDbContext<PlanifPrsDbContext>(options =>
     options.UseSqlServer("Server=MSLTest20\\test;Database=PlanifPRS;User Id=ssis;Password=ssis;TrustServerCertificate=True;Encrypt=True;"));
 
@@ -56,7 +76,7 @@ app.Use(async (context, next) =>
     var username = context.User?.Identity?.Name ?? "Non authentifié";
     var isAuthenticated = context.User?.Identity?.IsAuthenticated ?? false;
 
-    Console.WriteLine($"[2025-07-07 15:04:35] Requête: {path} | Utilisateur: {username} | Authentifié: {isAuthenticated}");
+    Console.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Requête: {path} | Utilisateur: {username} | Authentifié: {isAuthenticated}");
 
     await next();
 });
@@ -92,7 +112,7 @@ app.Use(async (context, next) =>
         // Si on a trouvé un ID, rediriger vers la bonne URL
         if (!string.IsNullOrEmpty(id) && int.TryParse(id, out _))
         {
-            Console.WriteLine($"[2025-07-07 15:04:35] Redirection de {originalPath} vers /Prs/Edit/{id}");
+            Console.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Redirection de {originalPath} vers /Prs/Edit/{id}");
             context.Response.Redirect($"/Prs/Edit/{id}");
             return;
         }
@@ -102,7 +122,7 @@ app.Use(async (context, next) =>
     if ((statusCode == 404 || statusCode == 403) &&
         !originalPath.Contains("/AccessDenied"))
     {
-        Console.WriteLine($"[2025-07-07 15:04:35] Redirection vers AccessDenied pour: {originalPath} (code: {statusCode})");
+        Console.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Redirection vers AccessDenied pour: {originalPath} (code: {statusCode})");
         context.Response.Redirect($"/AccessDenied?code={statusCode}");
     }
 });

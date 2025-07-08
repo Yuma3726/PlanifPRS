@@ -15,21 +15,22 @@ namespace PlanifPRS.Data
         public DbSet<Utilisateur> Utilisateurs { get; set; }
         public DbSet<JalonUtilisateur> JalonUtilisateurs { get; set; }
         public DbSet<Secteur> Secteurs { get; set; }
+        public DbSet<PrsFichier> PrsFichiers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // ⭐ Table PRS_Famille - CORRECTION ICI
+            // ⭐ Table PRS_Famille
             modelBuilder.Entity<PrsFamille>(entity =>
             {
-                entity.ToTable("PRS_Famille"); // ✅ Nom de table corrigé avec underscore
+                entity.ToTable("PRS_Famille");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Libelle)
                       .IsRequired()
                       .HasMaxLength(100);
                 entity.Property(e => e.CouleurHex)
-                      .HasMaxLength(7); // exemple : "#007bff"
+                      .HasMaxLength(7);
             });
 
             // Configuration pour la table Secteur
@@ -69,7 +70,7 @@ namespace PlanifPRS.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // ⭐ Relation PRS → PrsFamille - AJOUT DE LA RELATION
+            // ⭐ Relation PRS → PrsFamille
             modelBuilder.Entity<Prs>()
                 .HasOne(p => p.Famille)
                 .WithMany()
@@ -82,6 +83,23 @@ namespace PlanifPRS.Data
                 .WithMany(l => l.PRSs)
                 .HasForeignKey(p => p.LigneId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configuration pour la table PrsFichier et sa relation avec PRS
+            modelBuilder.Entity<PrsFichier>(entity =>
+            {
+                entity.ToTable("PRS_Fichiers");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.NomOriginal).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.CheminFichier).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.TypeMime).HasMaxLength(100);
+                entity.Property(e => e.UploadParLogin).HasMaxLength(100);
+
+                entity.HasOne(f => f.Prs)
+                      .WithMany(p => p.Fichiers)
+                      .HasForeignKey(f => f.PrsId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
 
             // Clé alternative pour LoginWindows dans Utilisateur
             modelBuilder.Entity<Utilisateur>()

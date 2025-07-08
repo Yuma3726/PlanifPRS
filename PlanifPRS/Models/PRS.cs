@@ -8,6 +8,13 @@ namespace PlanifPRS.Models
 {
     public class Prs
     {
+        public Prs()
+        {
+            Checklist = new List<PrsChecklist>();
+            Jalons = new List<PrsJalon>();
+            Fichiers = new List<PrsFichier>();
+        }
+
         [Key]
         public int Id { get; set; }
 
@@ -45,16 +52,20 @@ namespace PlanifPRS.Models
         [MaxLength(7)]
         public string? CouleurPRS { get; set; }
 
-        // Nouvelle propriété pour stocker le login du créateur
+        // Propriété pour stocker le login du créateur
         [MaxLength(100)]
         public string? CreatedByLogin { get; set; }
 
         // Relations
         [ValidateNever]
-        public List<PrsChecklist> Checklist { get; set; } = new List<PrsChecklist>();
+        public List<PrsChecklist> Checklist { get; set; }
 
         [ValidateNever]
-        public List<PrsJalon> Jalons { get; set; } = new List<PrsJalon>();
+        public List<PrsJalon> Jalons { get; set; }
+
+        // Ajout de la collection de fichiers
+        [ValidateNever]
+        public List<PrsFichier> Fichiers { get; set; }
 
         public int? FamilleId { get; set; }
 

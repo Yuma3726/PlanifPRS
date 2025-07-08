@@ -4,25 +4,35 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using PlanifPRS.Data;
 using PlanifPRS.Models;
+using PlanifPRS.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace PlanifPRS.Pages.Prs
 {
     public class CreateModel : PageModel
     {
         private readonly PlanifPrsDbContext _context;
+        private readonly FileService _fileService;
+        private readonly ILogger<CreateModel> _logger;
 
-        public CreateModel(PlanifPrsDbContext context)
+        public CreateModel(PlanifPrsDbContext context, FileService fileService, ILogger<CreateModel> logger)
         {
             _context = context;
+            _fileService = fileService;
+            _logger = logger;
         }
 
         [BindProperty]
         public Models.Prs Prs { get; set; }
+
+        [BindProperty]
+        public List<IFormFile> UploadedFiles { get; set; }
 
         public SelectList LigneList { get; set; }
 
@@ -30,6 +40,9 @@ namespace PlanifPRS.Pages.Prs
 
         [TempData]
         public string Flash { get; set; }
+
+        [TempData]
+        public string ErrorMessage { get; set; }
 
         // Propriété pour vérifier les droits utilisateur
         public bool IsAdminOrValidateur => HasRequiredRole();
@@ -67,6 +80,8 @@ namespace PlanifPRS.Pages.Prs
 
         public async Task<IActionResult> OnPostAsync()
         {
+            _logger.LogInformation($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Début de OnPostAsync avec {UploadedFiles?.Count ?? 0} fichiers");
+
             ChargerFamilles();
             ChargerLignes();
 
@@ -90,6 +105,8 @@ namespace PlanifPRS.Pages.Prs
 
             try
             {
+                _logger.LogInformation("Création d'une nouvelle PRS");
+
                 Prs.DateCreation = DateTime.Now;
                 Prs.DerniereModification = DateTime.Now;
 
@@ -126,6 +143,75 @@ namespace PlanifPRS.Pages.Prs
 
                 _context.Prs.Add(Prs);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation($"PRS créée avec succès. ID: {Prs.Id}, Titre: {Prs.Titre}");
+
+                // Gérer l'upload des fichiers après la création de la PRS
+                if (UploadedFiles != null && UploadedFiles.Any())
+                {
+                    _logger.LogInformation($"Traitement de {UploadedFiles.Count} fichiers uploadés");
+
+                    // Debug des fichiers reçus
+                    foreach (var file in UploadedFiles)
+                    {
+                        _logger.LogInformation($"Fichier reçu: {file.FileName}, Type: {file.ContentType}, Taille: {file.Length} bytes");
+                    }
+
+                    // Stocker les fichiers
+                    var fileResults = await _fileService.SaveMultipleFilesAsync(
+                        UploadedFiles,
+                        Prs.Id.ToString(),
+                        Prs.Titre ?? "PRS"
+                    );
+
+                    int successCount = 0;
+                    int errorCount = 0;
+
+                    // Créer les enregistrements de fichiers dans la base de données
+                    foreach (var (Success, FilePath, ErrorMsg) in fileResults)
+                    {
+                        if (Success && !string.IsNullOrEmpty(FilePath))
+                        {
+                            var file = UploadedFiles[fileResults.IndexOf((Success, FilePath, ErrorMsg))];
+                            var prsFichier = new PrsFichier
+                            {
+                                PrsId = Prs.Id,
+                                NomOriginal = file.FileName,
+                                CheminFichier = FilePath,
+                                TypeMime = file.ContentType,
+                                Taille = file.Length,
+                                DateUpload = DateTime.Now,
+                                UploadParLogin = GetCurrentUserLogin()
+                            };
+
+                            _logger.LogInformation($"Ajout du fichier à la BDD: {prsFichier.NomOriginal}, Chemin: {prsFichier.CheminFichier}");
+                            _context.PrsFichiers.Add(prsFichier);
+                            successCount++;
+                        }
+                        else
+                        {
+                            _logger.LogError($"Erreur lors de l'upload: {ErrorMsg}");
+                            errorCount++;
+                            ModelState.AddModelError(string.Empty, ErrorMsg);
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"Fin de traitement des fichiers: {successCount} succès, {errorCount} erreurs");
+
+                    if (successCount > 0)
+                    {
+                        Flash += $" {successCount} fichier(s) téléchargé(s) avec succès.";
+                    }
+
+                    if (errorCount > 0)
+                    {
+                        ErrorMessage = $"{errorCount} fichier(s) n'ont pas pu être téléchargés. Vérifiez les erreurs.";
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Aucun fichier à uploader");
+                }
 
                 Flash = "PRS ajoutée avec succès ✅";
 
@@ -133,8 +219,9 @@ namespace PlanifPRS.Pages.Prs
             }
             catch (Exception ex)
             {
+                ErrorMessage = $"Erreur lors de l'ajout de la PRS: {ex.Message}";
                 ModelState.AddModelError(string.Empty, "Erreur lors de l'ajout de la PRS.");
-                Console.WriteLine(">>>> ERREUR : " + ex.Message);
+                _logger.LogError($"Erreur lors de la création de la PRS: {ex.Message}", ex);
                 return Page();
             }
         }
@@ -218,7 +305,7 @@ namespace PlanifPRS.Pages.Prs
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Erreur vérification droits: {ex.Message}");
+                _logger.LogError($"Erreur vérification droits: {ex.Message}");
                 return false;
             }
         }
@@ -268,11 +355,11 @@ namespace PlanifPRS.Pages.Prs
                 }
 
                 Familles = famillesList;
-                Console.WriteLine($"✅ Familles chargées: {famillesList.Count}");
+                _logger.LogInformation($"Familles chargées: {famillesList.Count}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Erreur ChargerFamilles: {ex.Message}");
+                _logger.LogError($"Erreur ChargerFamilles: {ex.Message}");
                 Familles = new List<PrsFamille>();
             }
         }
@@ -321,11 +408,11 @@ namespace PlanifPRS.Pages.Prs
                 }
 
                 LigneList = new SelectList(lignesList, "Value", "Text");
-                Console.WriteLine($"✅ Lignes chargées: {lignesList.Count}");
+                _logger.LogInformation($"Lignes chargées: {lignesList.Count}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Erreur ChargerLignes: {ex.Message}");
+                _logger.LogError($"Erreur ChargerLignes: {ex.Message}");
                 LigneList = new SelectList(new List<SelectListItem>(), "Value", "Text");
             }
         }

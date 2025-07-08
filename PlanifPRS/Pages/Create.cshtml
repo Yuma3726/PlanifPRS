@@ -102,6 +102,116 @@
                 margin-right: 5px;
                 color: #6c757d;
             }
+            
+        /* Styles pour la zone d'upload */
+        .file-upload-container {
+            border: 2px dashed #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+            position: relative;
+        }
+
+        .file-upload-container:hover, .file-upload-container.dragover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+
+        .file-upload-icon {
+            font-size: 3rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .file-upload-text {
+            color: #495057;
+        }
+
+        .file-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 15px 0 0 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .file-icon {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .file-name {
+            flex-grow: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-size {
+            margin-left: 10px;
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+
+        .remove-file {
+            color: #dc3545;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .file-upload-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-limits {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-limits i {
+            margin-right: 5px;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background-color: #e9ecef;
+            margin-top: 10px;
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
     </style>
 }
 
@@ -136,6 +246,17 @@
         </div>
     }
 
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-modern">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+                <span>@Model.ErrorMessage</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     @if (!ViewData.ModelState.IsValid)
     {
         <div class="alert alert-danger alert-modern">
@@ -153,7 +274,7 @@
 
     <!-- Formulaire principal -->
     <div class="form-container">
-        <form method="post" class="row g-3" id="create-form">
+        <form method="post" class="row g-3" id="create-form" enctype="multipart/form-data">
             <input type="hidden" asp-for="Prs.Statut" id="Prs_Statut" value="@(isAdminOrValidateur ? "Validé" : "En attente")" />
 
             <!-- Champ caché pour le mode semaine -->
@@ -263,6 +384,22 @@
                                     </label>
                                     <input asp-for="Prs.DateFin" type="datetime-local" class="form-control"
                                            value="@Model.Prs.DateFin.ToString("yyyy-MM-ddTHH:mm")" />
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-clock text-warning"></i> Durée
+                                    </label>
+                                    <select id="duration-select" class="form-select">
+                                        <option value="1">1 heure</option>
+                                        <option value="2">2 heures</option>
+                                        <option value="4">4 heures</option>
+                                        <option value="8">8 heures</option>
+                                        <option value="24">24 heures</option>
+                                        <option value="48">2 jours</option>
+                                        <option value="72">3 jours</option>
+                                        <option value="168">1 semaine</option>
+                                    </select>
                                 </div>
                             }
                             else
@@ -376,6 +513,34 @@
                 <textarea asp-for="Prs.InfoDiverses" class="form-control" rows="3"
                           placeholder="Ajoutez toute information utile pour cette PRS..."></textarea>
             </div>
+            
+            <!-- Nouvelle section pour l'upload de fichiers -->
+            <div class="col-md-12">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-upload me-2"></i>Pièces jointes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="file-upload-container" id="dropZone">
+                            <i class="fas fa-cloud-upload-alt file-upload-icon"></i>
+                            <p class="file-upload-text">
+                                Glissez-déposez vos fichiers ici ou <strong>cliquez pour sélectionner</strong>
+                            </p>
+                            <input type="file" multiple name="UploadedFiles" class="file-upload-input" id="fileUpload" />
+                            <div class="progress-container" id="uploadProgress">
+                                <div class="progress-bar" id="progressBar"></div>
+                            </div>
+                            <p class="upload-limits">
+                                <i class="fas fa-info-circle"></i>
+                                Taille max: 100 Mo par fichier | Tous formats acceptés
+                            </p>
+                        </div>
+                        <ul class="file-list" id="fileList"></ul>
+                    </div>
+                </div>
+            </div>
 
             <div class="col-12 text-center">
                 <button type="submit" class="btn btn-primary btn-lg px-5">
@@ -451,6 +616,7 @@
         const weekDaysElem = document.querySelector("#weekDays");
         const weekHighlightElem = document.querySelector("#weekHighlight");
         const selectedWeekInput = document.querySelector("#selectedWeek");
+        const durationSelect = document.querySelector("#duration-select");
 
         // Variable pour la semaine sélectionnée (pour utilisateurs normaux)
         let currentWeekStart = getMonday(new Date());
@@ -491,6 +657,20 @@
                             colorText.value = '';
                         });
                     }
+                }
+                
+                // Gestion du sélecteur de durée
+                if (durationSelect) {
+                    durationSelect.addEventListener('change', function() {
+                        if (dateDebutInput) {
+                            const heures = parseInt(this.value);
+                            const dateDebut = new Date(dateDebutInput.value);
+                            const dateFin = new Date(dateDebut);
+                            dateFin.setHours(dateDebut.getHours() + heures);
+                            
+                            dateFinInput.value = formatInputDateTime(dateFin);
+                        }
+                    });
                 }
             </text>
         }
@@ -823,6 +1003,10 @@
             document.getElementById('robia-suggestions').style.display = 'none';
         });
 
+        document.getElementById('show-alternatives').addEventListener('click', function() {
+            showRobiaNotification("Désolé, pas d'alternatives disponibles pour le moment.", 'info');
+        });
+
         // Formatage de date-heure pour les champs input
         function formatInputDateTime(date) {
             return date.toISOString().slice(0, 16);
@@ -892,9 +1076,203 @@
             }
         });
 
-        // Initialisation
-        setTimeout(() => {
-            showRobiaNotification('ROB.I.A prêt à optimiser vos planifications !', 'success');
-        }, 1000);
-    </script>
+        // Gestion de l'upload des fichiers
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileUpload');
+            const fileList = document.getElementById('fileList');
+            const progressContainer = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Stocker les fichiers sélectionnés
+            let selectedFiles = [];
+            
+            // Fonction pour formater la taille du fichier
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Fonction pour déterminer l'icône en fonction du type de fichier
+            function getFileIcon(fileName) {
+                const extension = fileName.split('.').pop().toLowerCase();
+                
+                const icons = {
+                    'pdf': 'fas fa-file-pdf',
+                    'doc': 'fas fa-file-word',
+                    'docx': 'fas fa-file-word',
+                    'xls': 'fas fa-file-excel',
+                    'xlsx': 'fas fa-file-excel',
+                    'ppt': 'fas fa-file-powerpoint',
+                    'pptx': 'fas fa-file-powerpoint',
+                    'txt': 'fas fa-file-alt',
+                    'csv': 'fas fa-file-csv',
+                    'jpg': 'fas fa-file-image',
+                    'jpeg': 'fas fa-file-image',
+                    'png': 'fas fa-file-image',
+                    'gif': 'fas fa-file-image',
+                    'zip': 'fas fa-file-archive',
+                    'rar': 'fas fa-file-archive',
+                    '7z': 'fas fa-file-archive'
+                };
+                
+                return icons[extension] || 'fas fa-file';
+            }
+
+            // Fonction pour mettre à jour la liste de fichiers dans l'UI
+            function updateFileListUI() {
+                fileList.innerHTML = '';
+                
+                selectedFiles.forEach((file, index) => {
+                    const fileItem = document.createElement('li');
+                    fileItem.className = 'file-item';
+                    
+                    const fileIcon = document.createElement('i');
+                    fileIcon.className = `file-icon ${getFileIcon(file.name)}`;
+                    
+                    const fileName = document.createElement('span');
+                    fileName.className = 'file-name';
+                    fileName.textContent = file.name;
+                    
+                    const fileSize = document.createElement('span');
+                    fileSize.className = 'file-size';
+                    fileSize.textContent = formatFileSize(file.size);
+                    
+                    const removeButton = document.createElement('i');
+                    removeButton.className = 'remove-file fas fa-times-circle';
+                    removeButton.setAttribute('title', 'Supprimer');
+                    removeButton.addEventListener('click', function() {
+                        selectedFiles.splice(index, 1);
+                        updateFileListUI();
+                        updateHiddenFileInput();
+                    });
+                    
+                    fileItem.appendChild(fileIcon);
+                    fileItem.appendChild(fileName);
+                    fileItem.appendChild(fileSize);
+                    fileItem.appendChild(removeButton);
+                    
+                    fileList.appendChild(fileItem);
+                });
+            }
+            
+            // Fonction pour créer un input file caché avec les fichiers sélectionnés
+            function updateHiddenFileInput() {
+                // Nous ne pouvons pas facilement manipuler le contenu d'un input file.
+                // Dans un cas réel, on utiliserait FormData pour l'envoi
+                // Mais pour notre maquette, cette fonction est un placeholder
+            }
+            
+            // Fonction pour ajouter des fichiers à notre collection
+            function addFiles(files) {
+                if (!files || !files.length) return;
+                
+                // Pour chaque fichier sélectionné
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    
+                    // Vérifier la taille maximale
+                    if (file.size > 100 * 1024 * 1024) {
+                        showRobiaNotification(`Le fichier ${file.name} est trop volumineux (maximum 100 Mo)`, 'warning');
+                        continue;
+                    }
+                    
+                    // Vérifier si un fichier avec le même nom existe déjà
+                    const existingIndex = selectedFiles.findIndex(f => f.name === file.name);
+                    if (existingIndex >= 0) {
+                        // Remplacer le fichier existant
+                        selectedFiles[existingIndex] = file;
+                    } else {
+                        // Ajouter le nouveau fichier
+                        selectedFiles.push(file);
+                    }
+                }
+                
+                // Mettre à jour l'interface utilisateur
+                updateFileListUI();
+                
+                // Afficher la progression
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 5;
+                    progressBar.style.width = `${Math.min(progress, 100)}%`;
+                    
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            progressContainer.style.display = 'none';
+                        }, 500);
+                    }
+                }, 50);
+            }
+
+            // Événement lors de la sélection de fichiers par le input file
+            if (fileInput) {
+                fileInput.addEventListener('change', function(e) {
+                    addFiles(this.files);
+                });
+            }
+
+            // Événements pour le drag & drop
+            if (dropZone) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+                
+                dropZone.addEventListener('dragenter', () => {
+                    dropZone.classList.add('dragover');
+                });
+                
+                dropZone.addEventListener('dragover', () => {
+                    dropZone.classList.add('dragover');
+                });
+                
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('dragover');
+                });
+                
+                dropZone.addEventListener('drop', (e) => {
+                    dropZone.classList.remove('dragover');
+                    
+                    // Ajouter les fichiers déposés
+                    addFiles(e.dataTransfer.files);
+                });
+            }
+
+                            // Lors de la soumission du formulaire, nous devons copier les fichiers sélectionnés dans l'input file
+                document.querySelector('#create-form').addEventListener('submit', function(e) {
+                    if (selectedFiles.length > 0) {
+                        try {
+                            // Créer un nouveau DataTransfer object
+                            const dataTransfer = new DataTransfer();
+
+                            // Ajouter chaque fichier sélectionné
+                            selectedFiles.forEach(file => {
+                                dataTransfer.items.add(file);
+                            });
+
+                            // Assigner les fichiers à l'input file
+                            fileInput.files = dataTransfer.files;
+                        } catch (error) {
+                            console.error("Erreur lors de la préparation des fichiers pour l'envoi", error);
+                            // Ne pas bloquer la soumission du formulaire si cette étape échoue
+                        }
+                    }
+                });
+            });
+
+            // Initialisation
+            setTimeout(() => {
+                showRobiaNotification('ROB.I.A prêt à optimiser vos planifications !', 'success');
+            }, 1000);
+        </script>
 }

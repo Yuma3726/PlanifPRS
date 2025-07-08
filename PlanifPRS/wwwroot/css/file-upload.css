@@ -1,0 +1,121 @@
+﻿/* Styles pour la zone d'upload */
+.file-upload-container {
+    border: 2px dashed #dee2e6;
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+    position: relative;
+}
+
+    .file-upload-container:hover, .file-upload-container.dragover {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+
+.file-upload-icon {
+    font-size: 3rem;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+.file-upload-text {
+    color: #495057;
+}
+
+.file-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 15px 0 0 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.file-icon {
+    margin-right: 10px;
+    font-size: 1.2rem;
+}
+
+.file-name {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-size {
+    margin-left: 10px;
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+.remove-file {
+    color: #dc3545;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.file-upload-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.upload-limits {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+    .upload-limits i {
+        margin-right: 5px;
+    }
+
+.progress-container {
+    width: 100%;
+    height: 4px;
+    background-color: #e9ecef;
+    margin-top: 10px;
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .file-item {
+        flex-wrap: wrap;
+    }
+
+    .file-size {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 5px;
+    }
+}
