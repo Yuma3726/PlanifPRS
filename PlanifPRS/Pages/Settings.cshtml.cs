@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using PlanifPRS.Data;
 using PlanifPRS.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -33,8 +34,8 @@ namespace PlanifPRS.Pages
 
             if (user == null || user.Droits?.ToLower() != "admin")
             {
-                TempData["ErrorMessage"] = "⚠️ Accès refusé. Seuls les administrateurs peuvent accéder aux paramètres.";
-                return RedirectToPage("/Index");
+                // Rediriger vers la page AccessDenied au lieu de rediriger vers Index
+                return RedirectToPage("/AccessDenied");
             }
 
             try

@@ -1,18 +1,12 @@
 ﻿@page
-@model UsersModel
+@model PlanifPRS.Pages.UsersModel
 @{
     ViewData["Title"] = "Gestion des utilisateurs";
 }
 
 <h1>Gestion des utilisateurs</h1>
 
-@if (!Model.IsAdmin)
-{
-    <div class="alert alert-danger">
-        ⚠️ Accès refusé. Vous n'avez pas les droits nécessaires pour consulter cette page.
-    </div>
-}
-else
+@if (Model.IsAdmin)
 {
     <form method="get" class="mb-3 d-flex" role="search">
         <input type="text" name="searchTerm" class="form-control me-2" placeholder="Rechercher..." value="@Model.SearchTerm" />
