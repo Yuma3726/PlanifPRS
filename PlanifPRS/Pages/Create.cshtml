@@ -9,7 +9,7 @@
 }
 
 @section Styles {
-    <!-- CSS EXTERNE COMPLET -->
+    <!-- ✅ CSS EXTERNE COMPLET -->
     <link rel="stylesheet" href="~/css/create-prs.css" asp-append-version="true" />
 
     <style>
@@ -212,6 +212,78 @@
             background-color: #007bff;
             transition: width 0.3s ease;
         }
+
+        /* Styles pour ROB.I.A */
+        .robia-card {
+            border-width: 2px;
+            border-color: #17a2b8;
+            transition: all 0.3s ease;
+        }
+
+        .robia-card:hover {
+            box-shadow: 0 .5rem 1rem rgba(23, 162, 184, .15);
+        }
+
+        .robot-icon {
+            display: inline-block;
+        }
+
+        .btn-robia {
+            background: linear-gradient(45deg, #17a2b8, #20c997);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-robia:hover {
+            background: linear-gradient(45deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            color: white;
+        }
+
+        .btn-robia:active {
+            transform: translateY(0);
+        }
+
+        .btn-robia.analyzing {
+            background: linear-gradient(45deg, #dc3545, #fd7e14);
+            pointer-events: none;
+        }
+        
+        /* ROB.I.A Score Card */
+        .robia-score {
+            background: linear-gradient(135deg, #007bff, #6610f2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: white;
+            box-shadow: 0 10px 20px rgba(0,123,255,0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .score-number {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .date-applied {
+            border-color: #28a745 !important;
+            transition: all 0.5s ease;
+        }
+
+        .robia-notification {
+            border-radius: 8px;
+            transition: opacity 0.5s ease;
+        }
+
+        .robia-notification.closing {
+            opacity: 0;
+        }
     </style>
 }
 
@@ -300,8 +372,8 @@
                 </label>
                 <select asp-for="Prs.Equipement" class="form-select">
                     <option value="">-- Sélectionner un type --</option>
-                    <option>CMS</option>
-                    <option>Finition</option>
+                    <option>🏭 CMS</option>
+                    <option>✨ Finition</option>
                 </select>
             </div>
 
@@ -328,8 +400,8 @@
                 </label>
                 <select asp-for="Prs.BesoinOperateur" class="form-select">
                     <option value="">-- Sélectionner --</option>
-                    <option>Besoin opérateur</option>
-                    <option>Aucun</option>
+                    <option>👨‍🔧 Besoin opérateur</option>
+                    <option>❌ Aucun</option>
                 </select>
             </div>
 
@@ -340,9 +412,9 @@
                 </label>
                 <select asp-for="Prs.PresenceClient" class="form-select">
                     <option value="">-- Sélectionner --</option>
-                    <option>Client présent</option>
-                    <option>Client absent</option>
-                    <option>Non spécifié</option>
+                    <option>✅ Client présent</option>
+                    <option>❌ Client absent</option>
+                    <option>❓ Non spécifié</option>
                 </select>
             </div>
 
@@ -353,7 +425,7 @@
                         <div class="d-flex align-items-center">
                             <i class="fas fa-robot robot-icon me-2 fs-5"></i>
                             <div>
-                                <h6 class="mb-0">ROB.I.A - Planification Intelligente</h6>
+                                <h6 class="mb-0">🤖 ROB.I.A - Planification Intelligente</h6>
                                 <small>Rapid Optimal Booking Intelligent Assistant</small>
                             </div>
                             <div class="ms-auto">
@@ -388,17 +460,16 @@
                                 
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold">
-                                        <i class="fas fa-clock text-warning"></i> Durée
+                                        <i class="fas fa-clock text-warning"></i> Durée nécessaire
                                     </label>
                                     <select id="duration-select" class="form-select">
-                                        <option value="1">1 heure</option>
-                                        <option value="2">2 heures</option>
-                                        <option value="4">4 heures</option>
-                                        <option value="8">8 heures</option>
-                                        <option value="24">24 heures</option>
-                                        <option value="48">2 jours</option>
-                                        <option value="72">3 jours</option>
-                                        <option value="168">1 semaine</option>
+                                        <option value="1">⏱️ 1 heure</option>
+                                        <option value="2">⏱️ 2 heures</option>
+                                        <option value="4">🕐 4 heures (demi-journée)</option>
+                                        <option value="8" selected>🕓 8 heures (journée complète)</option>
+                                        <option value="16">📅 2 jours (16h)</option>
+                                        <option value="24">📅 3 jours (24h)</option>
+                                        <option value="40">📅 1 semaine (40h)</option>
                                     </select>
                                 </div>
                             }
@@ -438,8 +509,8 @@
                             }
 
                             <div class="col-md-3 @(isAdminOrValidateur ? "d-flex align-items-end" : "")">
-                                <button type="button" class="btn btn-primary w-100" id="suggest-slot-btn">
-                                    <i class="fas fa-robot me-1"></i> ROB.I.A Analyser
+                                <button type="button" class="btn btn-robia w-100" id="suggest-slot-btn">
+                                    🤖 ROB.I.A Analyser
                                 </button>
                             </div>
                         </div>
@@ -550,14 +621,14 @@
         </form>
     </div>
 
-    <!-- ROB.I.A - SUGGESTIONS INTELLIGENTES -->
+    <!-- 🤖 ZONE ROB.I.A - SUGGESTIONS INTELLIGENTES -->
     <div id="robia-suggestions" class="mt-4" style="display: none;">
         <div class="card border-success shadow-lg">
             <div class="card-header bg-gradient-success text-dark">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-robot robot-icon me-2 fs-4"></i>
                     <div>
-                        <h5 class="mb-0">ROB.I.A - Suggestions Optimales</h5>
+                        <h5 class="mb-0">🎯 ROB.I.A - Suggestions Optimales</h5>
                         <small>Rapid Optimal Booking Intelligent Assistant • v1.0</small>
                     </div>
                     <div class="ms-auto">
@@ -582,8 +653,8 @@
         </div>
     </div>
 </div>
-<!-- FIN ABSOLUE du page-container ICI -->
-<!-- TITRE STYLÉ DU CALENDRIER -->
+<!-- ✅ FIN ABSOLUE du page-container ICI -->
+<!-- ✅ TITRE STYLÉ DU CALENDRIER -->
 <div class="calendar-section-title">
     <h4 class="calendar-standalone-title">
         <i class="fas fa-calendar-alt"></i>
@@ -591,23 +662,24 @@
     </h4>
 </div>
 
-<!-- CALENDRIER SANS ARRIÈRE-PLAN -->
+<!-- ✅ CALENDRIER SANS ARRIÈRE-PLAN -->
 @Html.Partial("_CalendarBlock")
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        // Déterminer si l'utilisateur est admin ou validateur
-        const isAdminOrValidateur = @Json.Serialize(isAdminOrValidateur);
-
         // Variables globales
         const dateDebutInput = document.querySelector("#Prs_DateDebut");
         const dateFinInput = document.querySelector("#Prs_DateFin");
+        const durationSelect = document.querySelector("#duration-select");
         const ligneSelect = document.querySelector("#ligne-select");
         const equipementSelect = document.querySelector("#Prs_Equipement");
         let currentSuggestions = [];
         let selectedSuggestionIndex = 0;
+        
+        // Déterminer si l'utilisateur est admin ou validateur
+        const isAdminOrValidateur = @Json.Serialize(isAdminOrValidateur);
 
         // Sélecteurs spécifiques selon le mode admin ou utilisateur
         const hiddenDateDebutInput = document.querySelector("#hiddenDateDebut");
@@ -616,10 +688,43 @@
         const weekDaysElem = document.querySelector("#weekDays");
         const weekHighlightElem = document.querySelector("#weekHighlight");
         const selectedWeekInput = document.querySelector("#selectedWeek");
-        const durationSelect = document.querySelector("#duration-select");
+
+        // Initialisation avec la date actuelle (8 juillet 2025 17:09:02 UTC)
+        const now = new Date('2025-07-08T17:09:02Z');
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
 
         // Variable pour la semaine sélectionnée (pour utilisateurs normaux)
-        let currentWeekStart = getMonday(new Date());
+        let currentWeekStart = getMonday(new Date(now));
+
+        function getTimezoneInfo() {
+            return {
+                isDST: true,
+                offset: 2,
+                name: 'Europe/Paris'
+            };
+        }
+
+        function convertUTCToLocalForInput(utcDateString) {
+            const utcDate = new Date(utcDateString + (utcDateString.includes('Z') ? '' : 'Z'));
+            const localDate = new Date(utcDate.toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }));
+            return localDate;
+        }
+
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        // Initialisation des dates par défaut
+        if (dateDebutInput && !dateDebutInput.value) {
+            dateDebutInput.value = formatDateTimeLocal(tomorrow);
+        }
 
         @if (!isAdminOrValidateur)
         {
@@ -659,18 +764,26 @@
                     }
                 }
                 
-                // Gestion du sélecteur de durée
+                // Synchronisation durée ↔ dates
                 if (durationSelect) {
-                    durationSelect.addEventListener('change', function() {
-                        if (dateDebutInput) {
-                            const heures = parseInt(this.value);
-                            const dateDebut = new Date(dateDebutInput.value);
-                            const dateFin = new Date(dateDebut);
-                            dateFin.setHours(dateDebut.getHours() + heures);
-                            
-                            dateFinInput.value = formatInputDateTime(dateFin);
+                    durationSelect.addEventListener("change", function() {
+                        if (dateDebutInput.value) {
+                            updateEndDateFromDuration();
                         }
                     });
+
+                    dateDebutInput.addEventListener("change", function() {
+                        updateEndDateFromDuration();
+                        validateDates();
+                    });
+
+                    dateFinInput.addEventListener("change", function() {
+                        updateDurationFromDates();
+                        validateDates();
+                    });
+                    
+                    // Initialisation
+                    updateDurationFromDates();
                 }
             </text>
         }
@@ -774,10 +887,75 @@
             hiddenDateFinInput.value = nextMonday.toISOString().slice(0, 16);
         }
 
+        function updateEndDateFromDuration() {
+            const startDate = new Date(dateDebutInput.value);
+            const durationHours = parseInt(durationSelect.value);
+
+            if (durationHours <= 8) {
+                const endDate = new Date(startDate.getTime() + (durationHours * 60 * 60 * 1000));
+                dateFinInput.value = formatDateTimeLocal(endDate);
+            } else {
+                const days = Math.floor(durationHours / 8);
+                const remainingHours = durationHours % 8;
+
+                let endDate = new Date(startDate);
+                let addedDays = 0;
+
+                while (addedDays < days) {
+                    endDate.setDate(endDate.getDate() + 1);
+                    // Skip weekends in multi-day calculations
+                    if (endDate.getDay() !== 0 && endDate.getDay() !== 6) {
+                        addedDays++;
+                    }
+                }
+
+                if (remainingHours > 0) {
+                    endDate.setHours(startDate.getHours() + remainingHours);
+                } else {
+                    endDate.setHours(17, 0, 0, 0);
+                }
+
+                dateFinInput.value = formatDateTimeLocal(endDate);
+            }
+        }
+
+        function updateDurationFromDates() {
+            if (dateDebutInput && dateFinInput && dateDebutInput.value && dateFinInput.value) {
+                const start = new Date(dateDebutInput.value);
+                const end = new Date(dateFinInput.value);
+                const diffHours = Math.round((end - start) / (1000 * 60 * 60));
+
+                const options = Array.from(durationSelect.options);
+                const closest = options.reduce((prev, curr) => {
+                    return Math.abs(parseInt(curr.value) - diffHours) < Math.abs(parseInt(prev.value) - diffHours) ? curr : prev;
+                });
+
+                durationSelect.value = closest.value;
+            }
+        }
+
+        function validateDates() {
+            const dateDebut = new Date(dateDebutInput.value);
+            const dateFin = new Date(dateFinInput.value);
+
+            if (dateFin <= dateDebut) {
+                dateFinInput.style.borderColor = '#dc3545';
+                dateFinInput.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+                return false;
+            } else {
+                dateFinInput.style.borderColor = '';
+                dateFinInput.style.boxShadow = '';
+                return true;
+            }
+        }
+
         // ROB.I.A - Logique principale
-        document.getElementById('suggest-slot-btn').addEventListener('click', function() {
+        document.getElementById('suggest-slot-btn').addEventListener('click', async function() {
             const btn = this;
             const ligneId = ligneSelect.value;
+            const durationHours = durationSelect ? parseInt(durationSelect.value) : 8;
+            const equipement = equipementSelect.value || '';
+            const timezoneInfo = getTimezoneInfo();
 
             if (!ligneId) {
                 showRobiaNotification('Veuillez d\'abord sélectionner une ligne pour une analyse optimale.', 'warning');
@@ -787,181 +965,258 @@
                 return;
             }
 
-            // Pour cette démo, nous allons simplement montrer une suggestion basique
-            showRobiaNotification('ROB.I.A a analysé les disponibilités.', 'success');
+            btn.disabled = true;
+            btn.classList.add('analyzing');
+            btn.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i>ROB.I.A analyse...';
+            updateRobiaStatus('Analyse en cours...', 'warning');
 
-            if (isAdminOrValidateur) {
-                // Pour les administrateurs/validateurs, proposer un créneau normal
-                showSuggestionForAdmin();
-            } else {
-                // Pour les utilisateurs normaux, proposer une semaine optimale
-                showSuggestionForNormalUser();
+            try {
+                const response = await fetch('/api/ai-suggestions/suggest-slot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Timezone': timezoneInfo.name
+                    },
+                    body: JSON.stringify({
+                        ligneId: parseInt(ligneId),
+                        equipement: equipement,
+                        durationHours: durationHours
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentSuggestions = result.suggestions || [];
+                    selectedSuggestionIndex = 0;
+                    
+                    if (currentSuggestions.length > 0) {
+                        showRobiaSuggestions(currentSuggestions);
+                        showRobiaNotification(`${currentSuggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
+                        updateRobiaStatus(`${currentSuggestions.length} suggestions trouvées`, 'success');
+                    } else {
+                        showRobiaNotification('Aucun créneau optimal trouvé avec ces critères.', 'info');
+                        updateRobiaStatus('Aucune suggestion trouvée', 'info');
+                    }
+                } else {
+                    showRobiaNotification('Erreur lors de l\'analyse : ' + result.message, 'danger');
+                    updateRobiaStatus('Erreur d\'analyse', 'danger');
+                }
+            } catch (error) {
+                showRobiaNotification('Erreur de communication avec ROB.I.A', 'danger');
+                updateRobiaStatus('Erreur de communication', 'danger');
+                
+                // En mode démo, simulons une réponse
+                simulateDemoResponse(ligneId, durationHours, equipement);
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('analyzing');
+                btn.innerHTML = '🤖 ROB.I.A Analyser';
+                setTimeout(() => updateRobiaStatus('Prêt', 'success'), 3000);
             }
         });
-
-        // Montrer une suggestion pour les administrateurs/validateurs
-        function showSuggestionForAdmin() {
+        
+        // Fonction de démonstration pour simuler la réponse de l'API
+        function simulateDemoResponse(ligneId, durationHours, equipement) {
+            // Créer des suggestions fictives
             const now = new Date();
             const tomorrow = new Date(now);
             tomorrow.setDate(tomorrow.getDate() + 1);
             tomorrow.setHours(9, 0, 0, 0);
-
-            const tomorrowEnd = new Date(tomorrow);
-            tomorrowEnd.setHours(17, 0, 0, 0);
-
-            const suggestion = {
+            
+            const suggestions = [];
+            
+            // Suggestion 1: demain
+            const suggestion1End = new Date(tomorrow);
+            suggestion1End.setHours(tomorrow.getHours() + durationHours);
+            
+            suggestions.push({
                 dateDebut: tomorrow.toISOString(),
-                dateFin: tomorrowEnd.toISOString(),
+                dateFin: suggestion1End.toISOString(),
+                score: 245,
+                raison: "🚀 Mardi excellent pour la production, ✅ Secteur production libre cette semaine, 🌅 Créneau matinal premium (9h-11h), 📅 Journée totalement libre sur cette ligne"
+            });
+            
+            // Suggestion 2: jour suivant
+            const day2 = new Date(tomorrow);
+            day2.setDate(day2.getDate() + 1);
+            day2.setHours(13, 0, 0, 0);
+            
+            const day2End = new Date(day2);
+            day2End.setHours(day2.getHours() + durationHours);
+            
+            suggestions.push({
+                dateDebut: day2.toISOString(),
+                dateFin: day2End.toISOString(),
                 score: 175,
-                raison: "Ce créneau est optimal car aucune autre PRS n'est planifiée ce jour-là pour cette ligne. L'équipement sera disponible et l'équipe sera présente."
-            };
-
-            currentSuggestions = [suggestion];
-            selectedSuggestionIndex = 0;
-
-            showRobiaSuggestions();
-        }
-
-        // Montrer une suggestion pour les utilisateurs normaux
-        function showSuggestionForNormalUser() {
-            // Trouver la semaine prochaine
-            const nextMonday = new Date(currentWeekStart);
-            nextMonday.setDate(nextMonday.getDate() + 7);
-
-            const nextSunday = new Date(nextMonday);
-            nextSunday.setDate(nextSunday.getDate() + 6);
-
-            const suggestion = {
-                dateDebut: nextMonday.toISOString(),
-                dateFin: nextSunday.toISOString(),
+                raison: "📊 Mercredi idéal pour le milieu de semaine, 🌤️ Créneau après-midi optimal, ✨ Idéal pour finition après-midi (13h-15h), 📊 Journée peu chargée (1 PRS)"
+            });
+            
+            // Suggestion 3: 2 jours plus tard
+            const day3 = new Date(tomorrow);
+            day3.setDate(day3.getDate() + 2);
+            day3.setHours(9, 0, 0, 0);
+            
+            const day3End = new Date(day3);
+            day3End.setHours(day3.getHours() + durationHours);
+            
+            suggestions.push({
+                dateDebut: day3.toISOString(),
+                dateFin: day3End.toISOString(),
+                score: 130,
+                raison: "🔍 Jeudi stratégique pour les finitions, 🔍 Attention: charge modérée ce jour-là, 🌅 Créneau matinal disponible, 📈 Bonne productivité attendue"
+            });
+            
+            // Suggestion 4: semaine prochaine
+            const day4 = new Date(tomorrow);
+            day4.setDate(day4.getDate() + 7);
+            day4.setHours(9, 0, 0, 0);
+            
+            const day4End = new Date(day4);
+            day4End.setHours(day4.getHours() + durationHours);
+            
+            suggestions.push({
+                dateDebut: day4.toISOString(),
+                dateFin: day4End.toISOString(),
                 score: 185,
-                raison: "La semaine prochaine est optimale car elle est moins chargée que les semaines suivantes. L'équipe sera disponible toute la semaine et le planning est flexible."
-            };
-
-            currentSuggestions = [suggestion];
+                raison: "🚀 Lundi parfait pour la production, 🎉 Début de semaine idéal, 📊 Semaine peu chargée, 🚀 Démarrage idéal pour projet hebdomadaire"
+            });
+            
+            // Suggestion 5: 2 semaines plus tard
+            const day5 = new Date(tomorrow);
+            day5.setDate(day5.getDate() + 14);
+            day5.setHours(10, 0, 0, 0);
+            
+            const day5End = new Date(day5);
+            day5End.setHours(day5.getHours() + durationHours);
+            
+            suggestions.push({
+                dateDebut: day5.toISOString(),
+                dateFin: day5End.toISOString(),
+                score: 160,
+                raison: "🚀 Lundi parfait pour la production, 📈 Semaine 30 - Charge faible, 🌅 Créneau matinal décalé (10h), 📅 Toutes ressources disponibles"
+            });
+            
+            currentSuggestions = suggestions;
             selectedSuggestionIndex = 0;
-
-            showRobiaSuggestions();
-        }
-
-        function showRobiaSuggestions() {
-            const suggestionsDiv = document.getElementById('robia-suggestions');
-            const contentDiv = document.getElementById('suggestions-content');
-
-            if (currentSuggestions && currentSuggestions.length > 0) {
-                const suggestion = currentSuggestions[selectedSuggestionIndex];
-
-                let suggestionContent = '';
-
-                if (isAdminOrValidateur) {
-                    // Format pour admin/validateur: dates spécifiques
-                    suggestionContent = `
-                        <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <div class="mb-3">
-                                        <h6 class="text-success mb-2">
-                                            <i class="fas fa-calendar-alt text-primary"></i>
-                                            Créneau Optimal Détecté
-                                        </h6>
-                                        <div class="fs-5 text-primary mb-3 fw-bold">
-                                            <div class="mb-2">
-                                                <i class="fas fa-play-circle text-success"></i>
-                                                <strong>Début :</strong> ${formatDateTimeFr(suggestion.dateDebut)}
-                                            </div>
-                                            <div>
-                                                <i class="fas fa-stop-circle text-danger"></i>
-                                                <strong>Fin :</strong> ${formatDateTimeFr(suggestion.dateFin)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
-                                        <h6 class="text-info mb-2">
-                                            <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
-                                        </h6>
-                                        <p class="mb-0 text-muted">${suggestion.raison}</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4 text-center">
-                                    <div class="p-3 rounded bg-primary text-white">
-                                        <div class="mb-2">
-                                            <i class="fas fa-trophy text-white"></i>
-                                            <strong>Score ROB.I.A</strong>
-                                        </div>
-                                        <div style="font-size: 2.5rem; font-weight: bold;">${suggestion.score}</div>
-                                        <small class="opacity-75">/ 200 points</small>
-                                        <div class="mt-2">
-                                            <div class="progress" style="height: 8px;">
-                                                <div class="progress-bar bg-white" style="width: ${(suggestion.score / 200) * 100}%"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Format pour utilisateur normal: semaine entière
-                    const startDate = new Date(suggestion.dateDebut);
-                    const endDate = new Date(suggestion.dateFin);
-
-                    const weekNumber = getWeekNumber(startDate);
-                    const weekText = `Semaine ${weekNumber} - ${startDate.getFullYear()}`;
-                    const dateRangeText = `Semaine du ${formatDateFr(startDate)} au ${formatDateFr(endDate)}`;
-
-                    suggestionContent = `
-                        <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <div class="mb-3">
-                                        <h6 class="text-success mb-2">
-                                            <i class="fas fa-calendar-week text-primary"></i>
-                                            Semaine Optimale Détectée
-                                        </h6>
-                                        <div class="fs-5 text-primary mb-3 fw-bold">
-                                            <div class="mb-2">
-                                                ${weekText}
-                                            </div>
-                                            <div>
-                                                ${dateRangeText}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
-                                        <h6 class="text-info mb-2">
-                                            <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
-                                        </h6>
-                                        <p class="mb-0 text-muted">${suggestion.raison}</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4 text-center">
-                                    <div class="p-3 rounded bg-primary text-white">
-                                        <div class="mb-2">
-                                            <i class="fas fa-trophy text-white"></i>
-                                            <strong>Score ROB.I.A</strong>
-                                        </div>
-                                        <div style="font-size: 2.5rem; font-weight: bold;">${suggestion.score}</div>
-                                        <small class="opacity-75">/ 200 points</small>
-                                        <div class="mt-2">
-                                            <div class="progress" style="height: 8px;">
-                                                <div class="progress-bar bg-white" style="width: ${(suggestion.score / 200) * 100}%"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                contentDiv.innerHTML = suggestionContent;
-                suggestionsDiv.style.display = 'block';
-                suggestionsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            if (suggestions.length > 0) {
+                showRobiaSuggestions(suggestions);
+                showRobiaNotification(`${suggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
+                updateRobiaStatus(`${suggestions.length} suggestions trouvées`, 'success');
             }
         }
 
+        function showRobiaSuggestions(suggestions) {
+            const suggestionsDiv = document.getElementById('robia-suggestions');
+            const contentDiv = document.getElementById('suggestions-content');
+
+            if (suggestions && suggestions.length > 0) {
+                const suggestion = suggestions[selectedSuggestionIndex];
+                const durationText = getDurationText(parseInt(durationSelect ? durationSelect.value : 8));
+
+                contentDiv.innerHTML = `
+                    <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <h6 class="text-success mb-2">
+                                        <i class="fas fa-calendar-alt text-primary"></i>
+                                        Créneau Optimal Détecté (${durationText})
+                                    </h6>
+                                    <div class="fs-5 text-primary mb-3 fw-bold">
+                                        <div class="mb-2">
+                                            <i class="fas fa-play-circle text-success"></i>
+                                            <strong>Début :</strong> ${formatDateTimeFr(suggestion.dateDebut)}
+                                        </div>
+                                        <div>
+                                            <i class="fas fa-stop-circle text-danger"></i>
+                                            <strong>Fin :</strong> ${formatDateTimeFr(suggestion.dateFin)}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
+                                    <h6 class="text-info mb-2">
+                                        <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
+                                    </h6>
+                                    <p class="mb-0 text-muted">${suggestion.raison}</p>
+                                </div>
+
+                                ${suggestions.length > 1 ?
+                                    `<div class="mt-2">
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-list-ol"></i>
+                                            Suggestion ${selectedSuggestionIndex + 1} sur ${suggestions.length}
+                                        </span>
+                                    </div>` : ''
+                                }
+                            </div>
+
+                            <div class="col-md-4 text-center">
+                                <div class="robia-score">
+                                    <div class="mb-2">
+                                        <i class="fas fa-trophy text-white"></i>
+                                        <strong>Score ROB.I.A</strong>
+                                    </div>
+                                    <div class="score-number">${suggestion.score}</div>
+                                    <small class="opacity-75">/ 200 points</small>
+                                    <div class="mt-2">
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar bg-white" style="width: ${Math.min((suggestion.score / 200) * 100, 100)}%"></div>
+                                        </div>
+                                    </div>
+                                    ${suggestion.score > 200 ? 
+                                        `<div class="mt-2">
+                                            <span class="badge bg-warning text-dark">Score exceptionnel!</span>
+                                        </div>` : ''
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                suggestionsDiv.style.display = 'block';
+                suggestionsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="alert alert-warning border-0 shadow-sm">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                            <div>
+                                <h6 class="alert-heading mb-2">ROB.I.A n'a pas trouvé de créneau optimal</h6>
+                                <p class="mb-0">
+                                    <strong>Suggestions d'optimisation :</strong><br>
+                                    • Essayez une durée plus courte<br>
+                                    • Sélectionnez une autre ligne<br>
+                                    • Vérifiez que la période n'est pas surchargée<br>
+                                    • Consultez le planning existant ci-dessous
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                suggestionsDiv.style.display = 'block';
+            }
+        }
+
+        function getDurationText(hours) {
+            const durations = {
+                1: "1 heure",
+                2: "2 heures",
+                4: "4 heures (demi-journée)",
+                8: "8 heures (journée complète)",
+                16: "2 jours (16h)",
+                24: "3 jours (24h)",
+                40: "1 semaine (40h)"
+            };
+            return durations[hours] || `${hours} heures`;
+        }
+
         function formatDateTimeFr(dateStr) {
-            const date = new Date(dateStr);
+            const utcDate = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z'));
+            const localDate = new Date(utcDate.toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }));
 
             const options = {
                 weekday: 'long',
@@ -969,10 +1224,28 @@
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: 'Europe/Paris'
+            };
+            return localDate.toLocaleDateString('fr-FR', options);
+        }
+
+        function updateRobiaStatus(message, type) {
+            const statusIndicator = document.querySelector('.robia-status-indicator');
+            if (!statusIndicator) return;
+            
+            const colors = {
+                success: 'bg-success',
+                warning: 'bg-warning',
+                danger: 'bg-danger',
+                info: 'bg-info'
             };
 
-            return date.toLocaleDateString('fr-FR', options);
+            statusIndicator.innerHTML = `
+                <span class="badge ${colors[type]} fs-6">
+                    <i class="fas fa-circle me-1"></i>${message}
+                </span>
+            `;
         }
 
         // Actions sur les suggestions
@@ -982,39 +1255,53 @@
 
                 if (isAdminOrValidateur) {
                     // Mode admin : mettre à jour les champs de date directement
-                    const localStart = new Date(suggestion.dateDebut);
-                    const localEnd = new Date(suggestion.dateFin);
+                    const localStart = convertUTCToLocalForInput(suggestion.dateDebut);
+                    const localEnd = convertUTCToLocalForInput(suggestion.dateFin);
 
-                    dateDebutInput.value = formatInputDateTime(localStart);
-                    dateFinInput.value = formatInputDateTime(localEnd);
+                    dateDebutInput.value = formatDateTimeLocal(localStart);
+                    dateFinInput.value = formatDateTimeLocal(localEnd);
+
+                    // Animation des champs modifiés
+                    [dateDebutInput, dateFinInput].forEach(input => {
+                        input.classList.add('date-applied');
+                        input.style.transform = 'scale(1.05)';
+                        setTimeout(() => {
+                            input.classList.remove('date-applied');
+                            input.style.transform = '';
+                        }, 2000);
+                    });
+
+                    if (durationSelect) updateDurationFromDates();
                 } else {
                     // Mode utilisateur : mettre à jour la semaine sélectionnée
-                    const suggestionWeekStart = new Date(suggestion.dateDebut);
+                    const suggestionWeekStart = getMonday(new Date(suggestion.dateDebut));
                     currentWeekStart = new Date(suggestionWeekStart);
                     updateWeekDisplay();
                 }
 
                 document.getElementById('robia-suggestions').style.display = 'none';
                 showRobiaNotification('Suggestion appliquée avec succès !', 'success');
+                updateRobiaStatus('Prêt', 'success');
             }
         });
 
         document.getElementById('close-suggestions').addEventListener('click', function() {
             document.getElementById('robia-suggestions').style.display = 'none';
+            updateRobiaStatus('Prêt', 'success');
         });
 
         document.getElementById('show-alternatives').addEventListener('click', function() {
-            showRobiaNotification("Désolé, pas d'alternatives disponibles pour le moment.", 'info');
+            if (currentSuggestions.length > 1) {
+                selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+                showRobiaSuggestions(currentSuggestions);
+            } else {
+                showRobiaNotification("Désolé, pas d'alternatives disponibles pour le moment.", 'info');
+            }
         });
-
-        // Formatage de date-heure pour les champs input
-        function formatInputDateTime(date) {
-            return date.toISOString().slice(0, 16);
-        }
 
         function showRobiaNotification(message, type = 'info') {
             const notification = document.createElement('div');
-            notification.className = `alert alert-${type} border-0 shadow-sm`;
+            notification.className = `alert alert-${type} robia-notification border-0 shadow-lg`;
             notification.style.cssText = `
                 position: fixed;
                 top: 20px;
@@ -1022,6 +1309,8 @@
                 z-index: 9999;
                 width: 380px;
                 max-width: 90vw;
+                border-radius: 8px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             `;
 
             const icons = {
@@ -1033,7 +1322,7 @@
 
             notification.innerHTML = `
                 <div class="d-flex align-items-center">
-                    <i class="fas fa-robot me-2"></i>
+                    <i class="fas fa-robot robot-icon me-2 fs-5"></i>
                     <div class="flex-grow-1">
                         <strong>ROB.I.A:</strong> ${message}
                     </div>
@@ -1045,26 +1334,22 @@
             document.body.appendChild(notification);
 
             setTimeout(() => {
+                notification.classList.add('closing');
                 notification.style.opacity = '0';
-                notification.style.transition = 'opacity 0.5s';
                 setTimeout(() => {
-                    notification.remove();
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
                 }, 500);
             }, 5000);
         }
 
         // Validation du formulaire
         document.querySelector("#create-form").addEventListener("submit", function (e) {
-            if (isAdminOrValidateur) {
-                // Validation des dates pour admin/validateur
-                const dateDebut = new Date(dateDebutInput.value);
-                const dateFin = new Date(dateFinInput.value);
-
-                if (dateFin <= dateDebut) {
-                    e.preventDefault();
-                    showRobiaNotification('La date de début doit être antérieure à la date de fin.', 'danger');
-                    return false;
-                }
+            if (isAdminOrValidateur && !validateDates()) {
+                e.preventDefault();
+                showRobiaNotification('La date de début doit être antérieure à la date de fin.', 'danger');
+                return false;
             }
 
             // Vérification que la ligne est sélectionnée
@@ -1137,118 +1422,110 @@
                     fileName.className = 'file-name';
                     fileName.textContent = file.name;
                     
-                    const fileSize = document.createElement('span');
-                    fileSize.className = 'file-size';
-                    fileSize.textContent = formatFileSize(file.size);
-                    
-                    const removeButton = document.createElement('i');
-                    removeButton.className = 'remove-file fas fa-times-circle';
-                    removeButton.setAttribute('title', 'Supprimer');
-                    removeButton.addEventListener('click', function() {
-                        selectedFiles.splice(index, 1);
-                        updateFileListUI();
-                        updateHiddenFileInput();
+                                            const fileSize = document.createElement('span');
+                        fileSize.className = 'file-size';
+                        fileSize.textContent = formatFileSize(file.size);
+
+                        const removeButton = document.createElement('i');
+                        removeButton.className = 'remove-file fas fa-times-circle';
+                        removeButton.setAttribute('title', 'Supprimer');
+                        removeButton.addEventListener('click', function() {
+                            selectedFiles.splice(index, 1);
+                            updateFileListUI();
+                        });
+
+                        fileItem.appendChild(fileIcon);
+                        fileItem.appendChild(fileName);
+                        fileItem.appendChild(fileSize);
+                        fileItem.appendChild(removeButton);
+
+                        fileList.appendChild(fileItem);
                     });
-                    
-                    fileItem.appendChild(fileIcon);
-                    fileItem.appendChild(fileName);
-                    fileItem.appendChild(fileSize);
-                    fileItem.appendChild(removeButton);
-                    
-                    fileList.appendChild(fileItem);
-                });
-            }
-            
-            // Fonction pour créer un input file caché avec les fichiers sélectionnés
-            function updateHiddenFileInput() {
-                // Nous ne pouvons pas facilement manipuler le contenu d'un input file.
-                // Dans un cas réel, on utiliserait FormData pour l'envoi
-                // Mais pour notre maquette, cette fonction est un placeholder
-            }
-            
-            // Fonction pour ajouter des fichiers à notre collection
-            function addFiles(files) {
-                if (!files || !files.length) return;
-                
-                // Pour chaque fichier sélectionné
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    
-                    // Vérifier la taille maximale
-                    if (file.size > 100 * 1024 * 1024) {
-                        showRobiaNotification(`Le fichier ${file.name} est trop volumineux (maximum 100 Mo)`, 'warning');
-                        continue;
-                    }
-                    
-                    // Vérifier si un fichier avec le même nom existe déjà
-                    const existingIndex = selectedFiles.findIndex(f => f.name === file.name);
-                    if (existingIndex >= 0) {
-                        // Remplacer le fichier existant
-                        selectedFiles[existingIndex] = file;
-                    } else {
-                        // Ajouter le nouveau fichier
-                        selectedFiles.push(file);
-                    }
                 }
-                
-                // Mettre à jour l'interface utilisateur
-                updateFileListUI();
-                
-                // Afficher la progression
-                progressContainer.style.display = 'block';
-                progressBar.style.width = '0%';
-                
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += 5;
-                    progressBar.style.width = `${Math.min(progress, 100)}%`;
-                    
-                    if (progress >= 100) {
-                        clearInterval(interval);
-                        setTimeout(() => {
-                            progressContainer.style.display = 'none';
-                        }, 500);
+
+                // Fonction pour ajouter des fichiers à notre collection
+                function addFiles(files) {
+                    if (!files || !files.length) return;
+
+                    // Pour chaque fichier sélectionné
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+
+                        // Vérifier la taille maximale
+                        if (file.size > 100 * 1024 * 1024) {
+                            showRobiaNotification(`Le fichier ${file.name} est trop volumineux (maximum 100 Mo)`, 'warning');
+                            continue;
+                        }
+
+                        // Vérifier si un fichier avec le même nom existe déjà
+                        const existingIndex = selectedFiles.findIndex(f => f.name === file.name);
+                        if (existingIndex >= 0) {
+                            // Remplacer le fichier existant
+                            selectedFiles[existingIndex] = file;
+                        } else {
+                            // Ajouter le nouveau fichier
+                            selectedFiles.push(file);
+                        }
                     }
-                }, 50);
-            }
 
-            // Événement lors de la sélection de fichiers par le input file
-            if (fileInput) {
-                fileInput.addEventListener('change', function(e) {
-                    addFiles(this.files);
-                });
-            }
+                    // Mettre à jour l'interface utilisateur
+                    updateFileListUI();
 
-            // Événements pour le drag & drop
-            if (dropZone) {
-                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                    // Afficher la progression
+                    progressContainer.style.display = 'block';
+                    progressBar.style.width = '0%';
+
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += 5;
+                        progressBar.style.width = `${Math.min(progress, 100)}%`;
+
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            setTimeout(() => {
+                                progressContainer.style.display = 'none';
+                            }, 500);
+                        }
+                    }, 50);
+                }
+
+                // Événement lors de la sélection de fichiers par le input file
+                if (fileInput) {
+                    fileInput.addEventListener('change', function(e) {
+                        addFiles(this.files);
                     });
-                });
-                
-                dropZone.addEventListener('dragenter', () => {
-                    dropZone.classList.add('dragover');
-                });
-                
-                dropZone.addEventListener('dragover', () => {
-                    dropZone.classList.add('dragover');
-                });
-                
-                dropZone.addEventListener('dragleave', () => {
-                    dropZone.classList.remove('dragover');
-                });
-                
-                dropZone.addEventListener('drop', (e) => {
-                    dropZone.classList.remove('dragover');
-                    
-                    // Ajouter les fichiers déposés
-                    addFiles(e.dataTransfer.files);
-                });
-            }
+                }
 
-                            // Lors de la soumission du formulaire, nous devons copier les fichiers sélectionnés dans l'input file
+                // Événements pour le drag & drop
+                if (dropZone) {
+                    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                        dropZone.addEventListener(eventName, (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                    });
+
+                    dropZone.addEventListener('dragenter', () => {
+                        dropZone.classList.add('dragover');
+                    });
+
+                    dropZone.addEventListener('dragover', () => {
+                        dropZone.classList.add('dragover');
+                    });
+
+                    dropZone.addEventListener('dragleave', () => {
+                        dropZone.classList.remove('dragover');
+                    });
+
+                    dropZone.addEventListener('drop', (e) => {
+                        dropZone.classList.remove('dragover');
+
+                        // Ajouter les fichiers déposés
+                        addFiles(e.dataTransfer.files);
+                    });
+                }
+
+                // Lors de la soumission du formulaire, nous devons copier les fichiers sélectionnés dans l'input file
                 document.querySelector('#create-form').addEventListener('submit', function(e) {
                     if (selectedFiles.length > 0) {
                         try {
@@ -1272,7 +1549,7 @@
 
             // Initialisation
             setTimeout(() => {
-                showRobiaNotification('ROB.I.A prêt à optimiser vos planifications !', 'success');
+                showRobiaNotification('ROB.I.A prêt à optimiser vos planifications!', 'success');
             }, 1000);
         </script>
 }
