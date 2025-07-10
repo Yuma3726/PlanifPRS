@@ -13,6 +13,7 @@ namespace PlanifPRS.Models
             Checklist = new List<PrsChecklist>();
             Jalons = new List<PrsJalon>();
             Fichiers = new List<PrsFichier>();
+            LiensDossier = new List<LienDossierPrs>();
         }
 
         [Key]
@@ -66,6 +67,10 @@ namespace PlanifPRS.Models
         // Ajout de la collection de fichiers
         [ValidateNever]
         public List<PrsFichier> Fichiers { get; set; }
+
+        // Ajout de la collection de liens vers les dossiers
+        [ValidateNever]
+        public List<LienDossierPrs> LiensDossier { get; set; }
 
         public int? FamilleId { get; set; }
 

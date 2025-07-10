@@ -14,115 +14,6 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== ANIMATIONS ===== */
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slideInRight {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-@keyframes slideOutRight {
-    from {
-        transform: translateX(0);
-        opacity: 1;
-    }
-
-    to {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-}
-
-@keyframes robiaGlow {
-    0%, 100% {
-        box-shadow: 0 0 5px rgba(23, 162, 184, 0.3);
-    }
-
-    50% {
-        box-shadow: 0 0 20px rgba(23, 162, 184, 0.6);
-    }
-}
-
-@keyframes robiaHeartbeat {
-    0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-
-    50% {
-        transform: scale(1.1);
-        opacity: 0.8;
-    }
-}
-
-@keyframes dateHighlight {
-    0% {
-        background-color: #d1edff;
-        transform: scale(1);
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-    }
-
-    50% {
-        background-color: #b3e0ff;
-        transform: scale(1.02);
-        box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.15);
-    }
-
-    100% {
-        background-color: transparent;
-        transform: scale(1);
-        box-shadow: none;
-    }
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.1);
-    }
-}
-
-@keyframes shimmer {
-    0% {
-        background-position: -200% 0;
-    }
-
-    100% {
-        background-position: 200% 0;
-    }
-}
-
-@keyframes scoreShine {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
 /* ===== CONTAINER PRINCIPAL ===== */
 .page-container {
     max-width: 1200px;
@@ -548,36 +439,6 @@
             background: rgba(102, 126, 234, 0.25);
         }
 
-/* Responsive pour le titre */
-@media (max-width: 768px) {
-    .calendar-section-title {
-        margin: 2rem 0 1.5rem 0;
-    }
-
-    .calendar-standalone-title {
-        font-size: 1.2rem;
-        padding: 1rem 2rem;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-        .calendar-standalone-title i {
-            font-size: 1.3rem;
-        }
-}
-
-@media (max-width: 480px) {
-    .calendar-standalone-title {
-        font-size: 1rem;
-        padding: 0.75rem 1.5rem;
-    }
-
-        .calendar-standalone-title i {
-            font-size: 1.2rem;
-            padding: 0.4rem;
-        }
-}
-
 /* ===== SÉLECTEUR DE COULEUR - CORRECTION UNIQUEMENT ===== */
 .input-group .form-control-color {
     width: 60px !important;
@@ -699,40 +560,338 @@
     border-color: #28a745 !important;
 }
 
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.05);
-    }
-
-    100% {
-        transform: scale(1);
-    }
+/* Styles améliorés pour la sélection de dossiers */
+.folder-path {
+    font-family: 'Consolas', monospace;
+    font-size: 0.9rem;
+    color: #0d6efd;
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    word-break: break-all;
+    max-width: 100%;
 }
 
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+.folder-list {
+    margin-top: 15px;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    background-color: #ffffff;
+    list-style-type: none;
 }
 
-@keyframes slideOut {
-    from {
-        transform: translateX(0);
-        opacity: 1;
+.folder-item {
+    padding: 8px;
+    margin-bottom: 6px;
+    background-color: #f8f9fa;
+    border-left: 4px solid #ffc107;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+}
+
+    .folder-item:hover {
+        background-color: #fff8e1;
+        transform: translateX(2px);
     }
 
-    to {
-        transform: translateX(100%);
-        opacity: 0;
+.folder-icon {
+    color: #ffc107;
+    margin-right: 8px;
+    font-size: 1.2rem;
+}
+
+.remove-folder {
+    opacity: 0.6;
+    transition: all 0.2s ease;
+    color: #dc3545;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+    .remove-folder:hover {
+        opacity: 1;
+        color: #dc3545;
+        transform: scale(1.2);
     }
+
+/* Amélioration du champ de saisie de chemin */
+#folderPathDisplay {
+    font-family: 'Consolas', monospace;
+    color: #004085;
+    letter-spacing: 0.3px;
+}
+
+    #folderPathDisplay:focus {
+        background-color: #fff8e1;
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+        border-color: #ffc107;
+    }
+
+/* Amélioration de l'alerte d'information */
+.alert-info {
+    background-color: #f0f7ff;
+    border-color: #b8daff;
+    color: #004085;
+}
+
+/* Style pour les exemples de chemins */
+.path-example {
+    font-family: 'Consolas', monospace;
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid #dee2e6;
+    margin: 0 2px;
+    white-space: nowrap;
+}
+
+/* Style pour la sélection de semaine */
+.week-selector {
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    background-color: #f8f9fa;
+}
+
+    .week-selector .week-navigation {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .week-selector .week-info {
+        font-weight: bold;
+        text-align: center;
+    }
+
+.week-view {
+    background-color: #e9ecef;
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.week-days {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+}
+
+.week-day {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 0.9em;
+    border-radius: 4px;
+    background-color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+    .week-day .day-number {
+        font-weight: bold;
+        color: #495057;
+    }
+
+    .week-day .day-name {
+        font-size: 0.85em;
+        color: #6c757d;
+    }
+
+.week-selected {
+    background-color: #d1ecf1;
+    border: 2px solid #17a2b8;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.week-highlight {
+    font-weight: bold;
+    color: #0c5460;
+    font-size: 1.1em;
+}
+
+/* Style pour les badges de créateur */
+.creator-badge {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+    .creator-badge i {
+        margin-right: 5px;
+        color: #6c757d;
+    }
+
+/* Styles pour les zones d'upload */
+.file-upload-container {
+    border: 2px dashed #dee2e6;
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+    position: relative;
+}
+
+    .file-upload-container:hover, .file-upload-container.dragover {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+
+.file-upload-icon {
+    font-size: 3rem;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+.file-upload-text {
+    color: #495057;
+}
+
+.file-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 15px 0 0 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.file-icon {
+    margin-right: 10px;
+    font-size: 1.2rem;
+}
+
+.file-name {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-size {
+    margin-left: 10px;
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+.remove-file {
+    color: #dc3545;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.file-upload-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.upload-limits {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+    .upload-limits i {
+        margin-right: 5px;
+    }
+
+.progress-container {
+    width: 100%;
+    height: 4px;
+    background-color: #e9ecef;
+    margin-top: 10px;
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+}
+
+/* Style pour les boîtes de dialogue de sélection de chemin */
+.path-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+}
+
+.path-dialog-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 600px;
+    padding: 20px;
+}
+
+.path-option {
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+    .path-option:hover {
+        background-color: #f0f7ff;
+    }
+
+/* Styles pour les champs désactivés */
+.disabled-field {
+    background-color: #e9ecef !important;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Style pour la description de dossier */
+.folder-description {
+    color: #6c757d;
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-left: 8px;
 }

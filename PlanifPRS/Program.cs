@@ -34,8 +34,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
 });
 
-// Ajout du service de gestion des fichiers
+// Ajout des services
 builder.Services.AddScoped<FileService>();
+builder.Services.AddScoped<LienDossierPrsService>(); // Ajout du service de gestion des liens de dossiers
 
 // Configuration du téléchargement de fichiers volumineux
 builder.Services.Configure<FormOptions>(options =>

@@ -353,35 +353,39 @@
             transform: scale(1.2);
         }
 
-        /* Amélioration du champ de saisie de chemin */
-        #folderPathDisplay {
-            font-family: 'Consolas', monospace;
-            color: #004085;
-            letter-spacing: 0.3px;
+        /* Style pour les boîtes de dialogue de sélection de chemin */
+        .path-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1050;
         }
 
-        #folderPathDisplay:focus {
-            background-color: #fff8e1;
-            box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
-            border-color: #ffc107;
+        .path-dialog-content {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
         }
 
-        /* Amélioration de l'alerte d'information */
-        .alert-info {
+        .path-option {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .path-option:hover {
             background-color: #f0f7ff;
-            border-color: #b8daff;
-            color: #004085;
-        }
-
-        /* Style pour les exemples de chemins */
-        .path-example {
-            font-family: 'Consolas', monospace;
-            background-color: #f8f9fa;
-            padding: 2px 6px;
-            border-radius: 3px;
-            border: 1px solid #dee2e6;
-            margin: 0 2px;
-            white-space: nowrap;
         }
     </style>
 }
@@ -658,17 +662,25 @@
                         </h5>
                     </div>
                     <div class="card-body">
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Liez des dossiers de votre ordinateur à cette PRS pour référence future. Seuls les chemins des dossiers sont stockés.
+                        </p>
                         
-                        <!-- Interface de saisie de chemin simplifiée -->
+                        <!-- Interface de sélection de dossiers -->
                         <div class="row g-2">
                             <div class="col-md-5">
                                 <label for="folderPathDisplay" class="form-label fw-bold">
                                     Chemin complet du dossier
                                 </label>
-                                <input type="text" class="form-control" id="folderPathDisplay" 
-                                       placeholder="Ex : I:\PRS200\DossierPRS"
-                                       style="font-family: Consolas, monospace;">
-                                <small class="text-muted">Copiez-collez le chemin complet du dossier</small>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="folderPathDisplay" 
+                                           placeholder="Ex: U:\Photos FIC\Photos FIC Etanch" 
+                                           style="font-family: Consolas, monospace;">
+                                    <button class="btn btn-outline-secondary" type="button" id="btnBrowseFolder">
+                                        <i class="fas fa-folder-open"></i> Parcourir
+                                    </button>
+                                </div>
                             </div>
                             <div class="col-md-5">
                                 <label for="folderDescription" class="form-label">Description (optionnelle)</label>
@@ -683,8 +695,15 @@
                         </div>
                         
                         <div class="alert alert-info mt-3 mb-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Copiez-collez le chemin complet du dossier depuis l'explorateur Windows (ex : <code>I:\PRS200\DossierPRS</code>)
+                            <div class="d-flex">
+                                <div class="me-2">
+                                    <i class="fas fa-info-circle"></i>
+                                </div>
+                                <div>
+                                    <strong>Astuce :</strong> Utilisez le bouton "Parcourir" pour sélectionner un dossier. 
+                                    Le système vous proposera des chemins complets possibles ou vous permettra de le saisir manuellement.
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Liste des dossiers sélectionnés -->
@@ -692,7 +711,7 @@
                         <ul class="folder-list mt-3" id="folderList"></ul>
                     </div>
                 </div>
-            </div>
+    </div>
                         @if (isAdminOrValidateur)
             {
                 <div class="col-md-6">
@@ -811,6 +830,168 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
+    <!-- Fonction d'aide pour récupérer les chemins complets de dossiers -->
+    <script>
+    /**
+     * Fonction d'aide pour récupérer les chemins de dossiers complets
+     * Contourne les limitations de sécurité des navigateurs
+     */
+    function getFolderPath(options = {}) {
+        // Options par défaut
+        const settings = {
+            folderInput: document.getElementById('folderPathDisplay'),
+            descInput: document.getElementById('folderDescription'),
+            onPathSelected: null, // callback optionnel
+            defaultPaths: [
+                "U:\\Photos FIC\\Photos FIC Etanch",
+                "\\\\mslfso\\users$\\beaulinr\\Photos FIC",
+                "\\\\mslfso\\users$\\beaulinr"
+            ],
+            storageKey: 'recentFolderPaths'
+        };
+        
+        // Fusionner les options fournies
+        Object.assign(settings, options);
+        
+        // Créer un input temporaire pour la sélection de dossier
+        const tempInput = document.createElement('input');
+        tempInput.type = 'file';
+        tempInput.setAttribute('webkitdirectory', '');
+        tempInput.setAttribute('directory', '');
+        
+        // Gestionnaire d'événement lorsqu'un dossier est sélectionné
+        tempInput.onchange = function(e) {
+            if (!this.files || this.files.length === 0) return;
+            
+            // Récupérer le nom du dossier sélectionné (limité par la sécurité du navigateur)
+            let selectedFolderName = '';
+            
+            if (this.files[0].webkitRelativePath) {
+                // Extraire le nom du dossier racine
+                selectedFolderName = this.files[0].webkitRelativePath.split('/')[0];
+            } else {
+                selectedFolderName = this.files[0].name;
+            }
+            
+            // Charger les chemins récents depuis localStorage
+            let recentPaths = [];
+            try {
+                const saved = localStorage.getItem(settings.storageKey);
+                if (saved) recentPaths = JSON.parse(saved);
+            } catch (e) {
+                console.warn("Impossible de charger les chemins récents:", e);
+            }
+            
+            // Combiner avec les chemins par défaut
+            const allPaths = [...new Set([...recentPaths, ...settings.defaultPaths])];
+            
+            // Filtrer les chemins qui correspondent au nom de dossier sélectionné
+            const matchingPaths = allPaths.filter(path => 
+                path.toLowerCase().includes(selectedFolderName.toLowerCase()) || 
+                path.toLowerCase().endsWith('\\' + selectedFolderName.toLowerCase())
+            );
+            
+            // Construction des options
+            let options = '';
+            if (matchingPaths.length > 0) {
+                matchingPaths.forEach(path => {
+                    options += `<option value="${path}">${path}</option>`;
+                });
+            } else {
+                // Suggérer des chemins construits si aucune correspondance
+                settings.defaultPaths.forEach(basePath => {
+                    const fullPath = basePath.endsWith('\\') ? 
+                        basePath + selectedFolderName : 
+                        basePath + '\\' + selectedFolderName;
+                    options += `<option value="${fullPath}">${fullPath}</option>`;
+                });
+                
+                // Ajouter aussi juste le nom du dossier
+                options += `<option value="${selectedFolderName}">${selectedFolderName}</option>`;
+            }
+            
+            // Créer une boîte de dialogue pour choisir le chemin complet
+            const dialogHTML = `
+            <div id="folderPathDialog" class="path-dialog-overlay">
+                <div class="path-dialog-content">
+                    <h5>Sélectionnez le chemin complet</h5>
+                    <p>Le navigateur ne peut pas accéder au chemin complet. Sélectionnez une option ou saisissez le chemin manuellement:</p>
+                    <select id="pathOptions" class="form-select mb-3" style="font-family:monospace;">
+                        ${options}
+                    </select>
+                    <div class="input-group mb-3">
+                        <input type="text" id="customPath" class="form-control" placeholder="Ou saisissez le chemin complet manuellement" 
+                            value="${matchingPaths.length > 0 ? matchingPaths[0] : selectedFolderName}" style="font-family:monospace;">
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button id="cancelPath" class="btn btn-outline-secondary me-2">Annuler</button>
+                        <button id="confirmPath" class="btn btn-primary">Confirmer</button>
+                    </div>
+                </div>
+            </div>`;
+            
+            // Ajouter la boîte de dialogue au document
+            const dialogContainer = document.createElement('div');
+            dialogContainer.innerHTML = dialogHTML;
+            document.body.appendChild(dialogContainer);
+            
+            // Gérer les interactions avec la boîte de dialogue
+            document.getElementById('pathOptions').addEventListener('change', function() {
+                document.getElementById('customPath').value = this.value;
+            });
+            
+            document.getElementById('cancelPath').addEventListener('click', function() {
+                dialogContainer.remove();
+            });
+            
+            document.getElementById('confirmPath').addEventListener('click', function() {
+                const selectedPath = document.getElementById('customPath').value;
+                
+                // Mettre à jour le champ d'entrée
+                if (settings.folderInput) {
+                    settings.folderInput.value = selectedPath;
+                    
+                    // Focus sur le champ de description si disponible
+                    if (settings.descInput) {
+                        settings.descInput.focus();
+                    }
+                }
+                
+                // Sauvegarder le chemin dans les récents
+                if (selectedPath && selectedPath.length > 3) {
+                    try {
+                        // Empêcher les doublons
+                        const index = recentPaths.indexOf(selectedPath);
+                        if (index !== -1) recentPaths.splice(index, 1);
+                        
+                        // Ajouter au début de la liste
+                        recentPaths.unshift(selectedPath);
+                        
+                        // Limiter à 10 chemins récents
+                        if (recentPaths.length > 10) recentPaths.pop();
+                        
+                        // Sauvegarder dans localStorage
+                        localStorage.setItem(settings.storageKey, JSON.stringify(recentPaths));
+                    } catch (e) {
+                        console.warn("Impossible de sauvegarder les chemins récents:", e);
+                    }
+                }
+                
+                // Appeler le callback si fourni
+                if (typeof settings.onPathSelected === 'function') {
+                    settings.onPathSelected(selectedPath);
+                }
+                
+                // Fermer la boîte de dialogue
+                dialogContainer.remove();
+            });
+        };
+        
+        // Déclencher l'ouverture de la boîte de dialogue de sélection
+        tempInput.click();
+    }
+    </script>
+
     <script>
         // Variables globales
         const dateDebutInput = document.querySelector("#Prs_DateDebut");
@@ -847,6 +1028,7 @@
         const folderPathDisplay = document.getElementById("folderPathDisplay");
         const folderList = document.getElementById("folderList");
         const btnAddFolder = document.getElementById("btnAddFolder");
+        const btnBrowseFolder = document.getElementById("btnBrowseFolder");
         const folderDescription = document.getElementById("folderDescription");
         
         // Nom de l'utilisateur actuel pour les liens de dossiers
@@ -1105,6 +1287,35 @@
 
         // Gestion des dossiers liés à la PRS
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("Initialisation du gestionnaire de dossiers");
+            
+            // Vérifier la disponibilité des éléments DOM
+            console.log("Éléments DOM pour dossiers:", {
+                "prsFolderLinksInput": !!prsFolderLinksInput,
+                "folderPathDisplay": !!folderPathDisplay,
+                "folderList": !!folderList,
+                "btnAddFolder": !!btnAddFolder,
+                "btnBrowseFolder": !!btnBrowseFolder
+            });
+            
+            // Gestion du bouton "Parcourir"
+            if (btnBrowseFolder) {
+                btnBrowseFolder.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Appeler notre fonction d'aide
+                    getFolderPath({
+                        folderInput: folderPathDisplay,
+                        descInput: folderDescription,
+                        defaultPaths: [
+                            "U:\\Photos FIC\\Photos FIC Etanch",
+                            "\\\\mslfso\\users$\\beaulinr\\Photos FIC",
+                            "C:\\Users\\beaulinr\\Documents"
+                        ]
+                    });
+                });
+            }
+            
             // Gestion du bouton "Ajouter"
             if (btnAddFolder) {
                 btnAddFolder.addEventListener('click', function(e) {
@@ -1114,7 +1325,6 @@
                         addFolder(folderPathDisplay.value.trim(), folderDescription.value);
                         folderPathDisplay.value = '';
                         folderDescription.value = '';
-                        folderPathDisplay.focus();
                     } else {
                         showRobiaNotification('Veuillez d\'abord entrer un chemin de dossier', 'warning');
                     }
@@ -1123,11 +1333,14 @@
 
             // Fonction pour ajouter un dossier
             function addFolder(path, description) {
+                console.log("Ajout d'un dossier:", { path, description });
+                
                 // Normaliser les slashes pour un format Windows consistant
                 const normalizedPath = path.replace(/\//g, '\\');
                 
                 // Vérifier si ce dossier existe déjà dans la liste
                 if (selectedFolders.some(f => f.Chemin === normalizedPath)) {
+                    console.log("Dossier déjà dans la liste");
                     showRobiaNotification('Ce dossier est déjà ajouté à la liste', 'info');
                     return;
                 }
@@ -1138,12 +1351,16 @@
                     Description: description || ''
                 });
                 
+                console.log("Dossier ajouté à la liste, total:", selectedFolders.length);
                 updateFolderList();
+                
                 showRobiaNotification('Dossier ajouté avec succès', 'success');
             }
 
             // Fonction pour mettre à jour la liste des dossiers dans l'UI
             function updateFolderList() {
+                console.log("Mise à jour de la liste des dossiers dans l'UI");
+                
                 folderList.innerHTML = '';
                 
                 if (selectedFolders.length === 0) {
@@ -1199,35 +1416,48 @@
                 // Mettre à jour le champ caché avec le JSON
                 if (prsFolderLinksInput) {
                     prsFolderLinksInput.value = JSON.stringify(selectedFolders);
+                    console.log("JSON mis à jour:", prsFolderLinksInput.value);
+                } else {
+                    console.error("Impossible de mettre à jour le champ caché - élément non trouvé");
                 }
             }
 
             // Lors de la soumission du formulaire
             document.querySelector('#create-form').addEventListener('submit', function(e) {
+                console.log("Formulaire soumis, préparation des données de dossiers");
+                
                 // S'assurer que les liens de dossiers sont correctement envoyés
                 if (selectedFolders.length > 0) {
                     if (prsFolderLinksInput) {
                         prsFolderLinksInput.value = JSON.stringify(selectedFolders);
+                        console.log("JSON final des dossiers:", prsFolderLinksInput.value);
                     } else {
+                        console.error("Champ caché non trouvé lors de la soumission!");
+                        
+                        // Créer et ajouter un champ caché de façon dynamique
                         const hiddenInput = document.createElement('input');
                         hiddenInput.type = 'hidden';
                         hiddenInput.name = 'PrsFolderLinks';
                         hiddenInput.value = JSON.stringify(selectedFolders);
                         this.appendChild(hiddenInput);
+                        console.log("Champ caché créé et ajouté dynamiquement");
                     }
                 } else {
+                    console.log("Aucun dossier à envoyer");
+                    // Assurer qu'un tableau vide est envoyé pour éviter les erreurs de désérialisation
                     if (prsFolderLinksInput) {
-                        prsFolderLinksInput.value = JSON.stringify([]);
+                prsFolderLinksInput.value = JSON.
+                    prsFolderLinksInput.value = JSON.stringify([]);
                     }
                 }
             });
-            
+
             // Initialiser la liste des dossiers
             updateFolderList();
         });
 
-        // ROB.I.A - Logique principale
-        document.getElementById('suggest-slot-btn').addEventListener('click', async function() {
+            // ROB.I.A - Logique principale
+            document.getElementById('suggest-slot-btn').addEventListener('click', async function() {
             const btn = this;
             const ligneId = ligneSelect.value;
             const durationHours = durationSelect ? parseInt(durationSelect.value) : 8;
@@ -1236,10 +1466,10 @@
 
             if (!ligneId) {
                 showRobiaNotification('Veuillez d\'abord sélectionner une ligne pour une analyse optimale.', 'warning');
-                ligneSelect.focus();
-                ligneSelect.style.borderColor = '#ffc107';
+            ligneSelect.focus();
+            ligneSelect.style.borderColor = '#ffc107';
                 setTimeout(() => ligneSelect.style.borderColor = '', 3000);
-                return;
+            return;
             }
 
             btn.disabled = true;
@@ -1249,213 +1479,213 @@
 
             try {
                 const response = await fetch('/api/ai-suggestions/suggest-slot', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Timezone': timezoneInfo.name
+                method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            'X-Timezone': timezoneInfo.name
                     },
-                    body: JSON.stringify({
-                        ligneId: parseInt(ligneId),
-                        equipement: equipement,
-                        durationHours: durationHours
+            body: JSON.stringify({
+                ligneId: parseInt(ligneId),
+            equipement: equipement,
+            durationHours: durationHours
                     })
                 });
 
-                const result = await response.json();
+            const result = await response.json();
 
-                if (result.success) {
-                    currentSuggestions = result.suggestions || [];
-                    selectedSuggestionIndex = 0;
+            if (result.success) {
+                currentSuggestions = result.suggestions || [];
+            selectedSuggestionIndex = 0;
                     
                     if (currentSuggestions.length > 0) {
-                        showRobiaSuggestions(currentSuggestions);
-                        showRobiaNotification(`${currentSuggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
-                        updateRobiaStatus(`${currentSuggestions.length} suggestions trouvées`, 'success');
+                showRobiaSuggestions(currentSuggestions);
+            showRobiaNotification(`${currentSuggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
+            updateRobiaStatus(`${currentSuggestions.length} suggestions trouvées`, 'success');
                     } else {
-                        showRobiaNotification('Aucun créneau optimal trouvé avec ces critères.', 'info');
-                        updateRobiaStatus('Aucune suggestion trouvée', 'info');
+                showRobiaNotification('Aucun créneau optimal trouvé avec ces critères.', 'info');
+            updateRobiaStatus('Aucune suggestion trouvée', 'info');
                     }
                 } else {
-                    showRobiaNotification('Erreur lors de l\'analyse : ' + result.message, 'danger');
-                    updateRobiaStatus('Erreur d\'analyse', 'danger');
+                showRobiaNotification('Erreur lors de l\'analyse : ' + result.message, 'danger');
+            updateRobiaStatus('Erreur d\'analyse', 'danger');
                 }
             } catch (error) {
                 showRobiaNotification('Erreur de communication avec ROB.I.A', 'danger');
-                updateRobiaStatus('Erreur de communication', 'danger');
-                
-                // En mode démo, simulons une réponse
-                simulateDemoResponse(ligneId, durationHours, equipement);
+            updateRobiaStatus('Erreur de communication', 'danger');
+
+            // En mode démo, simulons une réponse
+            simulateDemoResponse(ligneId, durationHours, equipement);
             } finally {
                 btn.disabled = false;
-                btn.classList.remove('analyzing');
-                btn.innerHTML = '🤖 ROB.I.A Analyser';
+            btn.classList.remove('analyzing');
+            btn.innerHTML = '🤖 ROB.I.A Analyser';
                 setTimeout(() => updateRobiaStatus('Prêt', 'success'), 3000);
             }
         });
-        
-        // Fonction de démonstration pour simuler la réponse de l'API
-        function simulateDemoResponse(ligneId, durationHours, equipement) {
+
+            // Fonction de démonstration pour simuler la réponse de l'API
+            function simulateDemoResponse(ligneId, durationHours, equipement) {
             // Créer des suggestions fictives
             const now = new Date();
             const tomorrow = new Date(now);
             tomorrow.setDate(tomorrow.getDate() + 1);
             tomorrow.setHours(9, 0, 0, 0);
-            
+
             const suggestions = [];
-            
+
             // Suggestion 1: demain
             const suggestion1End = new Date(tomorrow);
             suggestion1End.setHours(tomorrow.getHours() + durationHours);
-            
+
             suggestions.push({
                 dateDebut: tomorrow.toISOString(),
-                dateFin: suggestion1End.toISOString(),
-                score: 245,
-                raison: "🚀 Mardi excellent pour la production, ✅ Secteur production libre cette semaine, 🌅 Créneau matinal premium (9h-11h), 📅 Journée totalement libre sur cette ligne"
+            dateFin: suggestion1End.toISOString(),
+            score: 245,
+            raison: "🚀 Mardi excellent pour la production, ✅ Secteur production libre cette semaine, 🌅 Créneau matinal premium (9h-11h), 📅 Journée totalement libre sur cette ligne"
             });
-            
+
             // Suggestion 2: jour suivant
             const day2 = new Date(tomorrow);
             day2.setDate(day2.getDate() + 1);
             day2.setHours(13, 0, 0, 0);
-            
+
             const day2End = new Date(day2);
             day2End.setHours(day2.getHours() + durationHours);
-            
+
             suggestions.push({
                 dateDebut: day2.toISOString(),
-                dateFin: day2End.toISOString(),
-                score: 175,
-                raison: "📊 Mercredi idéal pour le milieu de semaine, 🌤️ Créneau après-midi optimal, ✨ Idéal pour finition après-midi (13h-15h), 📊 Journée peu chargée (1 PRS)"
+            dateFin: day2End.toISOString(),
+            score: 175,
+            raison: "📊 Mercredi idéal pour le milieu de semaine, 🌤️ Créneau après-midi optimal, ✨ Idéal pour finition après-midi (13h-15h), 📊 Journée peu chargée (1 PRS)"
             });
-            
+
             // Suggestion 3: 2 jours plus tard
             const day3 = new Date(tomorrow);
             day3.setDate(day3.getDate() + 2);
             day3.setHours(9, 0, 0, 0);
-            
+
             const day3End = new Date(day3);
             day3End.setHours(day3.getHours() + durationHours);
-            
+
             suggestions.push({
                 dateDebut: day3.toISOString(),
-                dateFin: day3End.toISOString(),
-                score: 130,
-                raison: "🔍 Jeudi stratégique pour les finitions, 🔍 Attention: charge modérée ce jour-là, 🌅 Créneau matinal disponible, 📈 Bonne productivité attendue"
+            dateFin: day3End.toISOString(),
+            score: 130,
+            raison: "🔍 Jeudi stratégique pour les finitions, 🔍 Attention: charge modérée ce jour-là, 🌅 Créneau matinal disponible, 📈 Bonne productivité attendue"
             });
-            
+
             // Suggestion 4: semaine prochaine
             const day4 = new Date(tomorrow);
             day4.setDate(day4.getDate() + 7);
             day4.setHours(9, 0, 0, 0);
-            
+
             const day4End = new Date(day4);
             day4End.setHours(day4.getHours() + durationHours);
-            
+
             suggestions.push({
                 dateDebut: day4.toISOString(),
-                dateFin: day4End.toISOString(),
-                score: 185,
-                raison: "🚀 Lundi parfait pour la production, 🎉 Début de semaine idéal, 📊 Semaine peu chargée, 🚀 Démarrage idéal pour projet hebdomadaire"
+            dateFin: day4End.toISOString(),
+            score: 185,
+            raison: "🚀 Lundi parfait pour la production, 🎉 Début de semaine idéal, 📊 Semaine peu chargée, 🚀 Démarrage idéal pour projet hebdomadaire"
             });
-            
+
             // Suggestion 5: 2 semaines plus tard
             const day5 = new Date(tomorrow);
             day5.setDate(day5.getDate() + 14);
             day5.setHours(10, 0, 0, 0);
-            
+
             const day5End = new Date(day5);
             day5End.setHours(day5.getHours() + durationHours);
-            
+
             suggestions.push({
                 dateDebut: day5.toISOString(),
-                dateFin: day5End.toISOString(),
-                score: 160,
-                raison: "🚀 Lundi parfait pour la production, 📈 Semaine 30 - Charge faible, 🌅 Créneau matinal décalé (10h), 📅 Toutes ressources disponibles"
+            dateFin: day5End.toISOString(),
+            score: 160,
+            raison: "🚀 Lundi parfait pour la production, 📈 Semaine 30 - Charge faible, 🌅 Créneau matinal décalé (10h), 📅 Toutes ressources disponibles"
             });
-            
+
             currentSuggestions = suggestions;
             selectedSuggestionIndex = 0;
             
             if (suggestions.length > 0) {
                 showRobiaSuggestions(suggestions);
-                showRobiaNotification(`${suggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
-                updateRobiaStatus(`${suggestions.length} suggestions trouvées`, 'success');
+            showRobiaNotification(`${suggestions.length} suggestion(s) optimale(s) trouvée(s) !`, 'success');
+            updateRobiaStatus(`${suggestions.length} suggestions trouvées`, 'success');
             }
         }
 
-        function showRobiaSuggestions(suggestions) {
+            function showRobiaSuggestions(suggestions) {
             const suggestionsDiv = document.getElementById('robia-suggestions');
             const contentDiv = document.getElementById('suggestions-content');
 
             if (suggestions && suggestions.length > 0) {
                 const suggestion = suggestions[selectedSuggestionIndex];
-                const durationText = getDurationText(parseInt(durationSelect ? durationSelect.value : 8));
+            const durationText = getDurationText(parseInt(durationSelect ? durationSelect.value : 8));
 
-                contentDiv.innerHTML = `
-                    <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <h6 class="text-success mb-2">
-                                        <i class="fas fa-calendar-alt text-primary"></i>
-                                        Créneau Optimal Détecté (${durationText})
-                                    </h6>
-                                    <div class="fs-5 text-primary mb-3 fw-bold">
-                                        <div class="mb-2">
-                                            <i class="fas fa-play-circle text-success"></i>
-                                            <strong>Début :</strong> ${formatDateTimeFr(suggestion.dateDebut)}
-                                        </div>
-                                        <div>
-                                                                                        <i class="fas fa-stop-circle text-danger"></i>
-                                            <strong>Fin :</strong> ${formatDateTimeFr(suggestion.dateFin)}
-                                        </div>
-                                    </div>
+            contentDiv.innerHTML = `
+            <div class="suggestion-main border rounded-3 p-4 bg-gradient-light">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <h6 class="text-success mb-2">
+                                <i class="fas fa-calendar-alt text-primary"></i>
+                                Créneau Optimal Détecté (${durationText})
+                            </h6>
+                            <div class="fs-5 text-primary mb-3 fw-bold">
+                                <div class="mb-2">
+                                    <i class="fas fa-play-circle text-success"></i>
+                                    <strong>Début :</strong> ${formatDateTimeFr(suggestion.dateDebut)}
                                 </div>
-
-                                <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
-                                    <h6 class="text-info mb-2">
-                                        <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
-                                    </h6>
-                                    <p class="mb-0 text-muted">${suggestion.raison}</p>
+                                <div>
+                                    <i class="fas fa-stop-circle text-danger"></i>
+                                    <strong>Fin :</strong> ${formatDateTimeFr(suggestion.dateFin)}
                                 </div>
+                            </div>
+                        </div>
 
-                                ${suggestions.length > 1 ?
-                                    `<div class="mt-2">
+                        <div class="mb-3 p-3 bg-info bg-opacity-10 rounded">
+                            <h6 class="text-info mb-2">
+                                <i class="fas fa-lightbulb"></i> Analyse ROB.I.A
+                            </h6>
+                            <p class="mb-0 text-muted">${suggestion.raison}</p>
+                        </div>
+
+                        ${suggestions.length > 1 ?
+                            `<div class="mt-2">
                                         <span class="badge bg-primary">
                                             <i class="fas fa-list-ol"></i>
                                             Suggestion ${selectedSuggestionIndex + 1} sur ${suggestions.length}
                                         </span>
                                     </div>` : ''
-                                }
-                            </div>
+                        }
+                    </div>
 
-                            <div class="col-md-4 text-center">
-                                <div class="robia-score">
-                                    <div class="mb-2">
-                                        <i class="fas fa-trophy text-white"></i>
-                                        <strong>Score ROB.I.A</strong>
-                                    </div>
-                                    <div class="score-number">${suggestion.score}</div>
-                                    <small class="opacity-75">/ 200 points</small>
-                                    <div class="mt-2">
-                                        <div class="progress" style="height: 8px;">
-                                            <div class="progress-bar bg-white" style="width: ${Math.min((suggestion.score / 200) * 100, 100)}%"></div>
-                                        </div>
-                                    </div>
-                                    ${suggestion.score > 200 ?
-                                        `<div class="mt-2">
-                                            <span class="badge bg-warning text-dark">Score exceptionnel!</span>
-                                        </div>` : ''
-                                    }
+                    <div class="col-md-4 text-center">
+                        <div class="robia-score">
+                            <div class="mb-2">
+                                <i class="fas fa-trophy text-white"></i>
+                                <strong>Score ROB.I.A</strong>
+                            </div>
+                            <div class="score-number">${suggestion.score}</div>
+                            <small class="opacity-75">/ 200 points</small>
+                            <div class="mt-2">
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-white" style="width: ${Math.min((suggestion.score / 200) * 100, 100)}%"></div>
                                 </div>
                             </div>
+                            ${suggestion.score > 200 ?
+                                `<div class="mt-2">
+                                            <span class="badge bg-warning text-dark">Score exceptionnel!</span>
+                                        </div>` : ''
+                            }
                         </div>
                     </div>
-                `;
+                </div>
+            </div>
+            `;
 
-                suggestionsDiv.style.display = 'block';
-                suggestionsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            suggestionsDiv.style.display = 'block';
+            suggestionsDiv.scrollIntoView({behavior: 'smooth', block: 'center' });
             } else {
                 contentDiv.innerHTML = `
                     <div class="alert alert-warning border-0 shadow-sm">
@@ -1474,155 +1704,155 @@
                         </div>
                     </div>
                 `;
-                suggestionsDiv.style.display = 'block';
+            suggestionsDiv.style.display = 'block';
             }
         }
 
-        function getDurationText(hours) {
+            function getDurationText(hours) {
             const durations = {
                 1: "1 heure",
-                2: "2 heures",
-                4: "4 heures (demi-journée)",
-                8: "8 heures (journée complète)",
-                16: "2 jours (16h)",
-                24: "3 jours (24h)",
-                40: "1 semaine (40h)"
+            2: "2 heures",
+            4: "4 heures (demi-journée)",
+            8: "8 heures (journée complète)",
+            16: "2 jours (16h)",
+            24: "3 jours (24h)",
+            40: "1 semaine (40h)"
             };
             return durations[hours] || `${hours} heures`;
         }
 
-        function formatDateTimeFr(dateStr) {
+            function formatDateTimeFr(dateStr) {
             const utcDate = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z'));
-            const localDate = new Date(utcDate.toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }));
+            const localDate = new Date(utcDate.toLocaleString('sv-SE', {timeZone: 'Europe/Paris' }));
 
             const options = {
                 weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                timeZone: 'Europe/Paris'
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/Paris'
             };
             return localDate.toLocaleDateString('fr-FR', options);
         }
 
-        function updateRobiaStatus(message, type) {
+            function updateRobiaStatus(message, type) {
             const statusIndicator = document.querySelector('.robia-status-indicator');
             if (!statusIndicator) return;
 
             const colors = {
                 success: 'bg-success',
-                warning: 'bg-warning',
-                danger: 'bg-danger',
-                info: 'bg-info'
+            warning: 'bg-warning',
+            danger: 'bg-danger',
+            info: 'bg-info'
             };
 
             statusIndicator.innerHTML = `
-                <span class="badge ${colors[type]} fs-6">
-                    <i class="fas fa-circle me-1"></i>${message}
-                </span>
+            <span class="badge ${colors[type]} fs-6">
+                <i class="fas fa-circle me-1"></i>${message}
+            </span>
             `;
         }
 
-        // Actions sur les suggestions
-        document.getElementById('apply-suggestion').addEventListener('click', function() {
+            // Actions sur les suggestions
+            document.getElementById('apply-suggestion').addEventListener('click', function() {
             if (currentSuggestions.length > 0) {
                 const suggestion = currentSuggestions[selectedSuggestionIndex];
 
-                if (isAdminOrValidateur) {
+            if (isAdminOrValidateur) {
                     // Mode admin : mettre à jour les champs de date directement
                     const localStart = convertUTCToLocalForInput(suggestion.dateDebut);
-                    const localEnd = convertUTCToLocalForInput(suggestion.dateFin);
+            const localEnd = convertUTCToLocalForInput(suggestion.dateFin);
 
-                    dateDebutInput.value = formatDateTimeLocal(localStart);
-                    dateFinInput.value = formatDateTimeLocal(localEnd);
+            dateDebutInput.value = formatDateTimeLocal(localStart);
+            dateFinInput.value = formatDateTimeLocal(localEnd);
 
                     // Animation des champs modifiés
                     [dateDebutInput, dateFinInput].forEach(input => {
-                        input.classList.add('date-applied');
-                        input.style.transform = 'scale(1.05)';
+                input.classList.add('date-applied');
+            input.style.transform = 'scale(1.05)';
                         setTimeout(() => {
-                            input.classList.remove('date-applied');
-                            input.style.transform = '';
+                input.classList.remove('date-applied');
+            input.style.transform = '';
                         }, 2000);
                     });
 
-                    if (durationSelect) updateDurationFromDates();
+            if (durationSelect) updateDurationFromDates();
                 } else {
                     // Mode utilisateur : mettre à jour la semaine sélectionnée
                     const suggestionWeekStart = getMonday(new Date(suggestion.dateDebut));
-                    currentWeekStart = new Date(suggestionWeekStart);
-                    updateWeekDisplay();
+            currentWeekStart = new Date(suggestionWeekStart);
+            updateWeekDisplay();
                 }
 
-                document.getElementById('robia-suggestions').style.display = 'none';
-                showRobiaNotification('Suggestion appliquée avec succès !', 'success');
-                updateRobiaStatus('Prêt', 'success');
+            document.getElementById('robia-suggestions').style.display = 'none';
+            showRobiaNotification('Suggestion appliquée avec succès !', 'success');
+            updateRobiaStatus('Prêt', 'success');
             }
         });
 
-        document.getElementById('close-suggestions').addEventListener('click', function() {
-            document.getElementById('robia-suggestions').style.display = 'none';
+            document.getElementById('close-suggestions').addEventListener('click', function() {
+                document.getElementById('robia-suggestions').style.display = 'none';
             updateRobiaStatus('Prêt', 'success');
         });
 
-        document.getElementById('show-alternatives').addEventListener('click', function() {
+            document.getElementById('show-alternatives').addEventListener('click', function() {
             if (currentSuggestions.length > 1) {
                 selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
-                showRobiaSuggestions(currentSuggestions);
+            showRobiaSuggestions(currentSuggestions);
             } else {
                 showRobiaNotification("Désolé, pas d'alternatives disponibles pour le moment.", 'info');
             }
         });
 
-        function showRobiaNotification(message, type = 'info') {
+            function showRobiaNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `alert alert-${type} robia-notification border-0 shadow-lg`;
             notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-                width: 380px;
-                max-width: 90vw;
-                border-radius: 8px;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            width: 380px;
+            max-width: 90vw;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             `;
 
             const icons = {
                 success: 'fas fa-check-circle',
-                warning: 'fas fa-exclamation-triangle',
-                danger: 'fas fa-times-circle',
-                info: 'fas fa-info-circle'
+            warning: 'fas fa-exclamation-triangle',
+            danger: 'fas fa-times-circle',
+            info: 'fas fa-info-circle'
             };
 
             notification.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-robot robot-icon me-2 fs-5"></i>
-                    <div class="flex-grow-1">
-                        <strong>ROB.I.A:</strong> ${message}
-                    </div>
-                    <i class="${icons[type]} ms-2"></i>
-                    <button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+            <div class="d-flex align-items-center">
+                <i class="fas fa-robot robot-icon me-2 fs-5"></i>
+                <div class="flex-grow-1">
+                    <strong>ROB.I.A:</strong> ${message}
                 </div>
+                <i class="${icons[type]} ms-2"></i>
+                <button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
             `;
 
             document.body.appendChild(notification);
 
             setTimeout(() => {
                 notification.classList.add('closing');
-                notification.style.opacity = '0';
+            notification.style.opacity = '0';
                 setTimeout(() => {
                     if (notification.parentNode) {
-                        notification.remove();
+                notification.remove();
                     }
                 }, 500);
             }, 5000);
         }
 
-        // Gestion de l'upload des fichiers
-        document.addEventListener('DOMContentLoaded', function() {
+            // Gestion de l'upload des fichiers
+            document.addEventListener('DOMContentLoaded', function() {
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('fileUpload');
             const fileList = document.getElementById('fileList');
@@ -1635,36 +1865,36 @@
             // Fonction pour formater la taille du fichier
             function formatFileSize(bytes) {
                 if (bytes === 0) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
 
             // Fonction pour déterminer l'icône en fonction du type de fichier
             function getFileIcon(fileName) {
                 const extension = fileName.split('.').pop().toLowerCase();
 
-                const icons = {
-                    'pdf': 'fas fa-file-pdf',
-                    'doc': 'fas fa-file-word',
-                    'docx': 'fas fa-file-word',
-                    'xls': 'fas fa-file-excel',
-                    'xlsx': 'fas fa-file-excel',
-                    'ppt': 'fas fa-file-powerpoint',
-                    'pptx': 'fas fa-file-powerpoint',
-                    'txt': 'fas fa-file-alt',
-                    'csv': 'fas fa-file-csv',
-                    'jpg': 'fas fa-file-image',
-                    'jpeg': 'fas fa-file-image',
-                    'png': 'fas fa-file-image',
-                    'gif': 'fas fa-file-image',
-                    'zip': 'fas fa-file-archive',
-                    'rar': 'fas fa-file-archive',
-                    '7z': 'fas fa-file-archive'
+            const icons = {
+                'pdf': 'fas fa-file-pdf',
+            'doc': 'fas fa-file-word',
+            'docx': 'fas fa-file-word',
+            'xls': 'fas fa-file-excel',
+            'xlsx': 'fas fa-file-excel',
+            'ppt': 'fas fa-file-powerpoint',
+            'pptx': 'fas fa-file-powerpoint',
+            'txt': 'fas fa-file-alt',
+            'csv': 'fas fa-file-csv',
+            'jpg': 'fas fa-file-image',
+            'jpeg': 'fas fa-file-image',
+            'png': 'fas fa-file-image',
+            'gif': 'fas fa-file-image',
+            'zip': 'fas fa-file-archive',
+            'rar': 'fas fa-file-archive',
+            '7z': 'fas fa-file-archive'
                 };
 
-                return icons[extension] || 'fas fa-file';
+            return icons[extension] || 'fas fa-file';
             }
 
             // Fonction pour mettre à jour la liste de fichiers dans l'UI
@@ -1673,33 +1903,33 @@
 
                 selectedFiles.forEach((file, index) => {
                     const fileItem = document.createElement('li');
-                    fileItem.className = 'file-item';
+            fileItem.className = 'file-item';
 
-                    const fileIcon = document.createElement('i');
-                    fileIcon.className = `file-icon ${getFileIcon(file.name)}`;
+            const fileIcon = document.createElement('i');
+            fileIcon.className = `file-icon ${getFileIcon(file.name)}`;
 
-                    const fileName = document.createElement('span');
-                    fileName.className = 'file-name';
-                    fileName.textContent = file.name;
+            const fileName = document.createElement('span');
+            fileName.className = 'file-name';
+            fileName.textContent = file.name;
 
-                    const fileSize = document.createElement('span');
-                    fileSize.className = 'file-size';
-                    fileSize.textContent = formatFileSize(file.size);
+            const fileSize = document.createElement('span');
+            fileSize.className = 'file-size';
+            fileSize.textContent = formatFileSize(file.size);
 
-                    const removeButton = document.createElement('i');
-                    removeButton.className = 'remove-file fas fa-times-circle';
-                    removeButton.setAttribute('title', 'Supprimer');
-                    removeButton.addEventListener('click', function() {
-                        selectedFiles.splice(index, 1);
-                        updateFileListUI();
+            const removeButton = document.createElement('i');
+            removeButton.className = 'remove-file fas fa-times-circle';
+            removeButton.setAttribute('title', 'Supprimer');
+            removeButton.addEventListener('click', function() {
+                selectedFiles.splice(index, 1);
+            updateFileListUI();
                     });
 
-                    fileItem.appendChild(fileIcon);
-                    fileItem.appendChild(fileName);
-                    fileItem.appendChild(fileSize);
-                    fileItem.appendChild(removeButton);
+            fileItem.appendChild(fileIcon);
+            fileItem.appendChild(fileName);
+            fileItem.appendChild(fileSize);
+            fileItem.appendChild(removeButton);
 
-                    fileList.appendChild(fileItem);
+            fileList.appendChild(fileItem);
                 });
             }
 
@@ -1707,43 +1937,43 @@
             function addFiles(files) {
                 if (!files || !files.length) return;
 
-                // Pour chaque fichier sélectionné
-                for (let i = 0; i < files.length; i++) {
+            // Pour chaque fichier sélectionné
+            for (let i = 0; i < files.length; i++) {
                     const file = files[i];
 
                     // Vérifier la taille maximale
                     if (file.size > 100 * 1024 * 1024) {
-                        showRobiaNotification(`Le fichier ${file.name} est trop volumineux (maximum 100 Mo)`, 'warning');
-                        continue;
+                showRobiaNotification(`Le fichier ${file.name} est trop volumineux (maximum 100 Mo)`, 'warning');
+            continue;
                     }
 
                     // Vérifier si un fichier avec le même nom existe déjà
                     const existingIndex = selectedFiles.findIndex(f => f.name === file.name);
                     if (existingIndex >= 0) {
-                        // Remplacer le fichier existant
-                        selectedFiles[existingIndex] = file;
+                // Remplacer le fichier existant
+                selectedFiles[existingIndex] = file;
                     } else {
-                        // Ajouter le nouveau fichier
-                        selectedFiles.push(file);
+                // Ajouter le nouveau fichier
+                selectedFiles.push(file);
                     }
                 }
 
-                // Mettre à jour l'interface utilisateur
-                updateFileListUI();
+            // Mettre à jour l'interface utilisateur
+            updateFileListUI();
 
-                // Afficher la progression
-                progressContainer.style.display = 'block';
-                progressBar.style.width = '0%';
+            // Afficher la progression
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
 
-                let progress = 0;
+            let progress = 0;
                 const interval = setInterval(() => {
-                    progress += 5;
-                    progressBar.style.width = `${Math.min(progress, 100)}%`;
+                progress += 5;
+            progressBar.style.width = `${Math.min(progress, 100)}%`;
 
                     if (progress >= 100) {
-                        clearInterval(interval);
+                clearInterval(interval);
                         setTimeout(() => {
-                            progressContainer.style.display = 'none';
+                progressContainer.style.display = 'none';
                         }, 500);
                     }
                 }, 50);
@@ -1751,7 +1981,7 @@
 
             // Événement lors de la sélection de fichiers par le input file
             if (fileInput) {
-                fileInput.addEventListener('change', function(e) {
+                fileInput.addEventListener('change', function (e) {
                     addFiles(this.files);
                 });
             }
@@ -1766,22 +1996,22 @@
                 });
 
                 dropZone.addEventListener('dragenter', () => {
-                    dropZone.classList.add('dragover');
+                dropZone.classList.add('dragover');
                 });
 
                 dropZone.addEventListener('dragover', () => {
-                    dropZone.classList.add('dragover');
+                dropZone.classList.add('dragover');
                 });
 
                 dropZone.addEventListener('dragleave', () => {
-                    dropZone.classList.remove('dragover');
+                dropZone.classList.remove('dragover');
                 });
 
                 dropZone.addEventListener('drop', (e) => {
-                    dropZone.classList.remove('dragover');
+                dropZone.classList.remove('dragover');
 
-                    // Ajouter les fichiers déposés
-                    addFiles(e.dataTransfer.files);
+            // Ajouter les fichiers déposés
+            addFiles(e.dataTransfer.files);
                 });
             }
 
@@ -1794,39 +2024,39 @@
 
                         // Ajouter chaque fichier sélectionné
                         selectedFiles.forEach(file => {
-                            dataTransfer.items.add(file);
+                dataTransfer.items.add(file);
                         });
 
-                        // Assigner les fichiers à l'input file
-                        fileInput.files = dataTransfer.files;
+            // Assigner les fichiers à l'input file
+            fileInput.files = dataTransfer.files;
                     } catch (error) {
-                        console.error("Erreur lors de la préparation des fichiers pour l'envoi", error);
+                console.error("Erreur lors de la préparation des fichiers pour l'envoi", error);
                         // Ne pas bloquer la soumission du formulaire si cette étape échoue
                     }
                 }
             });
         });
 
-        // Validation du formulaire
-        document.querySelector("#create-form").addEventListener("submit", function(e) {
+            // Validation du formulaire
+            document.querySelector("#create-form").addEventListener("submit", function(e) {
             if (isAdminOrValidateur && !validateDates()) {
                 e.preventDefault();
-                showRobiaNotification('La date de début doit être antérieure à la date de fin.', 'danger');
-                return false;
+            showRobiaNotification('La date de début doit être antérieure à la date de fin.', 'danger');
+            return false;
             }
 
             // Vérification que la ligne est sélectionnée
             if (!ligneSelect.value) {
                 e.preventDefault();
-                showRobiaNotification('Veuillez sélectionner une ligne.', 'danger');
-                ligneSelect.focus();
-                return false;
+            showRobiaNotification('Veuillez sélectionner une ligne.', 'danger');
+            ligneSelect.focus();
+            return false;
             }
         });
 
         // Initialisation
         setTimeout(() => {
-            showRobiaNotification(`ROB.I.A prêt à optimiser vos planifications, ${currentUserLogin}!`, 'success');
+                showRobiaNotification(`ROB.I.A prêt à optimiser vos planifications, ${currentUserLogin}!`, 'success');
         }, 1000);
-    </script>
+        </script>
 }

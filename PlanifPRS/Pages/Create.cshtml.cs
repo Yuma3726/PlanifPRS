@@ -8,6 +8,7 @@ using PlanifPRS.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -33,6 +34,9 @@ namespace PlanifPRS.Pages.Prs
 
         [BindProperty]
         public List<IFormFile> UploadedFiles { get; set; }
+
+        [BindProperty]
+        public string PrsFolderLinks { get; set; }
 
         public SelectList LigneList { get; set; }
 
@@ -80,7 +84,9 @@ namespace PlanifPRS.Pages.Prs
 
         public async Task<IActionResult> OnPostAsync()
         {
-            _logger.LogInformation($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Début de OnPostAsync avec {UploadedFiles?.Count ?? 0} fichiers");
+            _logger.LogInformation($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Début de OnPostAsync");
+            _logger.LogInformation($"Fichiers reçus: {UploadedFiles?.Count ?? 0}");
+            _logger.LogInformation($"PrsFolderLinks reçu: {PrsFolderLinks}");
 
             ChargerFamilles();
             ChargerLignes();
@@ -100,6 +106,10 @@ namespace PlanifPRS.Pages.Prs
 
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Formulaire invalide. Erreurs: " +
+                    string.Join("; ", ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)));
                 return Page();
             }
 
@@ -112,6 +122,7 @@ namespace PlanifPRS.Pages.Prs
 
                 // Définir le login de l'utilisateur qui crée la PRS
                 Prs.CreatedByLogin = GetCurrentUserLogin();
+                _logger.LogInformation($"Créateur: {Prs.CreatedByLogin}");
 
                 // Nettoyer les emojis et caractères spéciaux des champs textuels
                 Prs.Titre = CleanEmojis(Prs.Titre);
@@ -141,6 +152,7 @@ namespace PlanifPRS.Pages.Prs
                     Prs.CouleurPRS = null; // Seuls les admin/validateurs peuvent définir une couleur
                 }
 
+                // Ajouter la PRS à la base de données
                 _context.Prs.Add(Prs);
                 await _context.SaveChangesAsync();
                 _logger.LogInformation($"PRS créée avec succès. ID: {Prs.Id}, Titre: {Prs.Titre}");
@@ -149,12 +161,6 @@ namespace PlanifPRS.Pages.Prs
                 if (UploadedFiles != null && UploadedFiles.Any())
                 {
                     _logger.LogInformation($"Traitement de {UploadedFiles.Count} fichiers uploadés");
-
-                    // Debug des fichiers reçus
-                    foreach (var file in UploadedFiles)
-                    {
-                        _logger.LogInformation($"Fichier reçu: {file.FileName}, Type: {file.ContentType}, Taille: {file.Length} bytes");
-                    }
 
                     // Stocker les fichiers
                     var fileResults = await _fileService.SaveMultipleFilesAsync(
@@ -183,7 +189,7 @@ namespace PlanifPRS.Pages.Prs
                                 UploadParLogin = GetCurrentUserLogin()
                             };
 
-                            _logger.LogInformation($"Ajout du fichier à la BDD: {prsFichier.NomOriginal}, Chemin: {prsFichier.CheminFichier}");
+                            _logger.LogInformation($"Ajout du fichier à la BDD: {prsFichier.NomOriginal}");
                             _context.PrsFichiers.Add(prsFichier);
                             successCount++;
                         }
@@ -196,7 +202,7 @@ namespace PlanifPRS.Pages.Prs
                     }
 
                     await _context.SaveChangesAsync();
-                    _logger.LogInformation($"Fin de traitement des fichiers: {successCount} succès, {errorCount} erreurs");
+                    _logger.LogInformation($"Fichiers traités: {successCount} succès, {errorCount} erreurs");
 
                     if (successCount > 0)
                     {
@@ -213,22 +219,156 @@ namespace PlanifPRS.Pages.Prs
                     _logger.LogInformation("Aucun fichier à uploader");
                 }
 
+                // Traitement des liens de dossiers
+                if (!string.IsNullOrEmpty(PrsFolderLinks))
+                {
+                    try
+                    {
+                        _logger.LogInformation($"Traitement des liens de dossiers. JSON reçu: {PrsFolderLinks}");
+
+                        // Options de désérialisation avec System.Text.Json
+                        var options = new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true,
+                            ReadCommentHandling = JsonCommentHandling.Skip,
+                            AllowTrailingCommas = true
+                        };
+
+                        // Désérialisation du JSON avec System.Text.Json
+                        List<FolderLinkDto> folderLinks = null;
+                        try
+                        {
+                            folderLinks = JsonSerializer.Deserialize<List<FolderLinkDto>>(PrsFolderLinks, options);
+                            _logger.LogInformation($"Désérialisation réussie, {folderLinks?.Count ?? 0} liens trouvés");
+
+                            // Log détaillé des objets désérialisés
+                            if (folderLinks != null)
+                            {
+                                foreach (var link in folderLinks)
+                                {
+                                    _logger.LogInformation($"Lien désérialisé - Chemin: '{link.Chemin}', Description: '{link.Description}'");
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"Erreur lors de la désérialisation: {ex.Message}");
+
+                            // Extraction manuelle avec expressions régulières si la désérialisation échoue
+                            _logger.LogWarning("Tentative d'extraction manuelle des chemins");
+                            folderLinks = new List<FolderLinkDto>();
+
+                            // Regex pour extraire path/Chemin et description/Description
+                            var pathRegex1 = new Regex(@"""path""\s*:\s*""([^""]+)""");
+                            var pathRegex2 = new Regex(@"""Chemin""\s*:\s*""([^""]+)""");
+                            var descRegex1 = new Regex(@"""description""\s*:\s*""([^""]*)""");
+                            var descRegex2 = new Regex(@"""Description""\s*:\s*""([^""]*)""");
+
+                            var pathMatches1 = pathRegex1.Matches(PrsFolderLinks);
+                            var pathMatches2 = pathRegex2.Matches(PrsFolderLinks);
+                            var descMatches1 = descRegex1.Matches(PrsFolderLinks);
+                            var descMatches2 = descRegex2.Matches(PrsFolderLinks);
+
+                            if (pathMatches1.Count > 0)
+                            {
+                                for (int i = 0; i < pathMatches1.Count; i++)
+                                {
+                                    string path = pathMatches1[i].Groups[1].Value;
+                                    string desc = (i < descMatches1.Count && descMatches1[i].Groups.Count > 1) ?
+                                        descMatches1[i].Groups[1].Value : "";
+
+                                    folderLinks.Add(new FolderLinkDto { Chemin = path, Description = desc });
+                                }
+                            }
+                            else if (pathMatches2.Count > 0)
+                            {
+                                for (int i = 0; i < pathMatches2.Count; i++)
+                                {
+                                    string path = pathMatches2[i].Groups[1].Value;
+                                    string desc = (i < descMatches2.Count && descMatches2[i].Groups.Count > 1) ?
+                                        descMatches2[i].Groups[1].Value : "";
+
+                                    folderLinks.Add(new FolderLinkDto { Chemin = path, Description = desc });
+                                }
+                            }
+
+                            _logger.LogInformation($"Extraction manuelle: {folderLinks.Count} liens trouvés");
+                        }
+
+                        if (folderLinks != null && folderLinks.Any())
+                        {
+                            int addedCount = 0;
+                            foreach (var link in folderLinks)
+                            {
+                                if (!string.IsNullOrEmpty(link.Chemin))
+                                {
+                                    // Nettoyer le chemin des doubles barres obliques si nécessaire
+                                    string chemin = link.Chemin.Replace("\\\\", "\\");
+
+                                    var lienDossier = new LienDossierPrs
+                                    {
+                                        PrsId = Prs.Id,
+                                        Chemin = chemin,
+                                        Description = link.Description ?? "",
+                                        DateAjout = DateTime.Now,
+                                        AjouteParLogin = GetCurrentUserLogin()
+                                    };
+
+                                    _logger.LogInformation($"Ajout du lien de dossier: {lienDossier.Chemin}, Description: {lienDossier.Description}");
+                                    _context.LiensDossierPrs.Add(lienDossier);
+                                    addedCount++;
+                                }
+                                else
+                                {
+                                    _logger.LogWarning($"Lien de dossier ignoré car chemin vide. Description: {link.Description}");
+                                }
+                            }
+
+                            var changesCount = await _context.SaveChangesAsync();
+                            _logger.LogInformation($"SaveChanges: {changesCount} enregistrements modifiés pour les liens de dossiers");
+
+                            if (addedCount > 0)
+                            {
+                                Flash += $" {addedCount} lien(s) de dossier ajouté(s).";
+                            }
+
+                            // Vérification après enregistrement
+                            var savedLinks = await _context.LiensDossierPrs
+                                .Where(l => l.PrsId == Prs.Id)
+                                .ToListAsync();
+                            _logger.LogInformation($"Liens vérifiés en BDD après sauvegarde: {savedLinks.Count}");
+                            foreach (var savedLink in savedLinks)
+                            {
+                                _logger.LogInformation($"Lien en BDD - Id: {savedLink.Id}, Chemin: '{savedLink.Chemin}'");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Aucun lien de dossier valide trouvé dans les données JSON");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Erreur lors du traitement des liens de dossiers: {ex.Message}");
+                        _logger.LogError($"Stack trace: {ex.StackTrace}");
+                        ErrorMessage += " Erreur lors du traitement des liens de dossiers.";
+                    }
+                }
+
                 Flash = "PRS ajoutée avec succès ✅";
 
-                return RedirectToPage("./Create");
+                return RedirectToPage("./Index");
             }
             catch (Exception ex)
             {
                 ErrorMessage = $"Erreur lors de l'ajout de la PRS: {ex.Message}";
                 ModelState.AddModelError(string.Empty, "Erreur lors de l'ajout de la PRS.");
-                _logger.LogError($"Erreur lors de la création de la PRS: {ex.Message}", ex);
+                _logger.LogError($"Exception lors de la création de la PRS: {ex.Message}");
+                _logger.LogError($"Stack trace: {ex.StackTrace}");
                 return Page();
             }
         }
 
-        /// <summary>
-        /// Obtient le login de l'utilisateur actuel au format approprié
-        /// </summary>
         private string GetCurrentUserLogin()
         {
             var fullLogin = User.Identity?.Name;
@@ -241,18 +381,12 @@ namespace PlanifPRS.Pages.Prs
             return loginParts.Length > 1 ? loginParts[1] : fullLogin;
         }
 
-        /// <summary>
-        /// Obtient la date du lundi de la semaine contenant la date spécifiée
-        /// </summary>
         private DateTime GetMondayOfWeek(DateTime date)
         {
             int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
             return date.AddDays(-1 * diff).Date; // .Date pour avoir 00:00:00
         }
 
-        /// <summary>
-        /// Nettoie les emojis et caractères spéciaux d'une chaîne
-        /// </summary>
         private string CleanEmojis(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -274,9 +408,6 @@ namespace PlanifPRS.Pages.Prs
             return cleanedText.Trim();
         }
 
-        /// <summary>
-        /// Vérification des droits utilisateur (admin ou validateur)
-        /// </summary>
         private bool HasRequiredRole()
         {
             try
@@ -355,7 +486,6 @@ namespace PlanifPRS.Pages.Prs
                 }
 
                 Familles = famillesList;
-                _logger.LogInformation($"Familles chargées: {famillesList.Count}");
             }
             catch (Exception ex)
             {
@@ -408,13 +538,24 @@ namespace PlanifPRS.Pages.Prs
                 }
 
                 LigneList = new SelectList(lignesList, "Value", "Text");
-                _logger.LogInformation($"Lignes chargées: {lignesList.Count}");
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Erreur ChargerLignes: {ex.Message}");
                 LigneList = new SelectList(new List<SelectListItem>(), "Value", "Text");
             }
+        }
+
+        // Classe DTO pour désérialiser les liens de dossiers
+        public class FolderLinkDto
+        {
+            // Les propriétés doivent correspondre aux noms dans le JSON du frontend
+            public string Chemin { get; set; }
+            public string Description { get; set; }
+
+            // Propriétés alternatives pour la compatibilité (avec PropertyNameCaseInsensitive)
+            public string path { get => Chemin; set => Chemin = value; }
+            public string description { get => Description; set => Description = value; }
         }
     }
 }

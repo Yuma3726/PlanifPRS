@@ -16,6 +16,7 @@ namespace PlanifPRS.Data
         public DbSet<JalonUtilisateur> JalonUtilisateurs { get; set; }
         public DbSet<Secteur> Secteurs { get; set; }
         public DbSet<PrsFichier> PrsFichiers { get; set; }
+        public DbSet<LienDossierPrs> LiensDossierPrs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -99,6 +100,26 @@ namespace PlanifPRS.Data
                       .WithMany(p => p.Fichiers)
                       .HasForeignKey(f => f.PrsId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configuration pour la table LienDossierPrs et sa relation avec PRS
+            modelBuilder.Entity<LienDossierPrs>(entity =>
+            {
+                entity.ToTable("PRS_LiensDossierPRS");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Chemin).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.AjouteParLogin).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.DateAjout).IsRequired().HasDefaultValueSql("GETDATE()");
+
+                entity.HasOne(l => l.Prs)
+                     .WithMany(p => p.LiensDossier)
+                     .HasForeignKey(l => l.PrsId)
+                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.PrsId)
+                     .HasDatabaseName("IX_PRS_LiensDossierPRS_PrsId");
             });
 
             // Clé alternative pour LoginWindows dans Utilisateur
