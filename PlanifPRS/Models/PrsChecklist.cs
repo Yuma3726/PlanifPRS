@@ -34,11 +34,15 @@ namespace PlanifPRS.Models
         [MaxLength(255)]
         public string? Libelle { get; set; }
 
-        public int Ordre { get; set; } = 0;
+        [Range(1, 5)]
+        public int Priorite { get; set; } = 3;
 
         public bool Obligatoire { get; set; } = false;
 
         public bool EstCoche { get; set; } = false;
+
+        // Gestion des dates
+        public DateTime? DateEcheance { get; set; }
 
         public DateTime? DateValidation { get; set; }
 
@@ -75,6 +79,9 @@ namespace PlanifPRS.Models
         public bool EstValide => EstCoche || (Statut.HasValue && Statut.Value);
 
         [NotMapped]
+        public bool EstEnRetard => DateEcheance.HasValue && DateTime.Now > DateEcheance.Value && !EstValide;
+
+        [NotMapped]
         public string StatutAffichage
         {
             get
@@ -82,6 +89,7 @@ namespace PlanifPRS.Models
                 if (EstCoche) return "✅ Validé";
                 if (Statut.HasValue && Statut.Value) return "✅ OK";
                 if (Statut.HasValue && !Statut.Value) return "❌ NOK";
+                if (EstEnRetard) return "⚠️ En retard";
                 return "⏳ En attente";
             }
         }
@@ -93,8 +101,68 @@ namespace PlanifPRS.Models
             {
                 if (EstCoche || (Statut.HasValue && Statut.Value)) return "table-success";
                 if (Statut.HasValue && !Statut.Value) return "table-danger";
+                if (EstEnRetard) return "table-danger";
                 if (Obligatoire) return "table-warning";
                 return "";
+            }
+        }
+
+        [NotMapped]
+        public string PrioriteLibelle
+        {
+            get
+            {
+                return Priorite switch
+                {
+                    1 => "🔴 Critique",
+                    2 => "🟠 Haute",
+                    3 => "🟡 Normale",
+                    4 => "🔵 Basse",
+                    5 => "⚪ Optionnelle",
+                    _ => "🟡 Normale"
+                };
+            }
+        }
+
+        [NotMapped]
+        public string CouleurPriorite
+        {
+            get
+            {
+                return Priorite switch
+                {
+                    1 => "#dc3545", // Rouge
+                    2 => "#fd7e14", // Orange
+                    3 => "#ffc107", // Jaune
+                    4 => "#007bff", // Bleu
+                    5 => "#6c757d", // Gris
+                    _ => "#ffc107"
+                };
+            }
+        }
+
+        [NotMapped]
+        public int JoursRestants
+        {
+            get
+            {
+                if (!DateEcheance.HasValue) return int.MaxValue;
+                return (int)(DateEcheance.Value - DateTime.Now).TotalDays;
+            }
+        }
+
+        [NotMapped]
+        public string DelaiAffichage
+        {
+            get
+            {
+                if (!DateEcheance.HasValue) return "Pas d'échéance";
+
+                var jours = JoursRestants;
+                if (jours < 0) return $"En retard de {Math.Abs(jours)} jour(s)";
+                if (jours == 0) return "Échéance aujourd'hui";
+                if (jours == 1) return "Échéance demain";
+                return $"Dans {jours} jour(s)";
             }
         }
     }

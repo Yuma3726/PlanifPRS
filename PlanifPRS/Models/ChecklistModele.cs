@@ -55,9 +55,13 @@ namespace PlanifPRS.Models
         [Required, MaxLength(255)]
         public string Libelle { get; set; }
 
-        public int Ordre { get; set; }
+        [Range(1, 5)]
+        public int Priorite { get; set; } = 3;
 
         public bool Obligatoire { get; set; }
+
+        // Délai par défaut en jours depuis le début de la PRS
+        public int? DelaiDefautJours { get; set; }
 
         [ValidateNever]
         public virtual ChecklistModele ChecklistModele { get; set; }
@@ -104,6 +108,40 @@ namespace PlanifPRS.Models
                     "matière" => "#6f42c1",
                     "production" => "#dc3545",
                     _ => "#6c757d"
+                };
+            }
+        }
+
+        [NotMapped]
+        public string PrioriteLibelle
+        {
+            get
+            {
+                return Priorite switch
+                {
+                    1 => "🔴 Critique",
+                    2 => "🟠 Haute",
+                    3 => "🟡 Normale",
+                    4 => "🔵 Basse",
+                    5 => "⚪ Optionnelle",
+                    _ => "🟡 Normale"
+                };
+            }
+        }
+
+        [NotMapped]
+        public string CouleurPriorite
+        {
+            get
+            {
+                return Priorite switch
+                {
+                    1 => "#dc3545", // Rouge
+                    2 => "#fd7e14", // Orange
+                    3 => "#ffc107", // Jaune
+                    4 => "#007bff", // Bleu
+                    5 => "#6c757d", // Gris
+                    _ => "#ffc107"
                 };
             }
         }

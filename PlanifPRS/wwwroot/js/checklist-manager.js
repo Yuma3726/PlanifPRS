@@ -61,6 +61,10 @@
         $(document).on('click', '.btn-remove-item', (e) => {
             this.removeChecklistItem(e);
         });
+
+        $(document).on('click', '.btn-calculate-dates', (e) => {
+            this.calculateDatesFromPrsStart();
+        });
     }
 
     handleTypeChange(selectedType) {
@@ -101,9 +105,8 @@
             }
 
             const modele = await response.json();
-            console.log('Modèle chargé:', modele); // Debug
+            console.log('Modèle chargé:', modele);
 
-            // Vérifier que les données sont correctes
             if (!modele || !modele.elements) {
                 throw new Error('Données du modèle invalides');
             }
@@ -112,16 +115,14 @@
                 categorie: element.categorie,
                 sousCategorie: element.sousCategorie || '',
                 libelle: element.libelle,
-                ordre: element.ordre,
-                obligatoire: element.obligatoire
+                priorite: element.priorite || 3,
+                obligatoire: element.obligatoire,
+                delaiDefautJours: element.delaiDefautJours
             }));
 
             this.currentChecklist.sourceId = modeleId;
 
-            // CORRECTION PRINCIPALE : S'assurer que le loading est caché avant d'afficher l'éditeur
             this.hideLoading();
-
-            // Afficher l'éditeur avec les données
             this.showChecklistEditor();
             this.renderChecklistItems();
 
@@ -129,7 +130,7 @@
 
         } catch (error) {
             console.error('Erreur lors du chargement du modèle:', error);
-            this.hideLoading(); // IMPORTANT : Cacher le loading en cas d'erreur aussi
+            this.hideLoading();
             this.showNotification('Erreur lors du chargement du modèle: ' + error.message, 'danger');
         }
     }
@@ -235,7 +236,6 @@
     }
 
     showLoading(message = 'Chargement...') {
-        // Afficher le loading dans le conteneur principal
         $(this.options.containerSelector).html(`
             <div class="text-center py-5">
                 <div class="spinner-border text-primary mb-3" role="status">
@@ -247,13 +247,20 @@
     }
 
     hideLoading() {
-        // Cette méthode va restaurer le contenu original de l'éditeur
         const originalContent = `
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0"><i class="fas fa-edit me-1"></i>Éléments de la checklist (<span id="checklistItemCount" class="badge-checklist">0</span> éléments)</h6>
-                <button type="button" class="btn btn-success btn-sm" id="addChecklistItem">
-                    <i class="fas fa-plus me-1"></i>Ajouter un élément
-                </button>
+                <h6 class="mb-0">
+                    <i class="fas fa-edit me-1"></i>Éléments de la checklist 
+                    (<span id="checklistItemCount" class="badge bg-primary">0</span> éléments)
+                </h6>
+                <div>
+                    <button type="button" class="btn btn-info btn-sm me-2 btn-calculate-dates" title="Calculer les dates d'échéance">
+                        <i class="fas fa-calendar-alt me-1"></i>Calculer dates
+                    </button>
+                    <button type="button" class="btn btn-success btn-sm" id="addChecklistItem">
+                        <i class="fas fa-plus me-1"></i>Ajouter un élément
+                    </button>
+                </div>
             </div>
             <div id="checklistItems" class="checklist-items-container">
                 <!-- Les éléments seront ajoutés ici -->
@@ -276,8 +283,11 @@
             return;
         }
 
-        // Trier les éléments par ordre
-        const sortedElements = [...this.currentChecklist.elements].sort((a, b) => a.ordre - b.ordre);
+        // Trier les éléments par priorité puis par catégorie
+        const sortedElements = [...this.currentChecklist.elements].sort((a, b) => {
+            if (a.priorite !== b.priorite) return a.priorite - b.priorite;
+            return a.categorie.localeCompare(b.categorie);
+        });
 
         sortedElements.forEach((element, index) => {
             const html = this.createChecklistItemHtml(element, index);
@@ -288,14 +298,23 @@
     }
 
     createChecklistItemHtml(element, index) {
-        const categorieColor = this.getCategorieColor(element.categorie);
-        const categorieIcon = this.getCategorieIcon(element.categorie);
+        const prioriteOptions = [
+            { value: 1, label: '🔴 Critique', color: '#dc3545' },
+            { value: 2, label: '🟠 Haute', color: '#fd7e14' },
+            { value: 3, label: '🟡 Normale', color: '#ffc107' },
+            { value: 4, label: '🔵 Basse', color: '#007bff' },
+            { value: 5, label: '⚪ Optionnelle', color: '#6c757d' }
+        ];
+
+        const prioriteSelected = element.priorite || 3;
+        const prioriteColor = prioriteOptions.find(p => p.value === prioriteSelected)?.color || '#ffc107';
 
         return `
-            <div class="checklist-item mb-3 p-3 border rounded" data-index="${index}">
+            <div class="checklist-item mb-3 p-3 border rounded position-relative" data-index="${index}" 
+                 style="border-left: 4px solid ${prioriteColor};">
                 <div class="row align-items-center">
                     <div class="col-md-2">
-                        <label class="form-label">Catégorie</label>
+                        <label class="form-label fw-bold">Catégorie</label>
                         <select class="form-select form-select-sm" name="categorie">
                             <option value="">-- Sélectionner --</option>
                             <option value="Produit" ${element.categorie === 'Produit' ? 'selected' : ''}>📦 Produit</option>
@@ -306,69 +325,74 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Sous-catégorie</label>
+                        <label class="form-label fw-bold">Sous-catégorie</label>
                         <input type="text" class="form-control form-control-sm" name="sousCategorie" 
                                value="${element.sousCategorie || ''}" placeholder="Optionnel">
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Libellé</label>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Libellé *</label>
                         <input type="text" class="form-control form-control-sm" name="libelle" 
                                value="${element.libelle}" placeholder="Description de l'élément" required>
                     </div>
-                    <div class="col-md-1">
-                        <label class="form-label">Ordre</label>
-                        <input type="number" class="form-control form-control-sm" name="ordre" 
-                               value="${element.ordre}" min="1" required>
-                    </div>
                     <div class="col-md-2">
-                        <label class="form-label">Obligatoire</label>
-                        <div class="form-check form-switch">
+                        <label class="form-label fw-bold">Priorité</label>
+                        <select class="form-select form-select-sm" name="priorite">
+                            ${prioriteOptions.map(p =>
+            `<option value="${p.value}" ${prioriteSelected === p.value ? 'selected' : ''}>${p.label}</option>`
+        ).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label fw-bold">Délai (j)</label>
+                        <input type="number" class="form-control form-control-sm" name="delaiDefautJours" 
+                               value="${element.delaiDefautJours || ''}" min="0" max="365" placeholder="Jours"
+                               title="Nombre de jours depuis le début de la PRS">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label fw-bold">Obligatoire</label>
+                        <div class="form-check form-switch mt-2">
                             <input class="form-check-input" type="checkbox" name="obligatoire" 
                                    ${element.obligatoire ? 'checked' : ''}>
-                            <label class="form-check-label">
+                            <label class="form-check-label small">
                                 ${element.obligatoire ? 'Oui' : 'Non'}
                             </label>
                         </div>
                     </div>
                     <div class="col-md-1">
-                        <button type="button" class="btn btn-danger btn-sm btn-remove-item mt-4">
+                        <button type="button" class="btn btn-danger btn-sm btn-remove-item mt-4" 
+                                title="Supprimer cet élément">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
+                
+                <!-- Badge de priorité en haut à droite -->
+                <div class="position-absolute top-0 end-0 mt-2 me-2">
+                    <span class="badge" style="background-color: ${prioriteColor}; color: white;">
+                        ${prioriteOptions.find(p => p.value === prioriteSelected)?.label || '🟡 Normale'}
+                    </span>
+                </div>
+                
+                <!-- Indicateur d'échéance si délai défini -->
+                ${element.delaiDefautJours ? `
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Échéance: ${element.delaiDefautJours} jour${element.delaiDefautJours > 1 ? 's' : ''} après le début de la PRS
+                        </small>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
-
-    getCategorieColor(categorie) {
-        const colors = {
-            'Produit': '#007bff',
-            'Documentation': '#28a745',
-            'Process': '#fd7e14',
-            'Matière': '#6f42c1',
-            'Production': '#dc3545'
-        };
-        return colors[categorie] || '#6c757d';
-    }
-
-    getCategorieIcon(categorie) {
-        const icons = {
-            'Produit': 'fas fa-box',
-            'Documentation': 'fas fa-file-alt',
-            'Process': 'fas fa-cogs',
-            'Matière': 'fas fa-cubes',
-            'Production': 'fas fa-industry'
-        };
-        return icons[categorie] || 'fas fa-circle';
-    }
-
     addNewChecklistItem() {
         const newElement = {
             categorie: '',
             sousCategorie: '',
             libelle: '',
-            ordre: this.currentChecklist.elements.length + 1,
-            obligatoire: false
+            priorite: 3,
+            obligatoire: false,
+            delaiDefautJours: null
         };
 
         this.currentChecklist.elements.push(newElement);
@@ -378,15 +402,13 @@
 
     removeChecklistItem(e) {
         const index = $(e.target).closest('.checklist-item').data('index');
-        this.currentChecklist.elements.splice(index, 1);
 
-        // Réajuster les ordres
-        this.currentChecklist.elements.forEach((element, i) => {
-            element.ordre = i + 1;
-        });
-
-        this.renderChecklistItems();
-        this.updateChecklistData();
+        if (confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
+            this.currentChecklist.elements.splice(index, 1);
+            this.renderChecklistItems();
+            this.updateChecklistData();
+            this.showNotification('Élément supprimé', 'success');
+        }
     }
 
     updateElementData(e) {
@@ -397,31 +419,100 @@
 
         if (field === 'obligatoire') {
             value = $(e.target).is(':checked');
-        } else if (field === 'ordre') {
-            value = parseInt(value) || 1;
+            // Mettre à jour le texte du label
+            const $label = $(e.target).siblings('.form-check-label');
+            $label.text(value ? 'Oui' : 'Non');
+        } else if (field === 'priorite' || field === 'delaiDefautJours') {
+            value = parseInt(value) || (field === 'priorite' ? 3 : null);
         }
 
         if (this.currentChecklist.elements[index]) {
             this.currentChecklist.elements[index][field] = value;
+
+            // Mettre à jour l'affichage si c'est la priorité qui change
+            if (field === 'priorite') {
+                this.updatePriorityDisplay($item, value);
+            }
+
             this.updateChecklistData();
             this.updateItemCount();
         }
     }
 
+    updatePriorityDisplay($item, priorite) {
+        const prioriteOptions = [
+            { value: 1, label: '🔴 Critique', color: '#dc3545' },
+            { value: 2, label: '🟠 Haute', color: '#fd7e14' },
+            { value: 3, label: '🟡 Normale', color: '#ffc107' },
+            { value: 4, label: '🔵 Basse', color: '#007bff' },
+            { value: 5, label: '⚪ Optionnelle', color: '#6c757d' }
+        ];
+
+        const prioriteInfo = prioriteOptions.find(p => p.value === priorite) || prioriteOptions[2];
+
+        // Mettre à jour la couleur de la bordure
+        $item.css('border-left-color', prioriteInfo.color);
+
+        // Mettre à jour le badge de priorité
+        const $badge = $item.find('.badge');
+        $badge.css('background-color', prioriteInfo.color).text(prioriteInfo.label);
+    }
+
+    calculateDatesFromPrsStart() {
+        // Récupérer la date de début de la PRS depuis le formulaire
+        const dateDebut = $('input[name="DateDebut"]').val() ||
+            $('input[name="dateDebut"]').val() ||
+            new Date().toISOString().split('T')[0];
+
+        if (!dateDebut) {
+            this.showNotification('Impossible de trouver la date de début de la PRS', 'warning');
+            return;
+        }
+
+        const startDate = new Date(dateDebut);
+        let calculatedCount = 0;
+
+        // Calculer les dates pour chaque élément qui a un délai défini
+        this.currentChecklist.elements.forEach((element, index) => {
+            if (element.delaiDefautJours && element.delaiDefautJours > 0) {
+                const echeanceDate = new Date(startDate);
+                echeanceDate.setDate(startDate.getDate() + element.delaiDefautJours);
+
+                // Afficher l'information calculée (optionnel - pour debug)
+                console.log(`Élément ${index}: ${element.libelle} - Échéance: ${echeanceDate.toLocaleDateString()}`);
+                calculatedCount++;
+            }
+        });
+
+        if (calculatedCount > 0) {
+            this.showNotification(`Dates calculées pour ${calculatedCount} élément(s)`, 'success');
+            this.renderChecklistItems(); // Re-rendre pour afficher les infos mises à jour
+        } else {
+            this.showNotification('Aucun élément n\'a de délai défini', 'info');
+        }
+    }
+
     updateItemCount() {
         const count = this.currentChecklist.elements.length;
+        const obligatoireCount = this.currentChecklist.elements.filter(e => e.obligatoire).length;
+        const criticalCount = this.currentChecklist.elements.filter(e => e.priorite === 1).length;
+
         $('#checklistItemCount').text(count);
+
+        // Afficher des statistiques supplémentaires
+        const $counter = $('#checklistItemCount').parent();
+        $counter.attr('title',
+            `Total: ${count} | Obligatoires: ${obligatoireCount} | Critiques: ${criticalCount}`
+        );
     }
 
     updateChecklistData() {
-        // Mettre à jour les données dans le formulaire principal
         const checklistData = {
             type: this.currentChecklist.type,
             sourceId: this.currentChecklist.sourceId,
             elements: this.currentChecklist.elements
         };
 
-        // Créer ou mettre à jour un champ caché pour les données de checklist
         let $hiddenField = $('#checklistData');
         if ($hiddenField.length === 0) {
             $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
@@ -434,11 +525,12 @@
         const alertClass = `alert-${type}`;
         const icon = type === 'success' ? 'fas fa-check-circle' :
             type === 'danger' ? 'fas fa-exclamation-triangle' :
-                'fas fa-info-circle';
+                type === 'warning' ? 'fas fa-exclamation-circle' :
+                    'fas fa-info-circle';
 
         const notification = $(`
             <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 1050; min-width: 300px;">
+                 style="top: 20px; right: 20px; z-index: 1050; min-width: 300px; max-width: 500px;">
                 <i class="${icon} me-2"></i>
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -447,38 +539,15 @@
 
         $('body').append(notification);
 
-        // Auto-remove after 5 seconds
         setTimeout(() => {
             notification.alert('close');
         }, 5000);
     }
 
-    // Méthode pour obtenir les données de checklist (utilisée lors de la soumission du formulaire)
     getChecklistData() {
         return this.currentChecklist;
     }
 
-    // Méthode pour valider la checklist avant soumission
     validateChecklist() {
         if (this.currentChecklist.type === '' || this.currentChecklist.type === null) {
-            return { isValid: true, message: '' }; // Pas de checklist sélectionnée, c'est OK
-        }
-
-        if (this.currentChecklist.elements.length === 0) {
-            return { isValid: false, message: 'La checklist ne peut pas être vide.' };
-        }
-
-        // Vérifier que tous les éléments ont un libellé
-        const invalidElements = this.currentChecklist.elements.filter(el => !el.libelle.trim());
-        if (invalidElements.length > 0) {
-            return { isValid: false, message: 'Tous les éléments de la checklist doivent avoir un libellé.' };
-        }
-
-        return { isValid: true, message: '' };
-    }
-}
-
-// Initialisation automatique quand le DOM est prêt
-$(document).ready(() => {
-    window.checklistManager = new ChecklistManager();
-});
+            return { isValid: true, message: '' };
