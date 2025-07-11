@@ -36,7 +36,8 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 // Ajout des services
 builder.Services.AddScoped<FileService>();
-builder.Services.AddScoped<LienDossierPrsService>(); // Ajout du service de gestion des liens de dossiers
+builder.Services.AddScoped<LienDossierPrsService>();
+builder.Services.AddScoped<ChecklistService>(); // Nouveau service pour les checklists
 
 // Configuration du téléchargement de fichiers volumineux
 builder.Services.Configure<FormOptions>(options =>
@@ -101,6 +102,7 @@ app.Use(async (context, next) =>
         // Extraire l'ID de l'URL
         var pathParts = originalPath.Split('/');
         string id = null;
+
         for (int i = 0; i < pathParts.Length; i++)
         {
             if (pathParts[i].Equals("Edit", StringComparison.OrdinalIgnoreCase) && i + 1 < pathParts.Length)
@@ -120,8 +122,7 @@ app.Use(async (context, next) =>
     }
 
     // Pour les autres erreurs 404/403, rediriger vers AccessDenied
-    if ((statusCode == 404 || statusCode == 403) &&
-        !originalPath.Contains("/AccessDenied"))
+    if ((statusCode == 404 || statusCode == 403) && !originalPath.Contains("/AccessDenied"))
     {
         Console.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Redirection vers AccessDenied pour: {originalPath} (code: {statusCode})");
         context.Response.Redirect($"/AccessDenied?code={statusCode}");

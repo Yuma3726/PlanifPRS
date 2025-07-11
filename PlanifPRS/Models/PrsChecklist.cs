@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace PlanifPRS.Models
 {
-    public class PrsChecklist2
+    public class PrsChecklist
     {
         [Key]
         public int Id { get; set; }
@@ -13,40 +13,89 @@ namespace PlanifPRS.Models
         [ForeignKey("Prs")]
         public int PRSId { get; set; }
 
-        [ValidateNever]
-        public Prs Prs { get; set; }
+        // Propriétés existantes (compatibilité)
+        [MaxLength(200)]
+        public string? Tache { get; set; }
 
-        // ✅ NOUVELLES PROPRIÉTÉS POUR LES CHECKLISTS
-        [MaxLength(255)]
-        public string Titre { get; set; }  // Le titre de l'élément de checklist
+        public bool? Statut { get; set; }
 
-        [MaxLength(1000)]
-        public string? Description { get; set; }  // Description optionnelle
+        [MaxLength(500)]
+        public string? Commentaire { get; set; }
 
-        public bool EstCoche { get; set; } = false;  // Remplace votre Statut bool
+        public int? FamilleId { get; set; }
+
+        // Nouvelles propriétés pour l'extension
+        [MaxLength(100)]
+        public string? Categorie { get; set; }
 
         [MaxLength(100)]
-        public string? Categorie { get; set; }  // "Produit", "Documentation", "Process", etc.
+        public string? SousCategorie { get; set; }
 
-        public int Ordre { get; set; } = 0;  // Pour trier les éléments
+        [MaxLength(255)]
+        public string? Libelle { get; set; }
+
+        public int Ordre { get; set; } = 0;
+
+        public bool Obligatoire { get; set; } = false;
+
+        public bool EstCoche { get; set; } = false;
+
+        public DateTime? DateValidation { get; set; }
+
+        [MaxLength(100)]
+        public string? ValidePar { get; set; }
+
+        [MaxLength(100)]
+        public string? CreatedByLogin { get; set; }
 
         public DateTime DateCreation { get; set; } = DateTime.Now;
 
-        public DateTime? DateCompletee { get; set; }  // Quand l'élément a été coché
+        // Sources possibles
+        public int? ChecklistModeleSourceId { get; set; }
+        public int? PrsSourceId { get; set; }
 
-        // ✅ CONSERVATION DE VOS PROPRIÉTÉS EXISTANTES
-        [MaxLength(200)]
-        public string? Tache { get; set; }  // Votre propriété existante
-
-        public bool? Statut { get; set; } // true=OK, false=NOK ou null - votre propriété existante
-
-        [MaxLength(500)]
-        public string? Commentaire { get; set; }  // Votre propriété existante
-
-        public int? FamilleId { get; set; }  // Votre propriété existante
-
-        [ForeignKey("FamilleId")]
+        // Navigation properties
         [ValidateNever]
-        public PrsFamille? Famille { get; set; }  // Votre propriété existante
+        public virtual Prs Prs { get; set; }
+
+        [ValidateNever]
+        public virtual PrsFamille? Famille { get; set; }
+
+        [ValidateNever]
+        public virtual ChecklistModele? ChecklistModeleSource { get; set; }
+
+        [ValidateNever]
+        public virtual Prs? PrsSource { get; set; }
+
+        // Propriétés calculées pour l'affichage
+        [NotMapped]
+        public string LibelleAffichage => !string.IsNullOrEmpty(Libelle) ? Libelle : Tache;
+
+        [NotMapped]
+        public bool EstValide => EstCoche || (Statut.HasValue && Statut.Value);
+
+        [NotMapped]
+        public string StatutAffichage
+        {
+            get
+            {
+                if (EstCoche) return "✅ Validé";
+                if (Statut.HasValue && Statut.Value) return "✅ OK";
+                if (Statut.HasValue && !Statut.Value) return "❌ NOK";
+                return "⏳ En attente";
+            }
+        }
+
+        [NotMapped]
+        public string CssClass
+        {
+            get
+            {
+                if (EstCoche || (Statut.HasValue && Statut.Value)) return "table-success";
+                if (Statut.HasValue && !Statut.Value) return "table-danger";
+                if (Obligatoire) return "table-warning";
+                return "";
+            }
+        }
     }
 }

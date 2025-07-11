@@ -20,12 +20,14 @@ namespace PlanifPRS.Pages.Prs
     {
         private readonly PlanifPrsDbContext _context;
         private readonly FileService _fileService;
+        private readonly ChecklistService _checklistService;
         private readonly ILogger<CreateModel> _logger;
 
-        public CreateModel(PlanifPrsDbContext context, FileService fileService, ILogger<CreateModel> logger)
+        public CreateModel(PlanifPrsDbContext context, FileService fileService, ChecklistService checklistService, ILogger<CreateModel> logger)
         {
             _context = context;
             _fileService = fileService;
+            _checklistService = checklistService;
             _logger = logger;
         }
 
@@ -37,6 +39,10 @@ namespace PlanifPRS.Pages.Prs
 
         [BindProperty]
         public string PrsFolderLinks { get; set; }
+
+        // Nouveau : donnée cachée pour la checklist
+        [BindProperty]
+        public string ChecklistData { get; set; }
 
         public SelectList LigneList { get; set; }
 
@@ -65,13 +71,11 @@ namespace PlanifPRS.Pages.Prs
             // Valeurs par défaut
             Prs = new Models.Prs
             {
-                // Le statut est défini automatiquement selon les droits de l'utilisateur
                 Statut = IsAdminOrValidateur ? "Validé" : "En attente",
                 DateDebut = rounded,
                 DateFin = rounded.AddHours(1)
             };
 
-            // Écrase les valeurs par défaut si une date est passée dans l'URL
             if (Request.Query.ContainsKey("start"))
             {
                 if (DateTime.TryParse(Request.Query["start"], out var parsedStart))
@@ -87,6 +91,7 @@ namespace PlanifPRS.Pages.Prs
             _logger.LogInformation($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Début de OnPostAsync");
             _logger.LogInformation($"Fichiers reçus: {UploadedFiles?.Count ?? 0}");
             _logger.LogInformation($"PrsFolderLinks reçu: {PrsFolderLinks}");
+            _logger.LogInformation($"ChecklistData reçu: {ChecklistData}");
 
             ChargerFamilles();
             ChargerLignes();
@@ -119,50 +124,78 @@ namespace PlanifPRS.Pages.Prs
 
                 Prs.DateCreation = DateTime.Now;
                 Prs.DerniereModification = DateTime.Now;
-
-                // Définir le login de l'utilisateur qui crée la PRS
                 Prs.CreatedByLogin = GetCurrentUserLogin();
-                _logger.LogInformation($"Créateur: {Prs.CreatedByLogin}");
 
-                // Nettoyer les emojis et caractères spéciaux des champs textuels
                 Prs.Titre = CleanEmojis(Prs.Titre);
                 Prs.Equipement = CleanEmojis(Prs.Equipement);
                 Prs.BesoinOperateur = CleanEmojis(Prs.BesoinOperateur);
                 Prs.PresenceClient = CleanEmojis(Prs.PresenceClient);
 
-                // Si l'utilisateur n'est pas admin/validateur et qu'on est en mode semaine
                 if (!IsAdminOrValidateur && Request.Form.ContainsKey("weekMode") && Request.Form["weekMode"] == "true")
                 {
-                    // Récupérer la semaine sélectionnée
                     if (Request.Form.ContainsKey("selectedWeek") &&
                         DateTime.TryParse(Request.Form["selectedWeek"], out var weekStartDate))
                     {
-                        // Définir la période du lundi 00:00 au lundi suivant 00:00
                         var mondayStart = GetMondayOfWeek(weekStartDate);
-                        var sundayEnd = mondayStart.AddDays(7); // Lundi suivant à 00:00:00
+                        var sundayEnd = mondayStart.AddDays(7);
 
                         Prs.DateDebut = mondayStart;
                         Prs.DateFin = sundayEnd;
                     }
                 }
 
-                // Gestion de la couleur PRS
                 if (!IsAdminOrValidateur || string.IsNullOrWhiteSpace(Prs.CouleurPRS))
                 {
-                    Prs.CouleurPRS = null; // Seuls les admin/validateurs peuvent définir une couleur
+                    Prs.CouleurPRS = null;
                 }
 
-                // Ajouter la PRS à la base de données
                 _context.Prs.Add(Prs);
                 await _context.SaveChangesAsync();
                 _logger.LogInformation($"PRS créée avec succès. ID: {Prs.Id}, Titre: {Prs.Titre}");
 
-                // Gérer l'upload des fichiers après la création de la PRS
+                // GESTION DE LA CHECKLIST SI PRÉSENTE
+                if (!string.IsNullOrWhiteSpace(ChecklistData))
+                {
+                    try
+                    {
+                        var checklistObj = JsonSerializer.Deserialize<ChecklistFormDto>(ChecklistData, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (checklistObj != null && checklistObj.elements.Any())
+                        {
+                            var elements = checklistObj.elements.Select((e, idx) => new PrsChecklist
+                            {
+                                PRSId = Prs.Id,
+                                Categorie = e.categorie,
+                                SousCategorie = e.sousCategorie,
+                                Libelle = e.libelle,
+                                Tache = e.libelle,
+                                Ordre = e.ordre > 0 ? e.ordre : idx + 1,
+                                Obligatoire = e.obligatoire,
+                                CreatedByLogin = CurrentUserLogin,
+                                DateCreation = DateTime.Now,
+                                ChecklistModeleSourceId = checklistObj.type == "modele" ? checklistObj.sourceId : null,
+                                PrsSourceId = checklistObj.type == "copy" ? checklistObj.sourceId : null
+                            }).ToList();
+
+                            await _checklistService.CreateCustomChecklistAsync(Prs.Id, elements, CurrentUserLogin);
+                            _logger.LogInformation($"Checklist PRS créée ({elements.Count} items)");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Erreur lors du traitement de la checklist : {ex.Message}");
+                        ErrorMessage += " Erreur lors du traitement de la checklist.";
+                    }
+                }
+
+                // -- UPLOAD FICHIERS
                 if (UploadedFiles != null && UploadedFiles.Any())
                 {
                     _logger.LogInformation($"Traitement de {UploadedFiles.Count} fichiers uploadés");
 
-                    // Stocker les fichiers
                     var fileResults = await _fileService.SaveMultipleFilesAsync(
                         UploadedFiles,
                         Prs.Id.ToString(),
@@ -172,7 +205,6 @@ namespace PlanifPRS.Pages.Prs
                     int successCount = 0;
                     int errorCount = 0;
 
-                    // Créer les enregistrements de fichiers dans la base de données
                     foreach (var (Success, FilePath, ErrorMsg) in fileResults)
                     {
                         if (Success && !string.IsNullOrEmpty(FilePath))
@@ -219,14 +251,13 @@ namespace PlanifPRS.Pages.Prs
                     _logger.LogInformation("Aucun fichier à uploader");
                 }
 
-                // Traitement des liens de dossiers
+                // -- TRAITEMENT DES DOSSIERS
                 if (!string.IsNullOrEmpty(PrsFolderLinks))
                 {
                     try
                     {
                         _logger.LogInformation($"Traitement des liens de dossiers. JSON reçu: {PrsFolderLinks}");
 
-                        // Options de désérialisation avec System.Text.Json
                         var options = new JsonSerializerOptions
                         {
                             PropertyNameCaseInsensitive = true,
@@ -234,14 +265,11 @@ namespace PlanifPRS.Pages.Prs
                             AllowTrailingCommas = true
                         };
 
-                        // Désérialisation du JSON avec System.Text.Json
                         List<FolderLinkDto> folderLinks = null;
                         try
                         {
                             folderLinks = JsonSerializer.Deserialize<List<FolderLinkDto>>(PrsFolderLinks, options);
-                            _logger.LogInformation($"Désérialisation réussie, {folderLinks?.Count ?? 0} liens trouvés");
 
-                            // Log détaillé des objets désérialisés
                             if (folderLinks != null)
                             {
                                 foreach (var link in folderLinks)
@@ -254,11 +282,8 @@ namespace PlanifPRS.Pages.Prs
                         {
                             _logger.LogError($"Erreur lors de la désérialisation: {ex.Message}");
 
-                            // Extraction manuelle avec expressions régulières si la désérialisation échoue
-                            _logger.LogWarning("Tentative d'extraction manuelle des chemins");
                             folderLinks = new List<FolderLinkDto>();
 
-                            // Regex pour extraire path/Chemin et description/Description
                             var pathRegex1 = new Regex(@"""path""\s*:\s*""([^""]+)""");
                             var pathRegex2 = new Regex(@"""Chemin""\s*:\s*""([^""]+)""");
                             var descRegex1 = new Regex(@"""description""\s*:\s*""([^""]*)""");
@@ -291,8 +316,6 @@ namespace PlanifPRS.Pages.Prs
                                     folderLinks.Add(new FolderLinkDto { Chemin = path, Description = desc });
                                 }
                             }
-
-                            _logger.LogInformation($"Extraction manuelle: {folderLinks.Count} liens trouvés");
                         }
 
                         if (folderLinks != null && folderLinks.Any())
@@ -302,7 +325,6 @@ namespace PlanifPRS.Pages.Prs
                             {
                                 if (!string.IsNullOrEmpty(link.Chemin))
                                 {
-                                    // Nettoyer le chemin des doubles barres obliques si nécessaire
                                     string chemin = link.Chemin.Replace("\\\\", "\\");
 
                                     var lienDossier = new LienDossierPrs
@@ -330,16 +352,6 @@ namespace PlanifPRS.Pages.Prs
                             if (addedCount > 0)
                             {
                                 Flash += $" {addedCount} lien(s) de dossier ajouté(s).";
-                            }
-
-                            // Vérification après enregistrement
-                            var savedLinks = await _context.LiensDossierPrs
-                                .Where(l => l.PrsId == Prs.Id)
-                                .ToListAsync();
-                            _logger.LogInformation($"Liens vérifiés en BDD après sauvegarde: {savedLinks.Count}");
-                            foreach (var savedLink in savedLinks)
-                            {
-                                _logger.LogInformation($"Lien en BDD - Id: {savedLink.Id}, Chemin: '{savedLink.Chemin}'");
                             }
                         }
                         else
@@ -376,7 +388,6 @@ namespace PlanifPRS.Pages.Prs
             if (string.IsNullOrEmpty(fullLogin))
                 return "Utilisateur inconnu";
 
-            // Extraction du login depuis le format domain\username
             var loginParts = fullLogin.Split('\\');
             return loginParts.Length > 1 ? loginParts[1] : fullLogin;
         }
@@ -384,7 +395,7 @@ namespace PlanifPRS.Pages.Prs
         private DateTime GetMondayOfWeek(DateTime date)
         {
             int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
-            return date.AddDays(-1 * diff).Date; // .Date pour avoir 00:00:00
+            return date.AddDays(-1 * diff).Date;
         }
 
         private string CleanEmojis(string input)
@@ -392,13 +403,8 @@ namespace PlanifPRS.Pages.Prs
             if (string.IsNullOrEmpty(input))
                 return input;
 
-            // Nettoyer les emojis
             string cleanedText = Regex.Replace(input, @"[\u00A0-\u9999\uD800-\uDFFF]", "", RegexOptions.Compiled);
-
-            // Si le texte commence par des caractères communs avec des emojis comme "🏭 CMS" → "CMS"
             cleanedText = Regex.Replace(cleanedText, @"^\s*[^\w]*\s*", "");
-
-            // Cas spécifiques connus
             cleanedText = cleanedText.Replace("👨‍🔧 Besoin opérateur", "Besoin opérateur");
             cleanedText = cleanedText.Replace("❌ Aucun", "Aucun");
             cleanedText = cleanedText.Replace("✅ Client présent", "Client présent");
@@ -412,7 +418,6 @@ namespace PlanifPRS.Pages.Prs
         {
             try
             {
-                // Nettoyer le login comme dans votre code Users
                 var login = GetCurrentUserLogin();
 
                 if (string.IsNullOrEmpty(login))
@@ -420,7 +425,6 @@ namespace PlanifPRS.Pages.Prs
                     return false;
                 }
 
-                // Chercher l'utilisateur dans la base
                 var user = _context.Utilisateurs.FirstOrDefault(u => u.LoginWindows == login && !u.DateDeleted.HasValue);
 
                 if (user == null)
@@ -428,7 +432,6 @@ namespace PlanifPRS.Pages.Prs
                     return false;
                 }
 
-                // Vérifier les droits requis (admin ou validateur)
                 var droitsAutorises = new[] { "admin", "validateur" };
                 var droitUser = user.Droits?.ToLower() ?? "";
 
@@ -459,12 +462,10 @@ namespace PlanifPRS.Pages.Prs
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
                 {
-                    // Accès par index au lieu du nom pour éviter les erreurs de type
-                    var idObj = reader[0]; // Première colonne = Id
-                    var libelleObj = reader[1]; // Deuxième colonne = Libelle
-                    var couleurObj = reader[2]; // Troisième colonne = CouleurHex
+                    var idObj = reader[0];
+                    var libelleObj = reader[1];
+                    var couleurObj = reader[2];
 
-                    // Conversion sécurisée de l'ID
                     int id = 0;
                     if (idObj != null && idObj != DBNull.Value)
                     {
@@ -513,11 +514,9 @@ namespace PlanifPRS.Pages.Prs
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
                 {
-                    // Accès par index au lieu du nom pour éviter les erreurs de type
-                    var idObj = reader[0]; // Première colonne = Id
-                    var nomObj = reader[1]; // Deuxième colonne = Nom
+                    var idObj = reader[0];
+                    var nomObj = reader[1];
 
-                    // Conversion sécurisée de l'ID
                     int id = 0;
                     if (idObj != null && idObj != DBNull.Value)
                     {
@@ -549,13 +548,26 @@ namespace PlanifPRS.Pages.Prs
         // Classe DTO pour désérialiser les liens de dossiers
         public class FolderLinkDto
         {
-            // Les propriétés doivent correspondre aux noms dans le JSON du frontend
             public string Chemin { get; set; }
             public string Description { get; set; }
-
-            // Propriétés alternatives pour la compatibilité (avec PropertyNameCaseInsensitive)
             public string path { get => Chemin; set => Chemin = value; }
             public string description { get => Description; set => Description = value; }
+        }
+
+        // DTO checklist pour la désérialisation JS
+        public class ChecklistFormDto
+        {
+            public string type { get; set; }
+            public int? sourceId { get; set; }
+            public List<ChecklistElementDto> elements { get; set; } = new();
+        }
+        public class ChecklistElementDto
+        {
+            public string categorie { get; set; }
+            public string sousCategorie { get; set; }
+            public string libelle { get; set; }
+            public int ordre { get; set; }
+            public bool obligatoire { get; set; }
         }
     }
 }

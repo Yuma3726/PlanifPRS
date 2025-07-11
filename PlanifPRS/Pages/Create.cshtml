@@ -796,6 +796,90 @@
         </div>
     </div>
 </div>
+
+<!-- 🔽 SECTION CHECKLIST À INSÉRER AVANT LES FICHIERS/DOSSIERS 🔽 -->
+<div class="col-12">
+    <div class="card checklist-section border-primary shadow-lg mb-4">
+        <div class="card-header bg-gradient-info text-white d-flex align-items-center">
+            <i class="fas fa-tasks me-2 fs-4"></i>
+            <div>
+                <h5 class="mb-0">📋 Checklist PRS</h5>
+                <small>Associez une checklist à cette PRS selon les standards qualité</small>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="checklist-type-selector mb-4 row">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-clipboard-list me-1 text-primary"></i>Type de checklist
+                    </label>
+                    <select id="checklistTypeSelector" class="form-select">
+                        <option value="">-- Aucune checklist --</option>
+                        <option value="modele">🎯 Modèle prédéfini</option>
+                        <option value="copy">📋 Copier depuis PRS existante</option>
+                        <option value="custom">✏️ Personnalisée</option>
+                    </select>
+                </div>
+                <div class="col-md-4" id="modeleSelector" style="display:none;">
+                    <label class="form-label fw-bold"><i class="fas fa-list me-1 text-success"></i>Modèle disponible</label>
+                    <select id="checklistModele" class="form-select">
+                        <option value="">-- Sélectionner un modèle --</option>
+                        @foreach (var modele in Model.ChecklistModeles)
+                        {
+                            <option value="@modele.Id">@modele.Nom (@modele.FamilleAffichage)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4" id="prsSelector" style="display:none;">
+                    <label class="form-label fw-bold"><i class="fas fa-search me-1 text-warning"></i>Recherche PRS</label>
+                    <input type="text" id="searchPrsInput" class="form-control" placeholder="Titre ou ID de la PRS..." autocomplete="off" />
+                </div>
+            </div>
+            <div id="prsSearchResults" class="prs-search-results" style="display:none;"></div>
+            <div id="checklistEditor" class="checklist-editor" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0"><i class="fas fa-edit me-1"></i>Éléments de la checklist (<span id="checklistItemCount" class="badge-checklist">0</span> éléments)</h6>
+                    <button type="button" class="btn btn-sm btn-checklist" id="btnAddChecklistItem">
+                        <i class="fas fa-plus-circle me-1"></i>Ajouter un élément
+                    </button>
+                </div>
+                <div id="checklistItemsContainer"></div>
+            </div>
+            <input type="hidden" id="checklistData" name="ChecklistData" />
+        </div>
+    </div>
+</div>
+<template id="checklistItemTemplate">
+    <div class="checklist-item mb-2" data-index="">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-2">
+                <select class="form-control form-control-sm checklist-categorie" data-field="categorie">
+                    <option value="">Catégorie</option>
+                    <option value="Produit">Produit</option>
+                    <option value="Documentation">Documentation</option>
+                    <option value="Process">Process</option>
+                    <option value="Matière">Matière</option>
+                    <option value="Production">Production</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control form-control-sm checklist-souscategorie" placeholder="Sous-catégorie" data-field="sousCategorie">
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm checklist-libelle" placeholder="Description de l'élément" data-field="libelle">
+            </div>
+            <div class="col-md-2">
+                <div class="form-check">
+                    <input class="form-check-input checklist-obligatoire" type="checkbox" data-field="obligatoire">
+                    <label class="form-check-label small">Obligatoire</label>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-sm btn-danger btn-remove-item"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+    </div>
+</template>
 <!-- ✅ FIN ABSOLUE du page-container ICI -->
 <!-- ✅ TITRE STYLÉ DU CALENDRIER -->
 <div class="calendar-section-title">
@@ -810,6 +894,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/checklist-manager.js" asp-append-version="true"></script>
 
     <script>
         // Variables globales

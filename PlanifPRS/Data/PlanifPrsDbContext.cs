@@ -8,7 +8,10 @@ namespace PlanifPRS.Data
         public PlanifPrsDbContext(DbContextOptions<PlanifPrsDbContext> options) : base(options) { }
 
         public DbSet<Prs> Prs { get; set; }
+        public DbSet<PrsChecklist> PrsChecklists { get; set; }
         public DbSet<ChecklistStandard> ChecklistsStandards { get; set; }
+        public DbSet<ChecklistModele> ChecklistModeles { get; set; }
+        public DbSet<ChecklistElementModele> ChecklistElementModeles { get; set; }
         public DbSet<PrsJalon> PrsJalons { get; set; }
         public DbSet<Ligne> Lignes { get; set; }
         public DbSet<PrsFamille> PrsFamilles { get; set; }
@@ -22,7 +25,7 @@ namespace PlanifPRS.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // ⭐ Table PRS_Famille
+            // Configuration table PRS_Famille
             modelBuilder.Entity<PrsFamille>(entity =>
             {
                 entity.ToTable("PRS_Famille");
@@ -64,14 +67,77 @@ namespace PlanifPRS.Data
                 entity.Property(e => e.DateModified).HasColumnName("dateModified");
                 entity.Property(e => e.DateDeleted).HasColumnName("dateDeleted");
 
-                // Relation Ligne → Secteur
                 entity.HasOne(l => l.Secteur)
                       .WithMany()
                       .HasForeignKey(l => l.IdSecteur)
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // ⭐ Relation PRS → PrsFamille
+            // Configuration PRS_Checklist
+            modelBuilder.Entity<PrsChecklist>(entity =>
+            {
+                entity.ToTable("PRS_Checklist");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Tache).HasMaxLength(200);
+                entity.Property(e => e.Commentaire).HasMaxLength(500);
+                entity.Property(e => e.Categorie).HasMaxLength(100);
+                entity.Property(e => e.SousCategorie).HasMaxLength(100);
+                entity.Property(e => e.Libelle).HasMaxLength(255);
+                entity.Property(e => e.ValidePar).HasMaxLength(100);
+                entity.Property(e => e.CreatedByLogin).HasMaxLength(100);
+
+                entity.HasOne(c => c.Prs)
+                      .WithMany(p => p.Checklist)
+                      .HasForeignKey(c => c.PRSId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(c => c.Famille)
+                      .WithMany()
+                      .HasForeignKey(c => c.FamilleId)
+                      .OnDelete(DeleteBehavior.SetNull)
+                      .IsRequired(false);
+
+                entity.HasOne(c => c.ChecklistModeleSource)
+                      .WithMany()
+                      .HasForeignKey(c => c.ChecklistModeleSourceId)
+                      .OnDelete(DeleteBehavior.SetNull)
+                      .IsRequired(false);
+
+                entity.HasOne(c => c.PrsSource)
+                      .WithMany()
+                      .HasForeignKey(c => c.PrsSourceId)
+                      .OnDelete(DeleteBehavior.NoAction)
+                      .IsRequired(false);
+            });
+
+            // Configuration ChecklistModele
+            modelBuilder.Entity<ChecklistModele>(entity =>
+            {
+                entity.ToTable("ChecklistModeles");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Nom).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.FamilleEquipement).HasMaxLength(100);
+                entity.Property(e => e.CreatedByLogin).HasMaxLength(100);
+            });
+
+            // Configuration ChecklistElementModele
+            modelBuilder.Entity<ChecklistElementModele>(entity =>
+            {
+                entity.ToTable("ChecklistElementModeles");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Categorie).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.SousCategorie).HasMaxLength(100);
+                entity.Property(e => e.Libelle).IsRequired().HasMaxLength(255);
+
+                entity.HasOne(e => e.ChecklistModele)
+                      .WithMany(m => m.Elements)
+                      .HasForeignKey(e => e.ChecklistModeleId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Relation PRS → PrsFamille
             modelBuilder.Entity<Prs>()
                 .HasOne(p => p.Famille)
                 .WithMany()
@@ -85,7 +151,7 @@ namespace PlanifPRS.Data
                 .HasForeignKey(p => p.LigneId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Configuration pour la table PrsFichier et sa relation avec PRS
+            // Configuration pour la table PrsFichier
             modelBuilder.Entity<PrsFichier>(entity =>
             {
                 entity.ToTable("PRS_Fichiers");
@@ -102,7 +168,7 @@ namespace PlanifPRS.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Configuration pour la table LienDossierPrs et sa relation avec PRS
+            // Configuration pour la table LienDossierPrs
             modelBuilder.Entity<LienDossierPrs>(entity =>
             {
                 entity.ToTable("PRS_LiensDossierPRS");

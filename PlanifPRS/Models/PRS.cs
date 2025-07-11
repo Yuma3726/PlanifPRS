@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using System.Linq;
 
 namespace PlanifPRS.Models
 {
@@ -49,11 +50,9 @@ namespace PlanifPRS.Models
 
         public DateTime DerniereModification { get; set; } = DateTime.Now;
 
-        // Propriété pour la couleur PRS
         [MaxLength(7)]
         public string? CouleurPRS { get; set; }
 
-        // Propriété pour stocker le login du créateur
         [MaxLength(100)]
         public string? CreatedByLogin { get; set; }
 
@@ -64,11 +63,9 @@ namespace PlanifPRS.Models
         [ValidateNever]
         public List<PrsJalon> Jalons { get; set; }
 
-        // Ajout de la collection de fichiers
         [ValidateNever]
         public List<PrsFichier> Fichiers { get; set; }
 
-        // Ajout de la collection de liens vers les dossiers
         [ValidateNever]
         public List<LienDossierPrs> LiensDossier { get; set; }
 
@@ -82,29 +79,77 @@ namespace PlanifPRS.Models
 
         [ValidateNever]
         public Ligne Ligne { get; set; }
-    }
 
-    public class PrsChecklist
-    {
-        [Key]
-        public int Id { get; set; }
+        // Propriétés calculées pour la checklist
+        [NotMapped]
+        public bool AChecklist => Checklist != null && Checklist.Any();
 
-        [ForeignKey("Prs")]
-        public int PRSId { get; set; }
+        [NotMapped]
+        public int NombreElementsChecklist => Checklist?.Count ?? 0;
 
-        public Prs Prs { get; set; }
+        [NotMapped]
+        public int NombreElementsValides => Checklist?.Count(c => c.EstValide) ?? 0;
 
-        [MaxLength(200)]
-        public string Tache { get; set; }
+        [NotMapped]
+        public int NombreElementsObligatoires => Checklist?.Count(c => c.Obligatoire) ?? 0;
 
-        public bool? Statut { get; set; }
+        [NotMapped]
+        public int NombreElementsObligatoiresValides => Checklist?.Count(c => c.Obligatoire && c.EstValide) ?? 0;
 
-        [MaxLength(500)]
-        public string? Commentaire { get; set; }
+        [NotMapped]
+        public double PourcentageCompletionChecklist
+        {
+            get
+            {
+                if (NombreElementsChecklist == 0) return 100;
+                return Math.Round((double)NombreElementsValides / NombreElementsChecklist * 100, 1);
+            }
+        }
 
-        public int? FamilleId { get; set; }
+        [NotMapped]
+        public double PourcentageCompletionObligatoire
+        {
+            get
+            {
+                if (NombreElementsObligatoires == 0) return 100;
+                return Math.Round((double)NombreElementsObligatoiresValides / NombreElementsObligatoires * 100, 1);
+            }
+        }
 
-        [ForeignKey("FamilleId")]
-        public PrsFamille? Famille { get; set; }
+        [NotMapped]
+        public string StatutChecklist
+        {
+            get
+            {
+                if (!AChecklist) return "Aucune checklist";
+                if (PourcentageCompletionObligatoire < 100) return "Éléments obligatoires manquants";
+                if (PourcentageCompletionChecklist == 100) return "Complète";
+                return "En cours";
+            }
+        }
+
+        [NotMapped]
+        public string CouleurStatutChecklist
+        {
+            get
+            {
+                if (!AChecklist) return "#6c757d";
+                if (PourcentageCompletionObligatoire < 100) return "#dc3545";
+                if (PourcentageCompletionChecklist == 100) return "#28a745";
+                return "#ffc107";
+            }
+        }
+
+        [NotMapped]
+        public string IconeStatutChecklist
+        {
+            get
+            {
+                if (!AChecklist) return "fas fa-minus-circle";
+                if (PourcentageCompletionObligatoire < 100) return "fas fa-exclamation-triangle";
+                if (PourcentageCompletionChecklist == 100) return "fas fa-check-circle";
+                return "fas fa-clock";
+            }
+        }
     }
 }
