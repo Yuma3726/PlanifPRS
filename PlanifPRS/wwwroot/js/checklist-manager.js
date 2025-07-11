@@ -551,3 +551,28 @@
     validateChecklist() {
         if (this.currentChecklist.type === '' || this.currentChecklist.type === null) {
             return { isValid: true, message: '' };
+        }
+
+        if (this.currentChecklist.elements.length === 0) {
+            return { isValid: false, message: 'La checklist ne peut pas être vide.' };
+        }
+
+        const invalidElements = this.currentChecklist.elements.filter(el => !el.libelle.trim());
+        if (invalidElements.length > 0) {
+            return { isValid: false, message: 'Tous les éléments de la checklist doivent avoir un libellé.' };
+        }
+
+        // Vérifier les priorités
+        const invalidPriorities = this.currentChecklist.elements.filter(el => el.priorite < 1 || el.priorite > 5);
+        if (invalidPriorities.length > 0) {
+            return { isValid: false, message: 'Les priorités doivent être comprises entre 1 et 5.' };
+        }
+
+        return { isValid: true, message: '' };
+    }
+}
+
+// Initialisation automatique quand le DOM est prêt
+$(document).ready(() => {
+    window.checklistManager = new ChecklistManager();
+});
