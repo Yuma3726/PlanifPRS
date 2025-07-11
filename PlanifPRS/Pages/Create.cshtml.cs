@@ -40,13 +40,15 @@ namespace PlanifPRS.Pages.Prs
         [BindProperty]
         public string PrsFolderLinks { get; set; }
 
-        // Nouveau : donnée cachée pour la checklist
         [BindProperty]
         public string ChecklistData { get; set; }
 
         public SelectList LigneList { get; set; }
 
         public IList<PrsFamille> Familles { get; set; }
+
+        // Propriété ajoutée pour les modèles de checklist
+        public IList<ChecklistModele> ChecklistModeles { get; set; }
 
         [TempData]
         public string Flash { get; set; }
@@ -60,10 +62,9 @@ namespace PlanifPRS.Pages.Prs
         // Propriété pour obtenir le login de l'utilisateur actuel
         public string CurrentUserLogin => GetCurrentUserLogin();
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
-            ChargerFamilles();
-            ChargerLignes();
+            await ChargerDonneesAsync();
 
             var now = DateTime.Now;
             var rounded = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
@@ -93,8 +94,7 @@ namespace PlanifPRS.Pages.Prs
             _logger.LogInformation($"PrsFolderLinks reçu: {PrsFolderLinks}");
             _logger.LogInformation($"ChecklistData reçu: {ChecklistData}");
 
-            ChargerFamilles();
-            ChargerLignes();
+            await ChargerDonneesAsync();
 
             if (Prs.DateDebut >= Prs.DateFin)
             {
@@ -381,6 +381,27 @@ namespace PlanifPRS.Pages.Prs
             }
         }
 
+        private async Task ChargerDonneesAsync()
+        {
+            ChargerFamilles();
+            ChargerLignes();
+            await ChargerChecklistModelesAsync();
+        }
+
+        private async Task ChargerChecklistModelesAsync()
+        {
+            try
+            {
+                ChecklistModeles = await _checklistService.GetChecklistModelesAsync(activeOnly: true);
+                _logger.LogInformation($"Chargement de {ChecklistModeles.Count} modèles de checklist");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Erreur lors du chargement des modèles de checklist: {ex.Message}");
+                ChecklistModeles = new List<ChecklistModele>();
+            }
+        }
+
         private string GetCurrentUserLogin()
         {
             var fullLogin = User.Identity?.Name;
@@ -561,6 +582,7 @@ namespace PlanifPRS.Pages.Prs
             public int? sourceId { get; set; }
             public List<ChecklistElementDto> elements { get; set; } = new();
         }
+
         public class ChecklistElementDto
         {
             public string categorie { get; set; }
