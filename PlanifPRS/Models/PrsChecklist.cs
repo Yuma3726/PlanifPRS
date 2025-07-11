@@ -34,6 +34,8 @@ namespace PlanifPRS.Models
         [MaxLength(255)]
         public string? Libelle { get; set; }
 
+        public int Ordre { get; set; } = 0;
+
         [Range(1, 5)]
         public int Priorite { get; set; } = 3;
 
@@ -117,52 +119,10 @@ namespace PlanifPRS.Models
                     1 => "🔴 Critique",
                     2 => "🟠 Haute",
                     3 => "🟡 Normale",
-                    4 => "🔵 Basse",
-                    5 => "⚪ Optionnelle",
+                    4 => "🟢 Basse",
+                    5 => "⚪ Très basse",
                     _ => "🟡 Normale"
                 };
-            }
-        }
-
-        [NotMapped]
-        public string CouleurPriorite
-        {
-            get
-            {
-                return Priorite switch
-                {
-                    1 => "#dc3545", // Rouge
-                    2 => "#fd7e14", // Orange
-                    3 => "#ffc107", // Jaune
-                    4 => "#007bff", // Bleu
-                    5 => "#6c757d", // Gris
-                    _ => "#ffc107"
-                };
-            }
-        }
-
-        [NotMapped]
-        public int JoursRestants
-        {
-            get
-            {
-                if (!DateEcheance.HasValue) return int.MaxValue;
-                return (int)(DateEcheance.Value - DateTime.Now).TotalDays;
-            }
-        }
-
-        [NotMapped]
-        public string DelaiAffichage
-        {
-            get
-            {
-                if (!DateEcheance.HasValue) return "Pas d'échéance";
-
-                var jours = JoursRestants;
-                if (jours < 0) return $"En retard de {Math.Abs(jours)} jour(s)";
-                if (jours == 0) return "Échéance aujourd'hui";
-                if (jours == 1) return "Échéance demain";
-                return $"Dans {jours} jour(s)";
             }
         }
     }

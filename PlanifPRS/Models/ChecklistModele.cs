@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using System.Linq;
 
 namespace PlanifPRS.Models
 {
@@ -122,8 +123,8 @@ namespace PlanifPRS.Models
                     1 => "🔴 Critique",
                     2 => "🟠 Haute",
                     3 => "🟡 Normale",
-                    4 => "🔵 Basse",
-                    5 => "⚪ Optionnelle",
+                    4 => "🟢 Basse",
+                    5 => "⚪ Très basse",
                     _ => "🟡 Normale"
                 };
             }

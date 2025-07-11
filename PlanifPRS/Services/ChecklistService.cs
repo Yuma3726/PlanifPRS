@@ -87,7 +87,8 @@ namespace PlanifPRS.Services
                 .Include(pc => pc.Famille)
                 .Include(pc => pc.ChecklistModeleSource)
                 .Where(pc => pc.PRSId == prsId)
-                .OrderBy(pc => pc.Priorite)
+                .OrderBy(pc => pc.Ordre)
+                .ThenBy(pc => pc.Priorite)
                 .ThenBy(pc => pc.DateEcheance)
                 .ThenBy(pc => pc.Categorie)
                 .ThenBy(pc => pc.SousCategorie)
@@ -101,10 +102,6 @@ namespace PlanifPRS.Services
                 var modele = await GetChecklistModeleByIdAsync(checklistModeleId);
                 if (modele == null) return false;
 
-                // Récupérer la PRS pour calculer les dates d'échéance
-                var prs = await _context.Prs.FindAsync(prsId);
-                if (prs == null) return false;
-
                 // Supprimer les éléments existants de la checklist PRS
                 var existingItems = await _context.PrsChecklists
                     .Where(pc => pc.PRSId == prsId)
@@ -112,20 +109,27 @@ namespace PlanifPRS.Services
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
-                // Créer les nouveaux éléments basés sur le modèle
-                foreach (var element in modele.Elements)
-                {
-                    var dateEcheance = CalculerDateEcheance(prs, element);
+                // Récupérer les infos du PRS pour calculer les échéances
+                var prs = await _context.Prs.FindAsync(prsId);
+                if (prs == null) return false;
 
+                // Créer les nouveaux éléments basés sur le modèle
+                int ordre = 1;
+                foreach (var element in modele.Elements.OrderBy(e => e.Priorite))
+                {
                     var prsChecklistItem = new PrsChecklist
                     {
                         PRSId = prsId,
                         Categorie = element.Categorie,
                         SousCategorie = element.SousCategorie,
                         Libelle = element.Libelle,
+                        Tache = element.Libelle, // Compatibilité avec l'ancien système
+                        Ordre = ordre++,
                         Priorite = element.Priorite,
                         Obligatoire = element.Obligatoire,
-                        DateEcheance = dateEcheance,
+                        EstCoche = false,
+                        Statut = null,
+                        DateEcheance = CalculerDateEcheance(prs, element),
                         ChecklistModeleSourceId = checklistModeleId,
                         CreatedByLogin = userLogin,
                         DateCreation = DateTime.Now
@@ -152,10 +156,10 @@ namespace PlanifPRS.Services
                 var sourceChecklist = await GetPrsChecklistAsync(sourcePrsId);
                 if (!sourceChecklist.Any()) return false;
 
-                // Récupérer les PRS pour calculer les nouvelles dates
-                var targetPrs = await _context.Prs.FindAsync(targetPrsId);
+                // Récupérer les infos des PRS pour recalculer les échéances
                 var sourcePrs = await _context.Prs.FindAsync(sourcePrsId);
-                if (targetPrs == null || sourcePrs == null) return false;
+                var targetPrs = await _context.Prs.FindAsync(targetPrsId);
+                if (sourcePrs == null || targetPrs == null) return false;
 
                 // Supprimer les éléments existants
                 var existingItems = await _context.PrsChecklists
@@ -164,20 +168,23 @@ namespace PlanifPRS.Services
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
-                // Copier les éléments avec recalcul des dates
+                // Copier les éléments
                 foreach (var sourceItem in sourceChecklist)
                 {
-                    var newDateEcheance = RecalculerDateEcheance(sourcePrs, targetPrs, sourceItem.DateEcheance);
-
                     var newItem = new PrsChecklist
                     {
                         PRSId = targetPrsId,
                         Categorie = sourceItem.Categorie,
                         SousCategorie = sourceItem.SousCategorie,
                         Libelle = sourceItem.Libelle,
+                        Tache = sourceItem.Tache,
+                        Ordre = sourceItem.Ordre,
                         Priorite = sourceItem.Priorite,
                         Obligatoire = sourceItem.Obligatoire,
-                        DateEcheance = newDateEcheance,
+                        EstCoche = false, // Reset du statut
+                        Statut = null,
+                        Commentaire = null,
+                        DateEcheance = RecalculerDateEcheance(sourcePrs, targetPrs, sourceItem.DateEcheance),
                         PrsSourceId = sourcePrsId,
                         CreatedByLogin = userLogin,
                         DateCreation = DateTime.Now
@@ -224,6 +231,96 @@ namespace PlanifPRS.Services
             {
                 return false;
             }
+        }
+
+        // AJOUT DES MÉTHODES MANQUANTES
+        public async Task<bool> CreateCustomChecklistAsync(int prsId, List<PrsChecklist> elements, string userLogin)
+        {
+            try
+            {
+                // Supprimer les éléments existants de la checklist PRS
+                var existingItems = await _context.PrsChecklists
+                    .Where(pc => pc.PRSId == prsId)
+                    .ToListAsync();
+
+                _context.PrsChecklists.RemoveRange(existingItems);
+
+                // Ajouter les nouveaux éléments
+                foreach (var element in elements)
+                {
+                    element.PRSId = prsId;
+                    element.CreatedByLogin = userLogin;
+                    element.DateCreation = DateTime.Now;
+                    _context.PrsChecklists.Add(element);
+                }
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteChecklistItemAsync(int itemId)
+        {
+            try
+            {
+                var item = await _context.PrsChecklists.FindAsync(itemId);
+                if (item == null) return false;
+
+                _context.PrsChecklists.Remove(item);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<object> GetChecklistStatsAsync(int prsId)
+        {
+            var items = await _context.PrsChecklists
+                .Where(pc => pc.PRSId == prsId)
+                .ToListAsync();
+
+            var total = items.Count;
+            var completed = items.Count(i => i.EstCoche || (i.Statut.HasValue && i.Statut.Value));
+            var obligatoires = items.Count(i => i.Obligatoire);
+            var obligatoiresCompletes = items.Count(i => i.Obligatoire && (i.EstCoche || (i.Statut.HasValue && i.Statut.Value)));
+
+            return new
+            {
+                Total = total,
+                Completed = completed,
+                Remaining = total - completed,
+                Obligatoires = obligatoires,
+                ObligatoiresCompletes = obligatoiresCompletes,
+                PourcentageCompletion = total > 0 ? (double)completed / total * 100 : 0,
+                PourcentageObligatoires = obligatoires > 0 ? (double)obligatoiresCompletes / obligatoires * 100 : 0
+            };
+        }
+
+        public async Task<List<string>> GetCategoriesUtiliseesAsync()
+        {
+            return await _context.PrsChecklists
+                .Where(pc => !string.IsNullOrEmpty(pc.Categorie))
+                .Select(pc => pc.Categorie!)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+        }
+
+        public async Task<List<string>> GetSousCategoriesAsync(string categorie)
+        {
+            return await _context.PrsChecklists
+                .Where(pc => pc.Categorie == categorie && !string.IsNullOrEmpty(pc.SousCategorie))
+                .Select(pc => pc.SousCategorie!)
+                .Distinct()
+                .OrderBy(sc => sc)
+                .ToListAsync();
         }
 
         public async Task<List<PrsChecklist>> GetChecklistsEnRetardAsync()
@@ -279,6 +376,7 @@ namespace PlanifPRS.Services
             var ecartJours = (sourceEcheance.Value - sourceDebut).Days;
             return targetDebut.AddDays(ecartJours);
         }
+
         public async Task<List<PrsChecklist>> SearchPrsWithChecklistAsync(string searchTerm, int limit = 10)
         {
             return await _context.PrsChecklists
@@ -300,17 +398,9 @@ namespace PlanifPRS.Services
             {
                 ["TotalElements"] = await _context.PrsChecklists.CountAsync(),
                 ["ElementsCoches"] = await _context.PrsChecklists.CountAsync(pc => pc.EstCoche),
-                ["ElementsEnRetard"] = await _context.PrsChecklists.CountAsync(pc =>
-                    pc.DateEcheance.HasValue &&
-                    pc.DateEcheance.Value.Date < dateActuelle &&
-                    !pc.EstCoche),
-                ["ElementsEcheanceProche"] = await _context.PrsChecklists.CountAsync(pc =>
-                    pc.DateEcheance.HasValue &&
-                    pc.DateEcheance.Value.Date >= dateActuelle &&
-                    pc.DateEcheance.Value.Date <= dateActuelle.AddDays(7) &&
-                    !pc.EstCoche),
-                ["ElementsCritiques"] = await _context.PrsChecklists.CountAsync(pc =>
-                    pc.Priorite == 1 && !pc.EstCoche)
+                ["ElementsEnRetard"] = await _context.PrsChecklists.CountAsync(pc => pc.DateEcheance.HasValue && pc.DateEcheance.Value.Date < dateActuelle && !pc.EstCoche),
+                ["ElementsEcheanceProche"] = await _context.PrsChecklists.CountAsync(pc => pc.DateEcheance.HasValue && pc.DateEcheance.Value.Date >= dateActuelle && pc.DateEcheance.Value.Date <= dateActuelle.AddDays(7) && !pc.EstCoche),
+                ["ElementsCritiques"] = await _context.PrsChecklists.CountAsync(pc => pc.Obligatoire && !pc.EstCoche)
             };
 
             return stats;

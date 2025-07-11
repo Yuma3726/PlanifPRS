@@ -9,17 +9,16 @@ using PlanifPRS.Data;
 using PlanifPRS.Models;
 using PlanifPRS.Services;
 
-namespace PlanifPRS.Controllers.Api
+namespace PlanifPRS.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
-    public class ChecklistController : ControllerBase
+    [ApiController]
+    public class ChecklistsController : ControllerBase
     {
         private readonly ChecklistService _checklistService;
         private readonly PlanifPrsDbContext _context;
 
-        public ChecklistController(ChecklistService checklistService, PlanifPrsDbContext context)
+        public ChecklistsController(ChecklistService checklistService, PlanifPrsDbContext context)
         {
             _checklistService = checklistService;
             _context = context;
@@ -86,13 +85,13 @@ namespace PlanifPRS.Controllers.Api
                     modele.DateCreation,
                     modele.CreatedByLogin,
                     modele.Actif,
-                    Elements = modele.Elements.OrderBy(e => e.Ordre).Select(e => new
+                    Elements = modele.Elements.OrderBy(e => e.Priorite).Select(e => new
                     {
                         e.Id,
                         e.Categorie,
                         e.SousCategorie,
                         e.Libelle,
-                        e.Ordre,
+                        e.Priorite,
                         e.Obligatoire,
                         CategorieComplete = e.CategorieComplete,
                         IconeCategorie = e.IconeCategorie,
@@ -131,6 +130,7 @@ namespace PlanifPRS.Controllers.Api
                         c.Libelle,
                         c.Tache,
                         c.Ordre,
+                        c.Priorite,
                         c.Obligatoire,
                         c.EstCoche,
                         c.Statut,
@@ -167,6 +167,7 @@ namespace PlanifPRS.Controllers.Api
                         c.Libelle,
                         c.Tache,
                         c.Ordre,
+                        c.Priorite,
                         c.Obligatoire,
                         c.EstCoche,
                         c.Statut,
@@ -210,6 +211,7 @@ namespace PlanifPRS.Controllers.Api
                         c.Libelle,
                         c.Tache,
                         c.Ordre,
+                        c.Priorite,
                         c.Obligatoire,
                         c.EstCoche,
                         c.Statut,
@@ -240,6 +242,7 @@ namespace PlanifPRS.Controllers.Api
                     Libelle = e.Libelle,
                     Tache = e.Libelle, // Compatibilité
                     Ordre = e.Ordre > 0 ? e.Ordre : index + 1,
+                    Priorite = e.Priorite > 0 ? e.Priorite : 3,
                     Obligatoire = e.Obligatoire
                 }).ToList();
 
@@ -260,6 +263,7 @@ namespace PlanifPRS.Controllers.Api
                         c.Libelle,
                         c.Tache,
                         c.Ordre,
+                        c.Priorite,
                         c.Obligatoire,
                         c.EstCoche,
                         c.Statut,
@@ -345,14 +349,14 @@ namespace PlanifPRS.Controllers.Api
                 var result = prsList.Select(p => new
                 {
                     p.Id,
-                    p.Titre,
-                    p.Equipement,
-                    p.ReferenceProduit,
-                    p.DateCreation,
-                    p.CreatedByLogin,
-                    NombreElementsChecklist = p.NombreElementsChecklist,
-                    PourcentageCompletion = p.PourcentageCompletionChecklist,
-                    StatutChecklist = p.StatutChecklist
+                    p.Prs.Titre,
+                    p.Prs.Equipement,
+                    p.Prs.ReferenceProduit,
+                    p.Prs.DateCreation,
+                    p.Prs.CreatedByLogin,
+                    NombreElementsChecklist = prsList.Count(x => x.PRSId == p.PRSId),
+                    PourcentageCompletionChecklist = 0,
+                    StatutChecklist = "En cours"
                 }).ToList();
 
                 return Ok(result);
@@ -360,6 +364,54 @@ namespace PlanifPRS.Controllers.Api
             catch (Exception ex)
             {
                 return BadRequest(new { message = $"Erreur lors de la recherche: {ex.Message}" });
+            }
+        }
+
+        [HttpGet("prs/{prsId}/export")]
+        public async Task<IActionResult> ExportPrsChecklist(int prsId)
+        {
+            try
+            {
+                var checklist = await _checklistService.GetPrsChecklistAsync(prsId);
+                var stats = await _checklistService.GetChecklistStatsAsync(prsId);
+
+                // Récupérer les infos PRS
+                var prs = await _context.Prs.FindAsync(prsId);
+                if (prs == null)
+                    return NotFound(new { message = "PRS non trouvé" });
+
+                var exportData = new
+                {
+                    PrsId = prsId,
+                    DateExport = DateTime.Now,
+                    Titre = prs.Titre,
+                    Equipement = prs.Equipement,
+                    ReferenceProduit = prs.ReferenceProduit,
+                    Stats = stats,
+                    NombreElementsChecklist = checklist.Count,
+                    PourcentageCompletionChecklist = prs.PourcentageCompletionChecklist,
+                    Elements = checklist.OrderBy(c => c.Ordre).Select(c => new
+                    {
+                        c.Categorie,
+                        c.SousCategorie,
+                        LibelleAffichage = c.LibelleAffichage,
+                        c.Ordre,
+                        c.Priorite,
+                        PrioriteLibelle = c.PrioriteLibelle,
+                        c.Obligatoire,
+                        StatutAffichage = c.StatutAffichage,
+                        c.Commentaire,
+                        c.DateValidation,
+                        c.ValidePar,
+                        c.DateEcheance
+                    }).ToList()
+                };
+
+                return Ok(exportData);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Erreur lors de l'export: {ex.Message}" });
             }
         }
 
@@ -391,7 +443,7 @@ namespace PlanifPRS.Controllers.Api
             }
         }
 
-        [HttpGet("stats/{prsId}")]
+        [HttpGet("prs/{prsId}/stats")]
         public async Task<IActionResult> GetChecklistStats(int prsId)
         {
             try
@@ -409,10 +461,11 @@ namespace PlanifPRS.Controllers.Api
     // DTOs pour l'API
     public class PrsChecklistCreateDto
     {
-        public string Categorie { get; set; }
+        public string Categorie { get; set; } = string.Empty;
         public string? SousCategorie { get; set; }
-        public string Libelle { get; set; }
+        public string Libelle { get; set; } = string.Empty;
         public int Ordre { get; set; }
+        public int Priorite { get; set; } = 3;
         public bool Obligatoire { get; set; }
     }
 
