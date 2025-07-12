@@ -12,24 +12,26 @@ namespace PlanifPRS.Models
         public int ChecklistModeleId { get; set; }
 
         [Required, MaxLength(100)]
-        public string Categorie { get; set; } = string.Empty;
+        public string Categorie { get; set; }
 
         [MaxLength(100)]
         public string? SousCategorie { get; set; }
 
         [Required, MaxLength(255)]
-        public string Libelle { get; set; } = string.Empty;
+        public string Libelle { get; set; }
 
         [Range(1, 5)]
         public int Priorite { get; set; } = 3;
 
-        public bool Obligatoire { get; set; } = false;
+        public bool Obligatoire { get; set; }
+
+        public int Ordre { get; set; } = 0;
 
         // Délai par défaut en jours depuis le début de la PRS
         public int? DelaiDefautJours { get; set; }
 
         [ValidateNever]
-        public virtual ChecklistModele ChecklistModele { get; set; } = null!;
+        public virtual ChecklistModele ChecklistModele { get; set; }
 
         // Propriété calculée pour l'affichage
         [NotMapped]
@@ -86,28 +88,29 @@ namespace PlanifPRS.Models
                 {
                     1 => "🔴 Critique",
                     2 => "🟠 Haute",
-                    3 => "🔵 Normale",
+                    3 => "🟡 Normale",
                     4 => "🟢 Basse",
-                    5 => "⚪ Optionnelle",
-                    _ => "❓ Non définie"
+                    5 => "⚪ Très basse",
+                    _ => "🟡 Normale"
                 };
             }
         }
 
         [NotMapped]
-        public string CouleurPriorite => Priorite switch
+        public string CouleurPriorite
         {
-            1 => "danger",
-            2 => "warning",
-            3 => "primary",
-            4 => "info",
-            5 => "secondary",
-            _ => "light"
-        };
-
-        [NotMapped]
-        public string DelaiAffichage => DelaiDefautJours.HasValue
-            ? $"{DelaiDefautJours.Value} jour{(DelaiDefautJours.Value > 1 ? "s" : "")}"
-            : "Non défini";
+            get
+            {
+                return Priorite switch
+                {
+                    1 => "#dc3545", // Rouge
+                    2 => "#fd7e14", // Orange
+                    3 => "#ffc107", // Jaune
+                    4 => "#007bff", // Bleu
+                    5 => "#6c757d", // Gris
+                    _ => "#ffc107"
+                };
+            }
+        }
     }
 }

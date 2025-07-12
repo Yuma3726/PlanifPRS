@@ -1,25 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlanifPRS.Data;
 using PlanifPRS.Models;
 using PlanifPRS.Services;
+using System.Text.Json;
 
 namespace PlanifPRS.Controllers.Api
 {
-    [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
-    public class ChecklistController : ControllerBase
+    [ApiController]
+    public class ChecklistsController : ControllerBase
     {
         private readonly ChecklistService _checklistService;
         private readonly PlanifPrsDbContext _context;
 
-        public ChecklistController(ChecklistService checklistService, PlanifPrsDbContext context)
+        public ChecklistsController(ChecklistService checklistService, PlanifPrsDbContext context)
         {
             _checklistService = checklistService;
             _context = context;
@@ -86,14 +81,15 @@ namespace PlanifPRS.Controllers.Api
                     modele.DateCreation,
                     modele.CreatedByLogin,
                     modele.Actif,
-                    Elements = modele.Elements.OrderBy(e => e.Ordre).Select(e => new
+                    Elements = modele.Elements.OrderBy(e => e.Ordre).ThenBy(e => e.Priorite).Select(e => new
                     {
                         e.Id,
                         e.Categorie,
                         e.SousCategorie,
                         e.Libelle,
-                        e.Ordre,
+                        e.Priorite,
                         e.Obligatoire,
+                        e.DelaiDefautJours,
                         CategorieComplete = e.CategorieComplete,
                         IconeCategorie = e.IconeCategorie,
                         CouleurCategorie = e.CouleurCategorie
@@ -129,13 +125,10 @@ namespace PlanifPRS.Controllers.Api
                         c.Categorie,
                         c.SousCategorie,
                         c.Libelle,
-                        c.Tache,
-                        c.Ordre,
+                        c.Priorite,
                         c.Obligatoire,
                         c.EstCoche,
-                        c.Statut,
-                        c.Commentaire,
-                        LibelleAffichage = c.LibelleAffichage,
+                        c.DateEcheance,
                         StatutAffichage = c.StatutAffichage,
                         CssClass = c.CssClass
                     }).ToList()
@@ -153,29 +146,28 @@ namespace PlanifPRS.Controllers.Api
             try
             {
                 var checklist = await _checklistService.GetPrsChecklistAsync(prsId);
-                var stats = await _checklistService.GetChecklistStatsAsync(prsId);
 
                 var result = new
                 {
-                    PrsId = prsId,
-                    Stats = stats,
-                    Elements = checklist.Select(c => new
+                    elements = checklist.Select(c => new
                     {
                         c.Id,
                         c.Categorie,
                         c.SousCategorie,
                         c.Libelle,
-                        c.Tache,
-                        c.Ordre,
+                        c.Priorite,
                         c.Obligatoire,
                         c.EstCoche,
                         c.Statut,
                         c.Commentaire,
+                        c.DateEcheance,
                         c.DateValidation,
                         c.ValidePar,
-                        LibelleAffichage = c.LibelleAffichage,
+                        delaiDefautJours = c.DateEcheance.HasValue && c.DateCreation != default ?
+                            (c.DateEcheance.Value - c.DateCreation).Days : (int?)null,
                         StatutAffichage = c.StatutAffichage,
-                        CssClass = c.CssClass
+                        CssClass = c.CssClass,
+                        PrioriteLibelle = c.PrioriteLibelle
                     }).ToList()
                 };
 
@@ -187,88 +179,62 @@ namespace PlanifPRS.Controllers.Api
             }
         }
 
-        [HttpPost("prs/{prsId}/copy/{sourcePrsId}")]
-        public async Task<IActionResult> CopyChecklistFromPrs(int prsId, int sourcePrsId)
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> GetDashboard()
         {
             try
             {
-                var userLogin = GetCurrentUserLogin();
-                var success = await _checklistService.CopyChecklistFromPrsAsync(prsId, sourcePrsId, userLogin);
+                var stats = await _checklistService.GetChecklistStatsAsync();
+                var checklistsEnRetard = await _checklistService.GetChecklistsEnRetardAsync();
+                var checklistsEcheanceProche = await _checklistService.GetChecklistsEcheanceProche();
 
-                if (!success)
-                    return BadRequest(new { message = "Erreur lors de la copie de la checklist" });
-
-                var checklist = await _checklistService.GetPrsChecklistAsync(prsId);
                 return Ok(new
                 {
-                    message = "Checklist copiée avec succès",
-                    checklist = checklist.Select(c => new
+                    stats,
+                    checklistsEnRetard = checklistsEnRetard.Take(10).Select(c => new
                     {
                         c.Id,
-                        c.Categorie,
-                        c.SousCategorie,
+                        PrsId = c.PRSId,
+                        PrsTitre = c.Prs?.Titre,
                         c.Libelle,
-                        c.Tache,
-                        c.Ordre,
-                        c.Obligatoire,
-                        c.EstCoche,
-                        c.Statut,
-                        c.Commentaire,
-                        LibelleAffichage = c.LibelleAffichage,
-                        StatutAffichage = c.StatutAffichage,
-                        CssClass = c.CssClass
-                    }).ToList()
+                        c.DateEcheance,
+                        c.Priorite,
+                        JoursRetard = c.DateEcheance.HasValue ? (DateTime.Now.Date - c.DateEcheance.Value.Date).Days : 0
+                    }),
+                    checklistsEcheanceProche = checklistsEcheanceProche.Take(10).Select(c => new
+                    {
+                        c.Id,
+                        PrsId = c.PRSId,
+                        PrsTitre = c.Prs?.Titre,
+                        c.Libelle,
+                        c.DateEcheance,
+                        c.Priorite,
+                        JoursRestants = c.DateEcheance.HasValue ? (c.DateEcheance.Value.Date - DateTime.Now.Date).Days : 0
+                    })
                 });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = $"Erreur lors de la copie: {ex.Message}" });
+                return BadRequest(new { message = $"Erreur lors de la récupération du tableau de bord: {ex.Message}" });
             }
         }
 
-        [HttpPost("prs/{prsId}/custom")]
-        public async Task<IActionResult> CreateCustomChecklist(int prsId, [FromBody] List<PrsChecklistCreateDto> elements)
+        [HttpPost("prs/{prsId}/items")]
+        public async Task<IActionResult> CreateChecklistItem(int prsId, [FromBody] PrsChecklist item)
         {
             try
             {
-                var userLogin = GetCurrentUserLogin();
+                item.PRSId = prsId;
+                item.CreatedByLogin = GetCurrentUserLogin();
+                item.DateCreation = DateTime.Now;
 
-                var checklistElements = elements.Select((e, index) => new PrsChecklist
-                {
-                    Categorie = e.Categorie,
-                    SousCategorie = e.SousCategorie,
-                    Libelle = e.Libelle,
-                    Tache = e.Libelle, // Compatibilité
-                    Ordre = e.Ordre > 0 ? e.Ordre : index + 1,
-                    Obligatoire = e.Obligatoire
-                }).ToList();
-
-                var success = await _checklistService.CreateCustomChecklistAsync(prsId, checklistElements, userLogin);
+                var elements = new List<PrsChecklist> { item };
+                var success = await _checklistService.CreateCustomChecklistAsync(prsId, elements, GetCurrentUserLogin());
 
                 if (!success)
-                    return BadRequest(new { message = "Erreur lors de la création de la checklist personnalisée" });
+                    return BadRequest(new { message = "Erreur lors de la création de l'élément" });
 
-                var checklist = await _checklistService.GetPrsChecklistAsync(prsId);
-                return Ok(new
-                {
-                    message = "Checklist personnalisée créée avec succès",
-                    checklist = checklist.Select(c => new
-                    {
-                        c.Id,
-                        c.Categorie,
-                        c.SousCategorie,
-                        c.Libelle,
-                        c.Tache,
-                        c.Ordre,
-                        c.Obligatoire,
-                        c.EstCoche,
-                        c.Statut,
-                        c.Commentaire,
-                        LibelleAffichage = c.LibelleAffichage,
-                        StatutAffichage = c.StatutAffichage,
-                        CssClass = c.CssClass
-                    }).ToList()
-                });
+                return Ok(new { message = "Élément créé avec succès", item });
             }
             catch (Exception ex)
             {
@@ -276,37 +242,22 @@ namespace PlanifPRS.Controllers.Api
             }
         }
 
-        [HttpPut("items/{itemId}")]
-        public async Task<IActionResult> UpdateChecklistItem(int itemId, [FromBody] ChecklistItemUpdateDto dto)
+        [HttpPut("items/{id}")]
+        public async Task<IActionResult> UpdateChecklistItem(int id, [FromBody] PrsChecklist item)
         {
             try
             {
-                var userLogin = GetCurrentUserLogin();
-                var success = await _checklistService.UpdateChecklistItemAsync(itemId, dto.EstCoche, dto.Commentaire, userLogin);
+                if (item.EstCoche && string.IsNullOrEmpty(item.ValidePar))
+                {
+                    item.ValidePar = GetCurrentUserLogin();
+                }
+
+                var success = await _checklistService.UpdateChecklistItemAsync(id, item);
 
                 if (!success)
-                    return BadRequest(new { message = "Erreur lors de la mise à jour de l'élément" });
+                    return NotFound(new { message = "Élément de checklist non trouvé" });
 
-                // Récupérer l'élément mis à jour
-                var item = await _context.PrsChecklists.FindAsync(itemId);
-                if (item == null)
-                    return NotFound();
-
-                return Ok(new
-                {
-                    message = "Élément mis à jour avec succès",
-                    item = new
-                    {
-                        item.Id,
-                        item.EstCoche,
-                        item.Statut,
-                        item.Commentaire,
-                        item.DateValidation,
-                        item.ValidePar,
-                        StatutAffichage = item.StatutAffichage,
-                        CssClass = item.CssClass
-                    }
-                });
+                return Ok(new { message = "Élément mis à jour avec succès" });
             }
             catch (Exception ex)
             {
@@ -314,15 +265,15 @@ namespace PlanifPRS.Controllers.Api
             }
         }
 
-        [HttpDelete("items/{itemId}")]
-        public async Task<IActionResult> DeleteChecklistItem(int itemId)
+        [HttpDelete("items/{id}")]
+        public async Task<IActionResult> DeleteChecklistItem(int id)
         {
             try
             {
-                var success = await _checklistService.DeleteChecklistItemAsync(itemId);
+                var success = await _checklistService.DeleteChecklistItemAsync(id);
 
                 if (!success)
-                    return BadRequest(new { message = "Erreur lors de la suppression de l'élément" });
+                    return NotFound(new { message = "Élément de checklist non trouvé" });
 
                 return Ok(new { message = "Élément supprimé avec succès" });
             }
@@ -333,29 +284,38 @@ namespace PlanifPRS.Controllers.Api
         }
 
         [HttpGet("search-prs")]
-        public async Task<IActionResult> SearchPrsWithChecklist([FromQuery] string searchTerm, [FromQuery] int limit = 10)
+        public async Task<IActionResult> SearchPrs([FromQuery] string searchTerm, [FromQuery] int limit = 10)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
-                    return Ok(new List<object>());
-
-                var prsList = await _checklistService.SearchPrsWithChecklistAsync(searchTerm, limit);
-
-                var result = prsList.Select(p => new
                 {
-                    p.Id,
-                    p.Titre,
-                    p.Equipement,
-                    p.ReferenceProduit,
-                    p.DateCreation,
-                    p.CreatedByLogin,
-                    NombreElementsChecklist = p.NombreElementsChecklist,
-                    PourcentageCompletion = p.PourcentageCompletionChecklist,
-                    StatutChecklist = p.StatutChecklist
-                }).ToList();
+                    return Ok(new List<object>());
+                }
 
-                return Ok(result);
+                var prsList = await _context.Prs
+                    .Where(p => p.Titre.Contains(searchTerm) ||
+                               p.Equipement.Contains(searchTerm) ||
+                               p.ReferenceProduit.Contains(searchTerm) ||
+                               p.Id.ToString().Contains(searchTerm))
+                    .Include(p => p.Checklist)
+                    .Take(limit)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.Titre,
+                        p.Equipement,
+                        p.ReferenceProduit,
+                        DateCreation = p.DateCreation.ToString("yyyy-MM-dd"),
+                        NombreElementsChecklist = p.Checklist.Count,
+                        PourcentageCompletion = p.Checklist.Any() ?
+                            (int)Math.Round((double)p.Checklist.Count(c => c.EstCoche) / p.Checklist.Count * 100) : 0,
+                        StatutChecklist = p.Checklist.Any() ?
+                            (p.Checklist.All(c => c.EstCoche) ? "Complète" : "En cours") : "Aucune"
+                    })
+                    .ToListAsync();
+
+                return Ok(prsList);
             }
             catch (Exception ex)
             {
@@ -377,11 +337,16 @@ namespace PlanifPRS.Controllers.Api
             }
         }
 
-        [HttpGet("categories/{categorie}/sous-categories")]
-        public async Task<IActionResult> GetSousCategories(string categorie)
+        [HttpGet("sous-categories")]
+        public async Task<IActionResult> GetSousCategories([FromQuery] string categorie)
         {
             try
             {
+                if (string.IsNullOrEmpty(categorie))
+                {
+                    return BadRequest(new { message = "La catégorie est requise" });
+                }
+
                 var sousCategories = await _checklistService.GetSousCategoriesAsync(categorie);
                 return Ok(sousCategories);
             }
@@ -391,12 +356,12 @@ namespace PlanifPRS.Controllers.Api
             }
         }
 
-        [HttpGet("stats/{prsId}")]
-        public async Task<IActionResult> GetChecklistStats(int prsId)
+        [HttpGet("stats")]
+        public async Task<IActionResult> GetStats()
         {
             try
             {
-                var stats = await _checklistService.GetChecklistStatsAsync(prsId);
+                var stats = await _checklistService.GetChecklistStatsAsync();
                 return Ok(stats);
             }
             catch (Exception ex)
@@ -404,21 +369,88 @@ namespace PlanifPRS.Controllers.Api
                 return BadRequest(new { message = $"Erreur lors de la récupération des statistiques: {ex.Message}" });
             }
         }
-    }
 
-    // DTOs pour l'API
-    public class PrsChecklistCreateDto
-    {
-        public string Categorie { get; set; }
-        public string? SousCategorie { get; set; }
-        public string Libelle { get; set; }
-        public int Ordre { get; set; }
-        public bool Obligatoire { get; set; }
-    }
+        [HttpPost("prs/{sourcePrsId}/copy-to/{targetPrsId}")]
+        public async Task<IActionResult> CopyChecklistFromPrs(int sourcePrsId, int targetPrsId)
+        {
+            try
+            {
+                var userLogin = GetCurrentUserLogin();
+                var success = await _checklistService.CopyChecklistFromPrsAsync(targetPrsId, sourcePrsId, userLogin);
 
-    public class ChecklistItemUpdateDto
-    {
-        public bool EstCoche { get; set; }
-        public string? Commentaire { get; set; }
+                if (!success)
+                    return BadRequest(new { message = "Erreur lors de la copie de la checklist" });
+
+                var checklist = await _checklistService.GetPrsChecklistAsync(targetPrsId);
+                return Ok(new
+                {
+                    message = "Checklist copiée avec succès",
+                    checklist = checklist.Select(c => new
+                    {
+                        c.Id,
+                        c.Categorie,
+                        c.SousCategorie,
+                        c.Libelle,
+                        c.Priorite,
+                        c.Obligatoire,
+                        c.EstCoche,
+                        c.DateEcheance,
+                        StatutAffichage = c.StatutAffichage,
+                        CssClass = c.CssClass
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Erreur lors de la copie: {ex.Message}" });
+            }
+        }
+
+        [HttpPost("prs/{prsId}/custom")]
+        public async Task<IActionResult> CreateCustomChecklist(int prsId, [FromBody] List<PrsChecklist> elements)
+        {
+            try
+            {
+                var userLogin = GetCurrentUserLogin();
+
+                // Assigner les propriétés communes
+                foreach (var element in elements)
+                {
+                    element.PRSId = prsId;
+                    element.CreatedByLogin = userLogin;
+                    element.DateCreation = DateTime.Now;
+                    element.EstCoche = false;
+                    element.Statut = null;
+                }
+
+                var success = await _checklistService.CreateCustomChecklistAsync(prsId, elements, userLogin);
+
+                if (!success)
+                    return BadRequest(new { message = "Erreur lors de la création de la checklist personnalisée" });
+
+                var checklist = await _checklistService.GetPrsChecklistAsync(prsId);
+                return Ok(new
+                {
+                    message = "Checklist personnalisée créée avec succès",
+                    checklist = checklist.Select(c => new
+                    {
+                        c.Id,
+                        c.Categorie,
+                        c.SousCategorie,
+                        c.Libelle,
+                        c.Priorite,
+                        c.Obligatoire,
+                        c.EstCoche,
+                        c.DateEcheance,
+                        StatutAffichage = c.StatutAffichage,
+                        CssClass = c.CssClass
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Erreur lors de la création: {ex.Message}" });
+            }
+        }
     }
 }
