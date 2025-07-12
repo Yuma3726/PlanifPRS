@@ -29,6 +29,11 @@ namespace PlanifPRS.Pages.Prs
             _fileService = fileService;
             _checklistService = checklistService;
             _logger = logger;
+
+            // Initialisation des propriétés pour éviter les nulls
+            ChecklistModeles = new List<ChecklistModele>();
+            Familles = new List<PrsFamille>();
+            LigneList = new SelectList(new List<SelectListItem>(), "Value", "Text");
         }
 
         [BindProperty]
@@ -47,8 +52,8 @@ namespace PlanifPRS.Pages.Prs
 
         public IList<PrsFamille> Familles { get; set; }
 
-        // Propriété ajoutée pour les modèles de checklist
-        public IList<ChecklistModele> ChecklistModeles { get; set; }
+        // Propriété pour les modèles de checklist - Initialisée pour éviter les null
+        public IList<ChecklistModele> ChecklistModeles { get; set; } = new List<ChecklistModele>();
 
         [TempData]
         public string Flash { get; set; }
@@ -64,26 +69,38 @@ namespace PlanifPRS.Pages.Prs
 
         public async Task OnGetAsync()
         {
-            await ChargerDonneesAsync();
-
-            var now = DateTime.Now;
-            var rounded = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
-
-            // Valeurs par défaut
-            Prs = new Models.Prs
+            try
             {
-                Statut = IsAdminOrValidateur ? "Validé" : "En attente",
-                DateDebut = rounded,
-                DateFin = rounded.AddHours(1)
-            };
+                _logger.LogInformation("Début du chargement de la page Create");
 
-            if (Request.Query.ContainsKey("start"))
-            {
-                if (DateTime.TryParse(Request.Query["start"], out var parsedStart))
+                await ChargerDonneesAsync();
+
+                var now = DateTime.Now;
+                var rounded = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
+
+                // Valeurs par défaut
+                Prs = new Models.Prs
                 {
-                    Prs.DateDebut = parsedStart;
-                    Prs.DateFin = parsedStart.AddHours(1);
+                    Statut = IsAdminOrValidateur ? "Validé" : "En attente",
+                    DateDebut = rounded,
+                    DateFin = rounded.AddHours(1)
+                };
+
+                if (Request.Query.ContainsKey("start"))
+                {
+                    if (DateTime.TryParse(Request.Query["start"], out var parsedStart))
+                    {
+                        Prs.DateDebut = parsedStart;
+                        Prs.DateFin = parsedStart.AddHours(1);
+                    }
                 }
+
+                _logger.LogInformation($"Page Create chargée avec {ChecklistModeles.Count} modèles de checklist");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Erreur lors du chargement de la page Create: {ex.Message}");
+                ErrorMessage = "Erreur lors du chargement de la page. Veuillez réessayer.";
             }
         }
 
@@ -158,36 +175,83 @@ namespace PlanifPRS.Pages.Prs
                 {
                     try
                     {
-                        var checklistObj = JsonSerializer.Deserialize<ChecklistFormDto>(ChecklistData, new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
+                        _logger.LogInformation($"Traitement des données de checklist: {ChecklistData}");
 
-                        if (checklistObj != null && checklistObj.elements.Any())
+                        var checklistForm = JsonSerializer.Deserialize<ChecklistFormDto>(ChecklistData);
+                        if (checklistForm != null)
                         {
-                            var elements = checklistObj.elements.Select((e, idx) => new PrsChecklist
+                            string userLogin = GetCurrentUserLogin();
+
+                            switch (checklistForm.type)
                             {
-                                PRSId = Prs.Id,
-                                Categorie = e.categorie,
-                                SousCategorie = e.sousCategorie,
-                                Libelle = e.libelle,
-                                Tache = e.libelle,
-                                Ordre = e.ordre > 0 ? e.ordre : idx + 1,
-                                Obligatoire = e.obligatoire,
-                                CreatedByLogin = CurrentUserLogin,
-                                DateCreation = DateTime.Now,
-                                ChecklistModeleSourceId = checklistObj.type == "modele" ? checklistObj.sourceId : null,
-                                PrsSourceId = checklistObj.type == "copy" ? checklistObj.sourceId : null
-                            }).ToList();
+                                case "modele":
+                                    if (checklistForm.sourceId.HasValue)
+                                    {
+                                        var success = await _checklistService.ApplyChecklistModeleAsync(Prs.Id, checklistForm.sourceId.Value, userLogin);
+                                        if (success)
+                                        {
+                                            _logger.LogInformation($"Modèle de checklist {checklistForm.sourceId.Value} appliqué avec succès au PRS {Prs.Id}");
+                                            Flash += " Checklist créée à partir du modèle.";
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning($"Échec de l'application du modèle de checklist {checklistForm.sourceId.Value}");
+                                            ErrorMessage += " Erreur lors de l'application du modèle de checklist.";
+                                        }
+                                    }
+                                    break;
 
-                            await _checklistService.CreateCustomChecklistAsync(Prs.Id, elements, CurrentUserLogin);
-                            _logger.LogInformation($"Checklist PRS créée ({elements.Count} items)");
+                                case "copy":
+                                    if (checklistForm.sourceId.HasValue)
+                                    {
+                                        var success = await _checklistService.CopyChecklistFromPrsAsync(Prs.Id, checklistForm.sourceId.Value, userLogin);
+                                        if (success)
+                                        {
+                                            _logger.LogInformation($"Checklist copiée du PRS {checklistForm.sourceId.Value} vers le PRS {Prs.Id}");
+                                            Flash += " Checklist copiée à partir d'un autre PRS.";
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning($"Échec de la copie de la checklist du PRS {checklistForm.sourceId.Value}");
+                                            ErrorMessage += " Erreur lors de la copie de la checklist.";
+                                        }
+                                    }
+                                    break;
+
+                                case "custom":
+                                    if (checklistForm.elements?.Any() == true)
+                                    {
+                                        var elements = checklistForm.elements.Select(e => new PrsChecklist
+                                        {
+                                            Categorie = e.categorie,
+                                            SousCategorie = e.sousCategorie,
+                                            Libelle = e.libelle,
+                                            Ordre = e.ordre,
+                                            Obligatoire = e.obligatoire,
+                                            EstCoche = false,
+                                            Statut = null
+                                        }).ToList();
+
+                                        var success = await _checklistService.CreateCustomChecklistAsync(Prs.Id, elements, userLogin);
+                                        if (success)
+                                        {
+                                            _logger.LogInformation($"Checklist personnalisée créée pour le PRS {Prs.Id} avec {elements.Count} éléments");
+                                            Flash += " Checklist personnalisée créée.";
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning($"Échec de la création de la checklist personnalisée pour le PRS {Prs.Id}");
+                                            ErrorMessage += " Erreur lors de la création de la checklist personnalisée.";
+                                        }
+                                    }
+                                    break;
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Erreur lors du traitement de la checklist : {ex.Message}");
-                        ErrorMessage += " Erreur lors du traitement de la checklist.";
+                        _logger.LogError($"Erreur lors du traitement des données de checklist: {ex.Message}");
+                        ErrorMessage += " Erreur lors de la création de la checklist.";
                     }
                 }
 
@@ -383,22 +447,188 @@ namespace PlanifPRS.Pages.Prs
 
         private async Task ChargerDonneesAsync()
         {
-            ChargerFamilles();
-            ChargerLignes();
-            await ChargerChecklistModelesAsync();
+            try
+            {
+                _logger.LogInformation("Début du chargement des données");
+
+                // Charger les données en parallèle pour optimiser les performances
+                var tasks = new Task[]
+                {
+                    Task.Run(() => ChargerFamilles()),
+                    Task.Run(() => ChargerLignes()),
+                    ChargerChecklistModelesAsync()
+                };
+
+                await Task.WhenAll(tasks);
+
+                _logger.LogInformation($"Chargement terminé: {ChecklistModeles.Count} modèles, {Familles.Count} familles, {LigneList.Count()} lignes");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Erreur lors du chargement des données: {ex.Message}");
+            }
         }
 
         private async Task ChargerChecklistModelesAsync()
         {
             try
             {
-                ChecklistModeles = await _checklistService.GetChecklistModelesAsync(activeOnly: true);
-                _logger.LogInformation($"Chargement de {ChecklistModeles.Count} modèles de checklist");
+                _logger.LogInformation("Début du chargement des modèles de checklist");
+
+                // Vérifier que le service et le contexte sont disponibles
+                if (_checklistService == null)
+                {
+                    _logger.LogError("ChecklistService est null");
+                    ChecklistModeles = new List<ChecklistModele>();
+                    return;
+                }
+
+                if (_context == null)
+                {
+                    _logger.LogError("Context de base de données est null");
+                    ChecklistModeles = new List<ChecklistModele>();
+                    return;
+                }
+
+                // Test direct sur la base de données pour diagnostiquer le problème
+                var totalModeles = await _context.ChecklistModeles.CountAsync();
+                var modelesActifs = await _context.ChecklistModeles.CountAsync(m => m.Actif);
+
+                _logger.LogInformation($"Base de données - Total modèles: {totalModeles}, Modèles actifs: {modelesActifs}");
+
+                // Si aucun modèle actif n'existe, créer des modèles par défaut
+                if (modelesActifs == 0)
+                {
+                    _logger.LogInformation("Aucun modèle actif trouvé. Création de modèles par défaut...");
+                    await CreerModelesParDefaut();
+                }
+
+                // Charger les modèles via le service
+                var modeles = await _checklistService.GetChecklistModelesAsync(activeOnly: true);
+                ChecklistModeles = modeles ?? new List<ChecklistModele>();
+
+                _logger.LogInformation($"Chargement réussi de {ChecklistModeles.Count} modèles de checklist");
+
+                // Log détaillé des modèles chargés
+                foreach (var modele in ChecklistModeles)
+                {
+                    _logger.LogInformation($"Modèle: ID={modele.Id}, Nom='{modele.Nom}', Famille='{modele.FamilleAffichage}', Actif={modele.Actif}");
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Erreur lors du chargement des modèles de checklist: {ex.Message}");
+                _logger.LogError($"Stack trace: {ex.StackTrace}");
                 ChecklistModeles = new List<ChecklistModele>();
+            }
+        }
+
+        private async Task CreerModelesParDefaut()
+        {
+            try
+            {
+                var userLogin = GetCurrentUserLogin();
+
+                // Modèle générique pour toutes les familles
+                var modeleGenerique = new ChecklistModele
+                {
+                    Nom = "Checklist Standard",
+                    Description = "Checklist générique pour toutes les PRS",
+                    FamilleEquipement = "Générique",
+                    DateCreation = DateTime.Now,
+                    CreatedByLogin = userLogin,
+                    Actif = true,
+                    Elements = new List<ChecklistElementModele>
+                    {
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Produit",
+                            SousCategorie = "Matière première",
+                            Libelle = "Vérifier la disponibilité des matières premières",
+                            Priorite = 1,
+                            Obligatoire = true
+                        },
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Documentation",
+                            SousCategorie = "Procédure",
+                            Libelle = "Valider la procédure de fabrication",
+                            Priorite = 2,
+                            Obligatoire = true
+                        },
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Process",
+                            SousCategorie = "Équipement",
+                            Libelle = "Contrôler l'état de l'équipement",
+                            Priorite = 2,
+                            Obligatoire = true
+                        },
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Production",
+                            SousCategorie = "Qualité",
+                            Libelle = "Effectuer les contrôles qualité",
+                            Priorite = 1,
+                            Obligatoire = true
+                        }
+                    }
+                };
+
+                // Modèle spécifique pour une famille d'équipement
+                var modeleSpecifique = new ChecklistModele
+                {
+                    Nom = "Checklist Ligne de Production",
+                    Description = "Checklist spécialisée pour les lignes de production",
+                    FamilleEquipement = "Ligne Production",
+                    DateCreation = DateTime.Now,
+                    CreatedByLogin = userLogin,
+                    Actif = true,
+                    Elements = new List<ChecklistElementModele>
+                    {
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Produit",
+                            SousCategorie = "Composants",
+                            Libelle = "Vérifier tous les composants nécessaires",
+                            Priorite = 1,
+                            Obligatoire = true
+                        },
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Process",
+                            SousCategorie = "Calibrage",
+                            Libelle = "Calibrer les instruments de mesure",
+                            Priorite = 2,
+                            Obligatoire = true
+                        },
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Production",
+                            SousCategorie = "Test",
+                            Libelle = "Effectuer les tests de fonctionnement",
+                            Priorite = 1,
+                            Obligatoire = true
+                        },
+                        new ChecklistElementModele
+                        {
+                            Categorie = "Documentation",
+                            SousCategorie = "Rapport",
+                            Libelle = "Rédiger le rapport de validation",
+                            Priorite = 3,
+                            Obligatoire = false
+                        }
+                    }
+                };
+
+                _context.ChecklistModeles.AddRange(modeleGenerique, modeleSpecifique);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Modèles par défaut créés avec succès");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Erreur lors de la création des modèles par défaut: {ex.Message}");
             }
         }
 
@@ -471,7 +701,10 @@ namespace PlanifPRS.Pages.Prs
             {
                 var famillesList = new List<PrsFamille>();
                 var connection = _context.Database.GetDbConnection();
-                connection.Open();
+
+                var wasOpen = connection.State == System.Data.ConnectionState.Open;
+                if (!wasOpen)
+                    connection.Open();
 
                 using var command = connection.CreateCommand();
                 command.CommandText = @"
@@ -507,7 +740,11 @@ namespace PlanifPRS.Pages.Prs
                     }
                 }
 
+                if (!wasOpen)
+                    connection.Close();
+
                 Familles = famillesList;
+                _logger.LogInformation($"Chargement de {famillesList.Count} familles réussi");
             }
             catch (Exception ex)
             {
@@ -522,7 +759,9 @@ namespace PlanifPRS.Pages.Prs
             {
                 var lignesList = new List<SelectListItem>();
                 var connection = _context.Database.GetDbConnection();
-                if (connection.State != System.Data.ConnectionState.Open)
+
+                var wasOpen = connection.State == System.Data.ConnectionState.Open;
+                if (!wasOpen)
                     connection.Open();
 
                 using var command = connection.CreateCommand();
@@ -557,7 +796,11 @@ namespace PlanifPRS.Pages.Prs
                     }
                 }
 
+                if (!wasOpen)
+                    connection.Close();
+
                 LigneList = new SelectList(lignesList, "Value", "Text");
+                _logger.LogInformation($"Chargement de {lignesList.Count} lignes réussi");
             }
             catch (Exception ex)
             {

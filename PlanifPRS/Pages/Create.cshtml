@@ -797,6 +797,24 @@
     </div>
 </div>
 
+<!-- Code de debug temporaire -->
+<div class="alert alert-info">
+    <strong>Debug Modèles:</strong> @Model.ChecklistModeles.Count modèles chargés
+    @if (Model.ChecklistModeles.Any())
+    {
+        <ul>
+            @foreach (var modele in Model.ChecklistModeles)
+            {
+                <li>ID: @modele.Id - @modele.Nom (@modele.FamilleAffichage) - Actif: @modele.Actif</li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="text-warning">Aucun modèle trouvé !</p>
+    }
+</div>
+
 <!-- 🔽 SECTION CHECKLIST À INSÉRER AVANT LES FICHIERS/DOSSIERS 🔽 -->
 <div class="col-12">
     <div class="card checklist-section border-primary shadow-lg mb-4">
