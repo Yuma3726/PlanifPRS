@@ -48,8 +48,10 @@
             }, 300);
         });
 
-        // Ajouter un élément
-        $(this.options.addButton).on('click', () => {
+        // CORRECTION : Utiliser la délégation d'événements pour le bouton d'ajout
+        // car il est créé dynamiquement
+        $(document).on('click', '#addChecklistItem', () => {
+            console.log('Bouton ajouter cliqué'); // Debug
             this.addNewChecklistItem();
         });
 
@@ -64,6 +66,8 @@
     }
 
     handleTypeChange(selectedType) {
+        console.log('Type sélectionné:', selectedType); // Debug
+
         // Cacher tous les sélecteurs
         $('#modeleSelector, #prsSelector').hide();
         $(this.options.searchResults).hide();
@@ -95,13 +99,13 @@
         try {
             this.showLoading('Chargement du modèle...');
 
-            const response = await fetch(`/api/checklist/modeles/${modeleId}`);
+            const response = await fetch(`/api/checklists/modeles/${modeleId}`);
             if (!response.ok) {
                 throw new Error(`Erreur HTTP: ${response.status}`);
             }
 
             const modele = await response.json();
-            console.log('Modèle chargé:', modele); // Debug
+            console.log('Modèle chargé:', modele);
 
             // Vérifier que les données sont correctes
             if (!modele || !modele.elements) {
@@ -112,13 +116,14 @@
                 categorie: element.categorie,
                 sousCategorie: element.sousCategorie || '',
                 libelle: element.libelle,
-                ordre: element.ordre,
+                priorite: element.priorite || 3,
+                delaiDefautJours: element.delaiDefautJours || 1,
                 obligatoire: element.obligatoire
             }));
 
             this.currentChecklist.sourceId = modeleId;
 
-            // CORRECTION PRINCIPALE : S'assurer que le loading est caché avant d'afficher l'éditeur
+            // S'assurer que le loading est caché avant d'afficher l'éditeur
             this.hideLoading();
 
             // Afficher l'éditeur avec les données
@@ -129,7 +134,7 @@
 
         } catch (error) {
             console.error('Erreur lors du chargement du modèle:', error);
-            this.hideLoading(); // IMPORTANT : Cacher le loading en cas d'erreur aussi
+            this.hideLoading();
             this.showNotification('Erreur lors du chargement du modèle: ' + error.message, 'danger');
         }
     }
@@ -149,7 +154,7 @@
                 </div>
             `);
 
-            const response = await fetch(`/api/checklist/search-prs?searchTerm=${encodeURIComponent(query)}&limit=10`);
+            const response = await fetch(`/api/checklists/search-prs?searchTerm=${encodeURIComponent(query)}&limit=10`);
             if (!response.ok) {
                 throw new Error('Erreur lors de la recherche');
             }
@@ -205,14 +210,23 @@
         try {
             this.showLoading('Chargement de la checklist...');
 
-            const response = await fetch(`/api/checklist/prs/${prsId}`);
+            const response = await fetch(`/api/checklists/prs/${prsId}`);
             if (!response.ok) {
                 throw new Error('Erreur lors du chargement de la checklist');
             }
 
             const data = await response.json();
 
-            this.currentChecklist.elements = data.elements || [];
+            // Adapter les données pour utiliser priorite et delaiDefautJours
+            this.currentChecklist.elements = (data.checklist || []).map(item => ({
+                categorie: item.categorie || '',
+                sousCategorie: item.sousCategorie || '',
+                libelle: item.libelle || item.tache || '',
+                priorite: item.priorite || 3,
+                delaiDefautJours: item.delaiDefautJours || 1,
+                obligatoire: item.obligatoire || false
+            }));
+
             this.currentChecklist.sourceId = prsId;
 
             this.hideLoading();
@@ -230,8 +244,27 @@
     }
 
     showChecklistEditor() {
+        console.log('Affichage de l\'éditeur de checklist'); // Debug
+
+        // Restaurer le contenu de l'éditeur si nécessaire
+        this.ensureEditorContent();
+
         $(this.options.containerSelector).show();
         this.updateItemCount();
+
+        // Si aucun élément, en ajouter un par défaut pour les checklists personnalisées
+        if (this.currentChecklist.type === 'custom' && this.currentChecklist.elements.length === 0) {
+            this.addNewChecklistItem();
+        }
+    }
+
+    ensureEditorContent() {
+        const container = $(this.options.containerSelector);
+
+        // Vérifier si le contenu de l'éditeur existe
+        if (container.find('#checklistItems').length === 0) {
+            this.hideLoading(); // Ceci va restaurer le contenu
+        }
     }
 
     showLoading(message = 'Chargement...') {
@@ -260,6 +293,8 @@
             </div>
         `;
         $(this.options.containerSelector).html(originalContent);
+
+        console.log('Contenu de l\'éditeur restauré, bouton ajouté'); // Debug
     }
 
     renderChecklistItems() {
@@ -276,8 +311,11 @@
             return;
         }
 
-        // Trier les éléments par ordre
-        const sortedElements = [...this.currentChecklist.elements].sort((a, b) => a.ordre - b.ordre);
+        // Trier les éléments par priorité puis par délai
+        const sortedElements = [...this.currentChecklist.elements].sort((a, b) => {
+            if (a.priorite !== b.priorite) return a.priorite - b.priorite;
+            return (a.delaiDefautJours || 1) - (b.delaiDefautJours || 1);
+        });
 
         sortedElements.forEach((element, index) => {
             const html = this.createChecklistItemHtml(element, index);
@@ -289,10 +327,23 @@
 
     createChecklistItemHtml(element, index) {
         const categorieColor = this.getCategorieColor(element.categorie);
-        const categorieIcon = this.getCategorieIcon(element.categorie);
+        const prioriteInfo = this.getPrioriteInfo(element.priorite);
 
         return `
-            <div class="checklist-item mb-3 p-3 border rounded" data-index="${index}">
+            <div class="checklist-item mb-3 p-3 border rounded" data-index="${index}" 
+                 style="border-left: 4px solid ${prioriteInfo.color};">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center">
+                        <span class="badge me-2" style="background-color: ${prioriteInfo.color};">
+                            ${prioriteInfo.label}
+                        </span>
+                        <small class="text-muted">Délai: ${element.delaiDefautJours || 1} jour(s)</small>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm btn-remove-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                
                 <div class="row align-items-center">
                     <div class="col-md-2">
                         <label class="form-label">Catégorie</label>
@@ -310,15 +361,25 @@
                         <input type="text" class="form-control form-control-sm" name="sousCategorie" 
                                value="${element.sousCategorie || ''}" placeholder="Optionnel">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">Libellé</label>
                         <input type="text" class="form-control form-control-sm" name="libelle" 
                                value="${element.libelle}" placeholder="Description de l'élément" required>
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Priorité</label>
+                        <select class="form-select form-select-sm" name="priorite">
+                            <option value="1" ${element.priorite === 1 ? 'selected' : ''}>🔴 Critique</option>
+                            <option value="2" ${element.priorite === 2 ? 'selected' : ''}>🟠 Haute</option>
+                            <option value="3" ${element.priorite === 3 ? 'selected' : ''}>🟡 Normale</option>
+                            <option value="4" ${element.priorite === 4 ? 'selected' : ''}>🔵 Basse</option>
+                            <option value="5" ${element.priorite === 5 ? 'selected' : ''}>⚪ Très basse</option>
+                        </select>
+                    </div>
                     <div class="col-md-1">
-                        <label class="form-label">Ordre</label>
-                        <input type="number" class="form-control form-control-sm" name="ordre" 
-                               value="${element.ordre}" min="1" required>
+                        <label class="form-label">Délai (j)</label>
+                        <input type="number" class="form-control form-control-sm" name="delaiDefautJours" 
+                               value="${element.delaiDefautJours || 1}" min="1" max="365" required>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Obligatoire</label>
@@ -330,14 +391,20 @@
                             </label>
                         </div>
                     </div>
-                    <div class="col-md-1">
-                        <button type="button" class="btn btn-danger btn-sm btn-remove-item mt-4">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
                 </div>
             </div>
         `;
+    }
+
+    getPrioriteInfo(priorite) {
+        const priorites = {
+            1: { label: '🔴 Critique', color: '#dc3545' },
+            2: { label: '🟠 Haute', color: '#fd7e14' },
+            3: { label: '🟡 Normale', color: '#ffc107' },
+            4: { label: '🔵 Basse', color: '#007bff' },
+            5: { label: '⚪ Très basse', color: '#6c757d' }
+        };
+        return priorites[priorite] || priorites[3];
     }
 
     getCategorieColor(categorie) {
@@ -363,28 +430,29 @@
     }
 
     addNewChecklistItem() {
+        console.log('Ajout d\'un nouvel élément'); // Debug
+
         const newElement = {
             categorie: '',
             sousCategorie: '',
             libelle: '',
-            ordre: this.currentChecklist.elements.length + 1,
+            priorite: 3,
+            delaiDefautJours: 1,
             obligatoire: false
         };
 
         this.currentChecklist.elements.push(newElement);
         this.renderChecklistItems();
         this.updateChecklistData();
+
+        console.log('Élément ajouté, total:', this.currentChecklist.elements.length); // Debug
     }
 
     removeChecklistItem(e) {
         const index = $(e.target).closest('.checklist-item').data('index');
+        console.log('Suppression de l\'élément à l\'index:', index); // Debug
+
         this.currentChecklist.elements.splice(index, 1);
-
-        // Réajuster les ordres
-        this.currentChecklist.elements.forEach((element, i) => {
-            element.ordre = i + 1;
-        });
-
         this.renderChecklistItems();
         this.updateChecklistData();
     }
@@ -397,14 +465,19 @@
 
         if (field === 'obligatoire') {
             value = $(e.target).is(':checked');
-        } else if (field === 'ordre') {
-            value = parseInt(value) || 1;
+        } else if (field === 'priorite' || field === 'delaiDefautJours') {
+            value = parseInt(value) || (field === 'priorite' ? 3 : 1);
         }
 
         if (this.currentChecklist.elements[index]) {
             this.currentChecklist.elements[index][field] = value;
             this.updateChecklistData();
             this.updateItemCount();
+
+            // Re-rendre si la priorité a changé (pour le tri)
+            if (field === 'priorite') {
+                this.renderChecklistItems();
+            }
         }
     }
 
@@ -428,6 +501,8 @@
             $('form').append($hiddenField);
         }
         $hiddenField.val(JSON.stringify(checklistData));
+
+        console.log('Données checklist mises à jour:', checklistData); // Debug
     }
 
     showNotification(message, type = 'info') {
@@ -480,5 +555,6 @@
 
 // Initialisation automatique quand le DOM est prêt
 $(document).ready(() => {
+    console.log('Initialisation du ChecklistManager'); // Debug
     window.checklistManager = new ChecklistManager();
 });

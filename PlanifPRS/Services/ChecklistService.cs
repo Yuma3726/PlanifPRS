@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PlanifPRS.Data;
 using PlanifPRS.Models;
 
@@ -18,45 +14,34 @@ namespace PlanifPRS.Services
         }
 
         // Méthodes pour les modèles de checklist
-        public async Task<List<ChecklistModele>> GetChecklistModelesAsync(bool activeOnly = true)
+        public async Task<List<ChecklistModele>> GetChecklistModelesAsync()
         {
-            var query = _context.ChecklistModeles
+            return await _context.ChecklistModeles
                 .Include(cm => cm.Elements)
-                .AsQueryable();
-
-            if (activeOnly)
-                query = query.Where(cm => cm.Actif);
-
-            return await query
-                .OrderBy(cm => cm.FamilleEquipement)
-                .ThenBy(cm => cm.Nom)
+                .Where(cm => cm.Actif)
+                .OrderBy(cm => cm.Nom)
                 .ToListAsync();
         }
 
         public async Task<ChecklistModele?> GetChecklistModeleByIdAsync(int id)
         {
             return await _context.ChecklistModeles
-                .Include(cm => cm.Elements.OrderBy(e => e.Ordre))
-                .FirstOrDefaultAsync(cm => cm.Id == id);
-        }
-
-        public async Task<List<ChecklistModele>> GetChecklistModelesByFamilleAsync(string familleEquipement)
-        {
-            return await _context.ChecklistModeles
                 .Include(cm => cm.Elements)
-                .Where(cm => cm.Actif &&
-                            (cm.FamilleEquipement == familleEquipement ||
-                             cm.FamilleEquipement == "Générique"))
-                .OrderBy(cm => cm.FamilleEquipement == "Générique" ? 1 : 0)
-                .ThenBy(cm => cm.Nom)
-                .ToListAsync();
+                .FirstOrDefaultAsync(cm => cm.Id == id && cm.Actif);
         }
 
-        public async Task<ChecklistModele> CreateChecklistModeleAsync(ChecklistModele modele)
+        public async Task<bool> CreateChecklistModeleAsync(ChecklistModele modele)
         {
-            _context.ChecklistModeles.Add(modele);
-            await _context.SaveChangesAsync();
-            return modele;
+            try
+            {
+                _context.ChecklistModeles.Add(modele);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<bool> UpdateChecklistModeleAsync(ChecklistModele modele)
@@ -78,7 +63,6 @@ namespace PlanifPRS.Services
             var modele = await _context.ChecklistModeles.FindAsync(id);
             if (modele == null) return false;
 
-            // Soft delete - marquer comme inactif au lieu de supprimer
             modele.Actif = false;
             await _context.SaveChangesAsync();
             return true;
@@ -91,7 +75,9 @@ namespace PlanifPRS.Services
                 .Include(pc => pc.Famille)
                 .Include(pc => pc.ChecklistModeleSource)
                 .Where(pc => pc.PRSId == prsId)
-                .OrderBy(pc => pc.Ordre)
+                .OrderBy(pc => pc.Priorite)
+                .ThenBy(pc => pc.DelaiDefautJours)
+                .ThenBy(pc => pc.DateEcheance)
                 .ThenBy(pc => pc.Categorie)
                 .ThenBy(pc => pc.SousCategorie)
                 .ToListAsync();
@@ -111,30 +97,40 @@ namespace PlanifPRS.Services
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
+                // Récupérer les infos du PRS pour calculer les échéances
+                var prs = await _context.Prs.FindAsync(prsId);
+                if (prs == null) return false;
+
                 // Créer les nouveaux éléments basés sur le modèle
-                var newItems = modele.Elements.Select(element => new PrsChecklist
+                foreach (var element in modele.Elements.OrderBy(e => e.Priorite))
                 {
-                    PRSId = prsId,
-                    Categorie = element.Categorie,
-                    SousCategorie = element.SousCategorie,
-                    Libelle = element.Libelle,
-                    Tache = element.Libelle, // Compatibilité avec l'ancien système
-                    Ordre = element.Ordre,
-                    Obligatoire = element.Obligatoire,
-                    EstCoche = false,
-                    Statut = null,
-                    ChecklistModeleSourceId = checklistModeleId,
-                    CreatedByLogin = userLogin,
-                    DateCreation = DateTime.Now
-                }).ToList();
+                    var prsChecklistItem = new PrsChecklist
+                    {
+                        PRSId = prsId,
+                        Categorie = element.Categorie,
+                        SousCategorie = element.SousCategorie,
+                        Libelle = element.Libelle,
+                        Tache = element.Libelle, // Compatibilité avec l'ancien système
+                        Priorite = element.Priorite,
+                        DelaiDefautJours = element.DelaiDefautJours,
+                        Obligatoire = element.Obligatoire,
+                        EstCoche = false,
+                        Statut = null,
+                        DateEcheance = CalculerDateEcheance(prs, element),
+                        ChecklistModeleSourceId = checklistModeleId,
+                        CreatedByLogin = userLogin,
+                        DateCreation = DateTime.Now
+                    };
 
-                _context.PrsChecklists.AddRange(newItems);
+                    _context.PrsChecklists.Add(prsChecklistItem);
+                }
+
                 await _context.SaveChangesAsync();
-
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Erreur lors de l'application du modèle de checklist: {ex.Message}");
                 return false;
             }
         }
@@ -143,40 +139,45 @@ namespace PlanifPRS.Services
         {
             try
             {
-                var sourceChecklist = await _context.PrsChecklists
-                    .Where(pc => pc.PRSId == sourcePrsId)
-                    .ToListAsync();
-
+                var sourceChecklist = await GetPrsChecklistAsync(sourcePrsId);
                 if (!sourceChecklist.Any()) return false;
 
-                // Supprimer les éléments existants de la checklist PRS cible
+                // Supprimer les éléments existants
                 var existingItems = await _context.PrsChecklists
                     .Where(pc => pc.PRSId == targetPrsId)
                     .ToListAsync();
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
-                // Créer les nouveaux éléments basés sur la PRS source
-                var newItems = sourceChecklist.Select(sourceItem => new PrsChecklist
+                // Récupérer les infos du PRS cible
+                var targetPrs = await _context.Prs.FindAsync(targetPrsId);
+                if (targetPrs == null) return false;
+
+                // Copier les éléments
+                foreach (var sourceItem in sourceChecklist)
                 {
-                    PRSId = targetPrsId,
-                    Categorie = sourceItem.Categorie,
-                    SousCategorie = sourceItem.SousCategorie,
-                    Libelle = sourceItem.Libelle,
-                    Tache = sourceItem.Tache,
-                    Ordre = sourceItem.Ordre,
-                    Obligatoire = sourceItem.Obligatoire,
-                    EstCoche = false, // Réinitialiser l'état
-                    Statut = null, // Réinitialiser l'état
-                    ChecklistModeleSourceId = sourceItem.ChecklistModeleSourceId,
-                    PrsSourceId = sourcePrsId,
-                    CreatedByLogin = userLogin,
-                    DateCreation = DateTime.Now
-                }).ToList();
+                    var newItem = new PrsChecklist
+                    {
+                        PRSId = targetPrsId,
+                        Categorie = sourceItem.Categorie,
+                        SousCategorie = sourceItem.SousCategorie,
+                        Libelle = sourceItem.Libelle,
+                        Tache = sourceItem.Tache,
+                        Priorite = sourceItem.Priorite,
+                        DelaiDefautJours = sourceItem.DelaiDefautJours,
+                        Obligatoire = sourceItem.Obligatoire,
+                        EstCoche = false,
+                        Statut = null,
+                        DateEcheance = CalculerDateEcheanceFromDelai(targetPrs, sourceItem.DelaiDefautJours),
+                        PrsSourceId = sourcePrsId,
+                        CreatedByLogin = userLogin,
+                        DateCreation = DateTime.Now
+                    };
 
-                _context.PrsChecklists.AddRange(newItems);
+                    _context.PrsChecklists.Add(newItem);
+                }
+
                 await _context.SaveChangesAsync();
-
                 return true;
             }
             catch
@@ -196,48 +197,23 @@ namespace PlanifPRS.Services
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
+                // Récupérer les infos du PRS
+                var prs = await _context.Prs.FindAsync(prsId);
+                if (prs == null) return false;
+
                 // Ajouter les nouveaux éléments
                 foreach (var element in elements)
                 {
                     element.PRSId = prsId;
-                    element.CreatedByLogin = userLogin;
-                    element.DateCreation = DateTime.Now;
                     element.EstCoche = false;
                     element.Statut = null;
+                    element.DateEcheance = CalculerDateEcheanceFromDelai(prs, element.DelaiDefautJours);
+                    element.CreatedByLogin = userLogin;
+                    element.DateCreation = DateTime.Now;
 
-                    // Si Libelle est vide, utiliser Tache pour compatibilité
-                    if (string.IsNullOrEmpty(element.Libelle) && !string.IsNullOrEmpty(element.Tache))
-                        element.Libelle = element.Tache;
-
-                    // Si Tache est vide, utiliser Libelle pour compatibilité
-                    if (string.IsNullOrEmpty(element.Tache) && !string.IsNullOrEmpty(element.Libelle))
-                        element.Tache = element.Libelle;
+                    _context.PrsChecklists.Add(element);
                 }
 
-                _context.PrsChecklists.AddRange(elements);
-                await _context.SaveChangesAsync();
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async Task<bool> UpdateChecklistItemAsync(int itemId, bool estCoche, string? commentaire, string userLogin)
-        {
-            try
-            {
-                var item = await _context.PrsChecklists.FindAsync(itemId);
-                if (item == null) return false;
-
-                item.EstCoche = estCoche;
-                item.Statut = estCoche;
-                item.Commentaire = commentaire;
-                item.ValidePar = estCoche ? userLogin : null;
-                item.DateValidation = estCoche ? DateTime.Now : null;
-
                 await _context.SaveChangesAsync();
                 return true;
             }
@@ -247,70 +223,16 @@ namespace PlanifPRS.Services
             }
         }
 
-        public async Task<bool> DeleteChecklistItemAsync(int itemId)
+        private DateTime? CalculerDateEcheance(Prs prs, ChecklistElementModele element)
         {
-            try
-            {
-                var item = await _context.PrsChecklists.FindAsync(itemId);
-                if (item == null) return false;
-
-                _context.PrsChecklists.Remove(item);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            if (element.DelaiDefautJours <= 0) return null;
+            return prs.DateCreation.AddDays(element.DelaiDefautJours);
         }
 
-        public async Task<List<Prs>> SearchPrsWithChecklistAsync(string searchTerm, int limit = 10)
+        private DateTime? CalculerDateEcheanceFromDelai(Prs prs, int delaiJours)
         {
-            return await _context.Prs
-                .Include(p => p.Checklist)
-                .Where(p => p.Checklist.Any() &&
-                           (p.Titre.Contains(searchTerm) ||
-                            p.Id.ToString().Contains(searchTerm) ||
-                            p.Equipement.Contains(searchTerm)))
-                .OrderByDescending(p => p.DateCreation)
-                .Take(limit)
-                .ToListAsync();
-        }
-
-        // Méthodes utilitaires
-        public async Task<Dictionary<string, int>> GetChecklistStatsAsync(int prsId)
-        {
-            var checklist = await _context.PrsChecklists
-                .Where(pc => pc.PRSId == prsId)
-                .ToListAsync();
-
-            return new Dictionary<string, int>
-            {
-                ["Total"] = checklist.Count,
-                ["Valides"] = checklist.Count(c => c.EstValide),
-                ["Obligatoires"] = checklist.Count(c => c.Obligatoire),
-                ["ObligatoiresValides"] = checklist.Count(c => c.Obligatoire && c.EstValide),
-                ["EnAttente"] = checklist.Count(c => !c.EstValide)
-            };
-        }
-
-        public async Task<List<string>> GetCategoriesUtiliseesAsync()
-        {
-            return await _context.ChecklistElementModeles
-                .Select(cem => cem.Categorie)
-                .Distinct()
-                .OrderBy(c => c)
-                .ToListAsync();
-        }
-
-        public async Task<List<string>> GetSousCategoriesAsync(string categorie)
-        {
-            return await _context.ChecklistElementModeles
-                .Where(cem => cem.Categorie == categorie && !string.IsNullOrEmpty(cem.SousCategorie))
-                .Select(cem => cem.SousCategorie)
-                .Distinct()
-                .OrderBy(sc => sc)
-                .ToListAsync();
+            if (delaiJours <= 0) return null;
+            return prs.DateCreation.AddDays(delaiJours);
         }
     }
 }

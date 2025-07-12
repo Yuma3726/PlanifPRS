@@ -158,36 +158,89 @@ namespace PlanifPRS.Pages.Prs
                 {
                     try
                     {
-                        var checklistObj = JsonSerializer.Deserialize<ChecklistFormDto>(ChecklistData, new JsonSerializerOptions
+                        _logger.LogInformation($"Traitement des données de checklist: {ChecklistData}");
+
+                        var checklistForm = JsonSerializer.Deserialize<ChecklistFormDto>(ChecklistData, new JsonSerializerOptions
                         {
                             PropertyNameCaseInsensitive = true
                         });
 
-                        if (checklistObj != null && checklistObj.elements.Any())
+                        if (checklistForm != null)
                         {
-                            var elements = checklistObj.elements.Select((e, idx) => new PrsChecklist
-                            {
-                                PRSId = Prs.Id,
-                                Categorie = e.categorie,
-                                SousCategorie = e.sousCategorie,
-                                Libelle = e.libelle,
-                                Tache = e.libelle,
-                                Ordre = e.ordre > 0 ? e.ordre : idx + 1,
-                                Obligatoire = e.obligatoire,
-                                CreatedByLogin = CurrentUserLogin,
-                                DateCreation = DateTime.Now,
-                                ChecklistModeleSourceId = checklistObj.type == "modele" ? checklistObj.sourceId : null,
-                                PrsSourceId = checklistObj.type == "copy" ? checklistObj.sourceId : null
-                            }).ToList();
+                            var userLogin = GetCurrentUserLogin();
 
-                            await _checklistService.CreateCustomChecklistAsync(Prs.Id, elements, CurrentUserLogin);
-                            _logger.LogInformation($"Checklist PRS créée ({elements.Count} items)");
+                            switch (checklistForm.type)
+                            {
+                                case "modele":
+                                    if (checklistForm.sourceId.HasValue)
+                                    {
+                                        var success = await _checklistService.ApplyChecklistModeleAsync(Prs.Id, checklistForm.sourceId.Value, userLogin);
+                                        if (success)
+                                        {
+                                            _logger.LogInformation($"Modèle de checklist {checklistForm.sourceId.Value} appliqué avec succès au PRS {Prs.Id}");
+                                            Flash += " Checklist créée à partir du modèle.";
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning($"Échec de l'application du modèle de checklist {checklistForm.sourceId.Value}");
+                                            ErrorMessage += " Erreur lors de l'application du modèle de checklist.";
+                                        }
+                                    }
+                                    break;
+
+                                case "copy":
+                                    if (checklistForm.sourceId.HasValue)
+                                    {
+                                        var success = await _checklistService.CopyChecklistFromPrsAsync(Prs.Id, checklistForm.sourceId.Value, userLogin);
+                                        if (success)
+                                        {
+                                            _logger.LogInformation($"Checklist copiée du PRS {checklistForm.sourceId.Value} vers le PRS {Prs.Id}");
+                                            Flash += " Checklist copiée à partir d'un autre PRS.";
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning($"Échec de la copie de la checklist du PRS {checklistForm.sourceId.Value}");
+                                            ErrorMessage += " Erreur lors de la copie de la checklist.";
+                                        }
+                                    }
+                                    break;
+
+                                case "custom":
+                                    if (checklistForm.elements?.Any() == true)
+                                    {
+                                        var elements = checklistForm.elements.Select(e => new PrsChecklist
+                                        {
+                                            Categorie = e.categorie,
+                                            SousCategorie = e.sousCategorie,
+                                            Libelle = e.libelle,
+                                            Tache = e.libelle, // Compatibilité
+                                            Priorite = e.priorite > 0 ? e.priorite : 3,
+                                            DelaiDefautJours = e.delaiDefautJours > 0 ? e.delaiDefautJours : 1,
+                                            Obligatoire = e.obligatoire,
+                                            EstCoche = false,
+                                            Statut = null
+                                        }).ToList();
+
+                                        var success = await _checklistService.CreateCustomChecklistAsync(Prs.Id, elements, userLogin);
+                                        if (success)
+                                        {
+                                            _logger.LogInformation($"Checklist personnalisée créée pour le PRS {Prs.Id} avec {elements.Count} éléments");
+                                            Flash += " Checklist personnalisée créée.";
+                                        }
+                                        else
+                                        {
+                                            _logger.LogWarning($"Échec de la création de la checklist personnalisée pour le PRS {Prs.Id}");
+                                            ErrorMessage += " Erreur lors de la création de la checklist personnalisée.";
+                                        }
+                                    }
+                                    break;
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Erreur lors du traitement de la checklist : {ex.Message}");
-                        ErrorMessage += " Erreur lors du traitement de la checklist.";
+                        _logger.LogError($"Erreur lors du traitement des données de checklist: {ex.Message}");
+                        ErrorMessage += " Erreur lors de la création de la checklist.";
                     }
                 }
 
@@ -385,19 +438,15 @@ namespace PlanifPRS.Pages.Prs
         {
             ChargerFamilles();
             ChargerLignes();
-            await ChargerChecklistModelesAsync();
-        }
 
-        private async Task ChargerChecklistModelesAsync()
-        {
+            // Charger les modèles de checklist
             try
             {
-                ChecklistModeles = await _checklistService.GetChecklistModelesAsync(activeOnly: true);
-                _logger.LogInformation($"Chargement de {ChecklistModeles.Count} modèles de checklist");
+                ChecklistModeles = await _checklistService.GetChecklistModelesAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Erreur lors du chargement des modèles de checklist: {ex.Message}");
+                _logger.LogError(ex, "Erreur lors du chargement des modèles de checklist");
                 ChecklistModeles = new List<ChecklistModele>();
             }
         }
@@ -588,7 +637,8 @@ namespace PlanifPRS.Pages.Prs
             public string categorie { get; set; }
             public string sousCategorie { get; set; }
             public string libelle { get; set; }
-            public int ordre { get; set; }
+            public int priorite { get; set; } = 3;
+            public int delaiDefautJours { get; set; } = 1;
             public bool obligatoire { get; set; }
         }
     }

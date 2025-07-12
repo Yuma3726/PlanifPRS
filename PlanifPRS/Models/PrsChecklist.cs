@@ -34,11 +34,18 @@ namespace PlanifPRS.Models
         [MaxLength(255)]
         public string? Libelle { get; set; }
 
-        public int Ordre { get; set; } = 0;
+        [Range(1, 5)]
+        public int Priorite { get; set; } = 3;
 
         public bool Obligatoire { get; set; } = false;
 
         public bool EstCoche { get; set; } = false;
+
+        // Délai en jours depuis le début de la PRS
+        public int DelaiDefautJours { get; set; } = 1;
+
+        // Gestion des dates
+        public DateTime? DateEcheance { get; set; }
 
         public DateTime? DateValidation { get; set; }
 
@@ -75,6 +82,9 @@ namespace PlanifPRS.Models
         public bool EstValide => EstCoche || (Statut.HasValue && Statut.Value);
 
         [NotMapped]
+        public bool EstEnRetard => DateEcheance.HasValue && DateTime.Now > DateEcheance.Value && !EstValide;
+
+        [NotMapped]
         public string StatutAffichage
         {
             get
@@ -82,6 +92,7 @@ namespace PlanifPRS.Models
                 if (EstCoche) return "✅ Validé";
                 if (Statut.HasValue && Statut.Value) return "✅ OK";
                 if (Statut.HasValue && !Statut.Value) return "❌ NOK";
+                if (EstEnRetard) return "⚠️ En retard";
                 return "⏳ En attente";
             }
         }
@@ -93,8 +104,26 @@ namespace PlanifPRS.Models
             {
                 if (EstCoche || (Statut.HasValue && Statut.Value)) return "table-success";
                 if (Statut.HasValue && !Statut.Value) return "table-danger";
+                if (EstEnRetard) return "table-danger";
                 if (Obligatoire) return "table-warning";
                 return "";
+            }
+        }
+
+        [NotMapped]
+        public string PrioriteLibelle
+        {
+            get
+            {
+                return Priorite switch
+                {
+                    1 => "🔴 Critique",
+                    2 => "🟠 Haute",
+                    3 => "🟡 Normale",
+                    4 => "🟢 Basse",
+                    5 => "⚪ Très basse",
+                    _ => "🟡 Normale"
+                };
             }
         }
     }
