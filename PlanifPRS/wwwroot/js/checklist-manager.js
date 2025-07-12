@@ -18,6 +18,8 @@
         };
 
         this.searchTimeout = null;
+        // Compteur unique pour les IDs des éléments
+        this.elementIdCounter = 0;
         this.init();
     }
 
@@ -79,6 +81,7 @@
             sourceId: null,
             elements: []
         };
+        this.elementIdCounter = 0;
 
         switch (selectedType) {
             case 'modele':
@@ -112,7 +115,9 @@
                 throw new Error('Données du modèle invalides');
             }
 
+            // CORRECTION : Assigner des IDs uniques aux éléments chargés
             this.currentChecklist.elements = modele.elements.map(element => ({
+                id: ++this.elementIdCounter, // ID unique
                 categorie: element.categorie,
                 sousCategorie: element.sousCategorie || '',
                 libelle: element.libelle,
@@ -217,8 +222,9 @@
 
             const data = await response.json();
 
-            // Adapter les données pour utiliser priorite et delaiDefautJours
+            // CORRECTION : Assigner des IDs uniques aux éléments chargés
             this.currentChecklist.elements = (data.checklist || []).map(item => ({
+                id: ++this.elementIdCounter, // ID unique
                 categorie: item.categorie || '',
                 sousCategorie: item.sousCategorie || '',
                 libelle: item.libelle || item.tache || '',
@@ -311,26 +317,22 @@
             return;
         }
 
-        // Trier les éléments par priorité puis par délai
-        const sortedElements = [...this.currentChecklist.elements].sort((a, b) => {
-            if (a.priorite !== b.priorite) return a.priorite - b.priorite;
-            return (a.delaiDefautJours || 1) - (b.delaiDefautJours || 1);
-        });
-
-        sortedElements.forEach((element, index) => {
-            const html = this.createChecklistItemHtml(element, index);
+        // CORRECTION : Ne pas trier pour l'affichage, garder l'ordre d'ajout
+        // Les nouveaux éléments apparaîtront en haut
+        this.currentChecklist.elements.forEach((element) => {
+            const html = this.createChecklistItemHtml(element);
             container.append(html);
         });
 
         this.updateItemCount();
     }
 
-    createChecklistItemHtml(element, index) {
+    createChecklistItemHtml(element) {
         const categorieColor = this.getCategorieColor(element.categorie);
         const prioriteInfo = this.getPrioriteInfo(element.priorite);
 
         return `
-            <div class="checklist-item mb-3 p-3 border rounded" data-index="${index}" 
+            <div class="checklist-item mb-3 p-3 border rounded" data-element-id="${element.id}" 
                  style="border-left: 4px solid ${prioriteInfo.color};">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div class="d-flex align-items-center">
@@ -433,6 +435,7 @@
         console.log('Ajout d\'un nouvel élément'); // Debug
 
         const newElement = {
+            id: ++this.elementIdCounter, // CORRECTION : ID unique
             categorie: '',
             sousCategorie: '',
             libelle: '',
@@ -441,25 +444,42 @@
             obligatoire: false
         };
 
-        this.currentChecklist.elements.push(newElement);
+        // CORRECTION : Ajouter en début de tableau pour qu'il apparaisse en haut
+        this.currentChecklist.elements.unshift(newElement);
         this.renderChecklistItems();
         this.updateChecklistData();
 
         console.log('Élément ajouté, total:', this.currentChecklist.elements.length); // Debug
+
+        // Faire défiler vers le haut et mettre le focus sur le premier champ
+        $(this.options.itemsContainer).scrollTop(0);
+        setTimeout(() => {
+            $(this.options.itemsContainer).find('.checklist-item:first-child input[name="libelle"]').focus();
+        }, 100);
     }
 
     removeChecklistItem(e) {
-        const index = $(e.target).closest('.checklist-item').data('index');
-        console.log('Suppression de l\'élément à l\'index:', index); // Debug
+        // CORRECTION : Utiliser l'ID de l'élément au lieu de l'index
+        const elementId = parseInt($(e.target).closest('.checklist-item').data('element-id'));
+        console.log('Suppression de l\'élément avec ID:', elementId); // Debug
 
-        this.currentChecklist.elements.splice(index, 1);
-        this.renderChecklistItems();
-        this.updateChecklistData();
+        // Trouver l'index réel dans le tableau
+        const elementIndex = this.currentChecklist.elements.findIndex(el => el.id === elementId);
+
+        if (elementIndex !== -1) {
+            this.currentChecklist.elements.splice(elementIndex, 1);
+            this.renderChecklistItems();
+            this.updateChecklistData();
+            console.log('Élément supprimé, total restant:', this.currentChecklist.elements.length);
+        } else {
+            console.error('Élément non trouvé pour suppression, ID:', elementId);
+        }
     }
 
     updateElementData(e) {
+        // CORRECTION : Utiliser l'ID de l'élément au lieu de l'index
         const $item = $(e.target).closest('.checklist-item');
-        const index = $item.data('index');
+        const elementId = parseInt($item.data('element-id'));
         const field = $(e.target).attr('name');
         let value = $(e.target).val();
 
@@ -469,14 +489,30 @@
             value = parseInt(value) || (field === 'priorite' ? 3 : 1);
         }
 
-        if (this.currentChecklist.elements[index]) {
-            this.currentChecklist.elements[index][field] = value;
+        // Trouver l'élément par son ID
+        const element = this.currentChecklist.elements.find(el => el.id === elementId);
+        if (element) {
+            element[field] = value;
             this.updateChecklistData();
             this.updateItemCount();
 
-            // Re-rendre si la priorité a changé (pour le tri)
+            // Mettre à jour l'affichage de la priorité sans re-rendre tout
             if (field === 'priorite') {
-                this.renderChecklistItems();
+                const prioriteInfo = this.getPrioriteInfo(value);
+                $item.find('.badge').first()
+                    .css('background-color', prioriteInfo.color)
+                    .text(prioriteInfo.label);
+                $item.css('border-left-color', prioriteInfo.color);
+            }
+
+            // Mettre à jour l'affichage du délai
+            if (field === 'delaiDefautJours') {
+                $item.find('.text-muted').text(`Délai: ${value} jour(s)`);
+            }
+
+            // Mettre à jour le label du switch obligatoire
+            if (field === 'obligatoire') {
+                $item.find('.form-check-label').text(value ? 'Oui' : 'Non');
             }
         }
     }
@@ -491,7 +527,11 @@
         const checklistData = {
             type: this.currentChecklist.type,
             sourceId: this.currentChecklist.sourceId,
-            elements: this.currentChecklist.elements
+            // CORRECTION : Nettoyer les IDs avant de sauvegarder (ils ne sont utiles que pour l'interface)
+            elements: this.currentChecklist.elements.map(el => {
+                const { id, ...elementWithoutId } = el;
+                return elementWithoutId;
+            })
         };
 
         // Créer ou mettre à jour un champ caché pour les données de checklist
@@ -530,7 +570,14 @@
 
     // Méthode pour obtenir les données de checklist (utilisée lors de la soumission du formulaire)
     getChecklistData() {
-        return this.currentChecklist;
+        return {
+            type: this.currentChecklist.type,
+            sourceId: this.currentChecklist.sourceId,
+            elements: this.currentChecklist.elements.map(el => {
+                const { id, ...elementWithoutId } = el;
+                return elementWithoutId;
+            })
+        };
     }
 
     // Méthode pour valider la checklist avant soumission
