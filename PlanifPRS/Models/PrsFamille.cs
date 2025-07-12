@@ -8,11 +8,9 @@ namespace PlanifPRS.Models
         public int Id { get; set; }
 
         [Required, MaxLength(100)]
-        public string Libelle { get; set; }
+        public string Libelle { get; set; } = string.Empty;
 
         [MaxLength(7)]
-        public string CouleurHex { get; set; } // exemple : #FF0000
+        public string? CouleurHex { get; set; } // exemple : #FF0000
     }
-
-
 }

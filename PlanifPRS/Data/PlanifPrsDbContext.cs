@@ -73,20 +73,30 @@ namespace PlanifPRS.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configuration PRS_Checklist
+            // Configuration PRS_Checklist - MISE À JOUR avec nouvelles propriétés
             modelBuilder.Entity<PrsChecklist>(entity =>
             {
                 entity.ToTable("PRS_Checklist");
                 entity.HasKey(e => e.Id);
 
+                // Colonnes existantes
                 entity.Property(e => e.Tache).HasMaxLength(200);
                 entity.Property(e => e.Commentaire).HasMaxLength(500);
-                entity.Property(e => e.Categorie).HasMaxLength(100);
-                entity.Property(e => e.SousCategorie).HasMaxLength(100);
-                entity.Property(e => e.Libelle).HasMaxLength(255);
                 entity.Property(e => e.ValidePar).HasMaxLength(100);
                 entity.Property(e => e.CreatedByLogin).HasMaxLength(100);
 
+                // Nouvelles colonnes pour les priorités et échéances
+                entity.Property(e => e.Categorie).HasMaxLength(100);
+                entity.Property(e => e.SousCategorie).HasMaxLength(100);
+                entity.Property(e => e.Libelle).HasMaxLength(255);
+                entity.Property(e => e.Priorite).IsRequired().HasDefaultValue(3);
+                entity.Property(e => e.Obligatoire).IsRequired().HasDefaultValue(false);
+                entity.Property(e => e.EstCoche).IsRequired().HasDefaultValue(false);
+                entity.Property(e => e.DateEcheance).HasColumnType("datetime2");
+                entity.Property(e => e.DateValidation).HasColumnType("datetime2");
+                entity.Property(e => e.DateCreation).IsRequired().HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+
+                // Relations
                 entity.HasOne(c => c.Prs)
                       .WithMany(p => p.Checklist)
                       .HasForeignKey(c => c.PRSId)
@@ -109,6 +119,20 @@ namespace PlanifPRS.Data
                       .HasForeignKey(c => c.PrsSourceId)
                       .OnDelete(DeleteBehavior.NoAction)
                       .IsRequired(false);
+
+                // Index pour optimisation des nouvelles fonctionnalités
+                entity.HasIndex(e => new { e.PRSId, e.Priorite })
+                      .HasDatabaseName("IX_PRS_Checklist_PRSId_Priorite");
+
+                entity.HasIndex(e => e.DateEcheance)
+                      .HasDatabaseName("IX_PRS_Checklist_DateEcheance")
+                      .HasFilter("DateEcheance IS NOT NULL");
+
+                entity.HasIndex(e => new { e.Priorite, e.EstCoche })
+                      .HasDatabaseName("IX_PRS_Checklist_Priorite_EstCoche");
+
+                entity.HasIndex(e => new { e.PRSId, e.EstCoche, e.Obligatoire })
+                      .HasDatabaseName("IX_PRS_Checklist_PRSId_EstCoche_Obligatoire");
             });
 
             // Configuration ChecklistModele
@@ -120,6 +144,12 @@ namespace PlanifPRS.Data
                 entity.Property(e => e.Description).HasMaxLength(500);
                 entity.Property(e => e.FamilleEquipement).HasMaxLength(100);
                 entity.Property(e => e.CreatedByLogin).HasMaxLength(100);
+                entity.Property(e => e.DateCreation).IsRequired().HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+                entity.Property(e => e.Actif).IsRequired().HasDefaultValue(true);
+
+                // Index pour optimisation
+                entity.HasIndex(e => e.FamilleEquipement)
+                      .HasDatabaseName("IX_ChecklistModeles_FamilleEquipement");
             });
 
             // Configuration ChecklistElementModele
@@ -130,11 +160,17 @@ namespace PlanifPRS.Data
                 entity.Property(e => e.Categorie).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.SousCategorie).HasMaxLength(100);
                 entity.Property(e => e.Libelle).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.Priorite).IsRequired().HasDefaultValue(3);
+                entity.Property(e => e.Obligatoire).IsRequired().HasDefaultValue(false);
 
                 entity.HasOne(e => e.ChecklistModele)
                       .WithMany(m => m.Elements)
                       .HasForeignKey(e => e.ChecklistModeleId)
                       .OnDelete(DeleteBehavior.Cascade);
+
+                // Index pour optimisation
+                entity.HasIndex(e => new { e.ChecklistModeleId, e.Priorite })
+                      .HasDatabaseName("IX_ChecklistElementModeles_ChecklistModeleId_Priorite");
             });
 
             // Relation PRS → PrsFamille
@@ -229,6 +265,44 @@ namespace PlanifPRS.Data
                       .HasForeignKey(ju => ju.UtilisateurId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+        }
+
+        public override int SaveChanges()
+        {
+            UpdateTimestamps();
+            return base.SaveChanges();
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            UpdateTimestamps();
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+
+        private void UpdateTimestamps()
+        {
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+
+            foreach (var entry in entries)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    if (entry.Entity is PrsChecklist checklistItem && checklistItem.DateCreation == default)
+                    {
+                        checklistItem.DateCreation = DateTime.Now;
+                    }
+                    if (entry.Entity is ChecklistModele modele && modele.DateCreation == default)
+                    {
+                        modele.DateCreation = DateTime.Now;
+                    }
+                }
+
+                if (entry.Entity is Prs prs)
+                {
+                    prs.DerniereModification = DateTime.Now;
+                }
+            }
         }
     }
 }
