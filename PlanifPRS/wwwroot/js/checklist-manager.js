@@ -153,18 +153,27 @@
     }
 
     handleTypeChange(selectedType) {
-        console.log('Type sélectionné:', selectedType);
+        console.log('=== DEBUT handleTypeChange ===');
+        console.log('selectedType:', selectedType);
+        console.log('currentChecklist avant:', JSON.stringify(this.currentChecklist));
 
+        // Cacher tous les sélecteurs
         $('#modeleSelector, #prsSelector').hide();
         $(this.options.searchResults).hide();
         $(this.options.containerSelector).hide();
 
-        this.currentChecklist = {
-            type: selectedType,
-            sourceId: null,
-            elements: []
-        };
-        this.elementIdCounter = 0;
+        // Réinitialiser SEULEMENT si le type change vraiment
+        if (this.currentChecklist.type !== selectedType) {
+            this.currentChecklist = {
+                type: selectedType,
+                sourceId: null,
+                elements: []
+            };
+            console.log('Type changé - réinitialisation complète');
+        } else {
+            this.currentChecklist.type = selectedType;
+            console.log('Même type - pas de réinitialisation');
+        }
 
         switch (selectedType) {
             case 'modele':
@@ -176,23 +185,33 @@
             case 'custom':
                 this.showChecklistEditor();
                 break;
-            case '':
-            default:
-                break;
         }
 
+        console.log('currentChecklist après handleTypeChange:', JSON.stringify(this.currentChecklist));
         this.updateChecklistData();
+        console.log('=== FIN handleTypeChange ===');
     }
 
     async loadChecklistModele(modeleId) {
         try {
+            console.log('=== DEBUT loadChecklistModele ===');
+            console.log('modeleId reçu:', modeleId);
+            console.log('currentChecklist avant:', JSON.stringify(this.currentChecklist));
+
             this.showLoading('Chargement du modèle...');
+
             const response = await fetch(`/api/checklists/modeles/${modeleId}`);
+
+            // ✅ Vérifiez le contenu de la réponse AVANT de parser le JSON
+            const responseText = await response.text();
+            console.log('Réponse brute:', responseText);
+
             if (!response.ok) {
-                throw new Error(`Erreur HTTP: ${response.status}`);
+                throw new Error(`Erreur HTTP: ${response.status} - ${responseText}`);
             }
 
-            const modele = await response.json();
+            // ✅ Maintenant, parsez le JSON
+            const modele = JSON.parse(responseText);
             console.log('Modèle chargé:', modele);
 
             if (!modele || !modele.elements) {
@@ -200,22 +219,28 @@
             }
 
             this.currentChecklist.elements = modele.elements.map(element => ({
-                id: ++this.elementIdCounter,
                 categorie: element.categorie,
                 sousCategorie: element.sousCategorie || '',
                 libelle: element.libelle,
                 priorite: element.priorite || 3,
-                delaiDefautJours: element.delaiDefautJours || 1,
-                obligatoire: element.obligatoire
+                obligatoire: element.obligatoire,
+                delaiDefautJours: element.delaiDefautJours
             }));
 
-            this.currentChecklist.sourceId = modeleId;
+            this.currentChecklist.sourceId = parseInt(modeleId);
+
+            console.log('currentChecklist après assignation sourceId:', JSON.stringify(this.currentChecklist));
+
+            this.updateChecklistData();
+            console.log('ChecklistData après updateChecklistData:', $('#checklistData').val());
 
             this.hideLoading();
             this.showChecklistEditor();
             this.renderChecklistItems();
 
             this.showNotification('Modèle de checklist appliqué avec succès', 'success');
+
+            console.log('=== FIN loadChecklistModele ===');
 
         } catch (error) {
             console.error('Erreur lors du chargement du modèle:', error);
