@@ -231,16 +231,27 @@ namespace PlanifPRS.Controllers
                         id = p.Id,
                         titre = p.Titre,
                         equipement = p.Equipement ?? "N/A",
-                        dateCreation = p.DateCreation.ToString("dd/MM/yyyy"),
+                        dateCreation = p.DateCreation, // Garder DateTime pour le tri
                         nombreElements = p.Checklist.Count(),
                         pourcentageCompletion = p.Checklist.Any()
                             ? (int)Math.Round((double)p.Checklist.Count(pc => pc.EstCoche) / p.Checklist.Count() * 100)
                             : 0
                     })
-                    .OrderByDescending(p => p.dateCreation)
+                    .OrderByDescending(p => p.dateCreation) // Trier par DateTime directement
                     .ToListAsync();
 
-                return Ok(prsWithChecklist);
+                // Formater les dates côté client après récupération
+                var result = prsWithChecklist.Select(p => new
+                {
+                    p.id,
+                    p.titre,
+                    p.equipement,
+                    dateCreation = p.dateCreation.ToString("dd/MM/yyyy"), // Formater ici
+                    p.nombreElements,
+                    p.pourcentageCompletion
+                }).ToList();
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
