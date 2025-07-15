@@ -8,6 +8,7 @@
             typeSelector: options.typeSelector || '#checklistTypeSelector',
             modeleSelector: options.modeleSelector || '#checklistModele',
             searchInput: options.searchInput || '#searchPrsInput',
+            formSelector: options.formSelector || '#create-form', // CORRECTION : Sélecteur spécifique du formulaire
             ...options
         };
 
@@ -18,23 +19,111 @@
         };
 
         this.searchTimeout = null;
-        // Compteur unique pour les IDs des éléments
         this.elementIdCounter = 0;
         this.init();
     }
 
     init() {
         this.bindEvents();
+        this.initializeChecklistData();
         this.updateChecklistData();
+        this.setupFormValidation();
+    }
+
+    // CORRECTION : Initialiser le champ ChecklistData avec le bon formulaire
+    initializeChecklistData() {
+        console.log('Initialisation du champ ChecklistData...');
+
+        // CORRECTION : Cibler spécifiquement le formulaire principal
+        const $form = $(this.options.formSelector);
+        if ($form.length === 0) {
+            console.error('Formulaire principal non trouvé avec le sélecteur:', this.options.formSelector);
+            return;
+        }
+
+        let $hiddenField = $('#checklistData');
+        if ($hiddenField.length === 0) {
+            // CORRECTION : Ajouter le champ directement dans le formulaire spécifique
+            $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
+            $form.append($hiddenField);
+            console.log('Champ ChecklistData créé dans le formulaire:', $form[0]);
+        }
+
+        const defaultData = {
+            type: '',
+            sourceId: null,
+            elements: []
+        };
+
+        $hiddenField.val(JSON.stringify(defaultData));
+        console.log('ChecklistData initialisé avec:', defaultData);
+
+        // CORRECTION : Vérifier que le champ est bien dans le formulaire
+        console.log('Champ dans le formulaire:', $hiddenField.closest('form')[0] === $form[0]);
+    }
+
+    setupFormValidation() {
+        // CORRECTION : Cibler spécifiquement le formulaire principal
+        $(this.options.formSelector).on('submit', (e) => {
+            console.log('Soumission du formulaire détectée');
+
+            if (!this.validateBeforeSubmit()) {
+                e.preventDefault();
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    validateBeforeSubmit() {
+        console.log('Validation avant soumission...');
+
+        const $form = $(this.options.formSelector);
+        let $hiddenField = $('#checklistData');
+
+        // CORRECTION : S'assurer que le champ est dans le bon formulaire
+        if ($hiddenField.length === 0 || $hiddenField.closest('form')[0] !== $form[0]) {
+            console.log('Champ ChecklistData manquant ou mal placé, recréation...');
+
+            // Supprimer l'ancien champ s'il existe
+            $hiddenField.remove();
+
+            // Recréer le champ dans le bon formulaire
+            $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
+            $form.append($hiddenField);
+
+            this.updateChecklistData();
+            console.log('Champ ChecklistData recréé dans le formulaire');
+        }
+
+        const checklistData = $hiddenField.val();
+        console.log('Données checklist avant soumission:', checklistData);
+        console.log('Champ dans le formulaire:', $hiddenField.closest('form')[0] === $form[0]);
+
+        try {
+            const parsed = JSON.parse(checklistData);
+            console.log('JSON valide:', parsed);
+
+            const validation = this.validateChecklist();
+            if (!validation.isValid) {
+                this.showNotification(validation.message, 'danger');
+                return false;
+            }
+
+            return true;
+        } catch (e) {
+            console.error('JSON invalide dans ChecklistData:', e);
+            this.updateChecklistData();
+            return true;
+        }
     }
 
     bindEvents() {
-        // Gestionnaire pour le changement de type
         $(this.options.typeSelector).on('change', (e) => {
             this.handleTypeChange(e.target.value);
         });
 
-        // Gestionnaire pour la sélection de modèle
         $(this.options.modeleSelector).on('change', (e) => {
             const modeleId = e.target.value;
             if (modeleId) {
@@ -42,7 +131,6 @@
             }
         });
 
-        // Gestionnaire pour la recherche PRS
         $(this.options.searchInput).on('input', (e) => {
             clearTimeout(this.searchTimeout);
             this.searchTimeout = setTimeout(() => {
@@ -50,14 +138,11 @@
             }, 300);
         });
 
-        // CORRECTION : Utiliser la délégation d'événements pour le bouton d'ajout
-        // car il est créé dynamiquement
         $(document).on('click', '#addChecklistItem', () => {
-            console.log('Bouton ajouter cliqué'); // Debug
+            console.log('Bouton ajouter cliqué');
             this.addNewChecklistItem();
         });
 
-        // Déléguer les événements pour les éléments dynamiques
         $(document).on('change', '.checklist-item input, .checklist-item select', (e) => {
             this.updateElementData(e);
         });
@@ -68,14 +153,12 @@
     }
 
     handleTypeChange(selectedType) {
-        console.log('Type sélectionné:', selectedType); // Debug
+        console.log('Type sélectionné:', selectedType);
 
-        // Cacher tous les sélecteurs
         $('#modeleSelector, #prsSelector').hide();
         $(this.options.searchResults).hide();
         $(this.options.containerSelector).hide();
 
-        // Réinitialiser
         this.currentChecklist = {
             type: selectedType,
             sourceId: null,
@@ -93,6 +176,9 @@
             case 'custom':
                 this.showChecklistEditor();
                 break;
+            case '':
+            default:
+                break;
         }
 
         this.updateChecklistData();
@@ -101,7 +187,6 @@
     async loadChecklistModele(modeleId) {
         try {
             this.showLoading('Chargement du modèle...');
-
             const response = await fetch(`/api/checklists/modeles/${modeleId}`);
             if (!response.ok) {
                 throw new Error(`Erreur HTTP: ${response.status}`);
@@ -110,14 +195,12 @@
             const modele = await response.json();
             console.log('Modèle chargé:', modele);
 
-            // Vérifier que les données sont correctes
             if (!modele || !modele.elements) {
                 throw new Error('Données du modèle invalides');
             }
 
-            // CORRECTION : Assigner des IDs uniques aux éléments chargés
             this.currentChecklist.elements = modele.elements.map(element => ({
-                id: ++this.elementIdCounter, // ID unique
+                id: ++this.elementIdCounter,
                 categorie: element.categorie,
                 sousCategorie: element.sousCategorie || '',
                 libelle: element.libelle,
@@ -128,10 +211,7 @@
 
             this.currentChecklist.sourceId = modeleId;
 
-            // S'assurer que le loading est caché avant d'afficher l'éditeur
             this.hideLoading();
-
-            // Afficher l'éditeur avec les données
             this.showChecklistEditor();
             this.renderChecklistItems();
 
@@ -194,7 +274,6 @@
 
             $(this.options.searchResults).html(html);
 
-            // Gestionnaire pour la sélection d'une PRS
             $(this.options.searchResults).find('.list-group-item').on('click', (e) => {
                 const prsId = $(e.currentTarget).data('prs-id');
                 this.loadChecklistFromPrs(prsId);
@@ -222,9 +301,8 @@
 
             const data = await response.json();
 
-            // CORRECTION : Assigner des IDs uniques aux éléments chargés
             this.currentChecklist.elements = (data.checklist || []).map(item => ({
-                id: ++this.elementIdCounter, // ID unique
+                id: ++this.elementIdCounter,
                 categorie: item.categorie || '',
                 sousCategorie: item.sousCategorie || '',
                 libelle: item.libelle || item.tache || '',
@@ -250,15 +328,11 @@
     }
 
     showChecklistEditor() {
-        console.log('Affichage de l\'éditeur de checklist'); // Debug
-
-        // Restaurer le contenu de l'éditeur si nécessaire
+        console.log('Affichage de l\'éditeur de checklist');
         this.ensureEditorContent();
-
         $(this.options.containerSelector).show();
         this.updateItemCount();
 
-        // Si aucun élément, en ajouter un par défaut pour les checklists personnalisées
         if (this.currentChecklist.type === 'custom' && this.currentChecklist.elements.length === 0) {
             this.addNewChecklistItem();
         }
@@ -266,15 +340,12 @@
 
     ensureEditorContent() {
         const container = $(this.options.containerSelector);
-
-        // Vérifier si le contenu de l'éditeur existe
         if (container.find('#checklistItems').length === 0) {
-            this.hideLoading(); // Ceci va restaurer le contenu
+            this.hideLoading();
         }
     }
 
     showLoading(message = 'Chargement...') {
-        // Afficher le loading dans le conteneur principal
         $(this.options.containerSelector).html(`
             <div class="text-center py-5">
                 <div class="spinner-border text-primary mb-3" role="status">
@@ -286,7 +357,6 @@
     }
 
     hideLoading() {
-        // Cette méthode va restaurer le contenu original de l'éditeur
         const originalContent = `
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0"><i class="fas fa-edit me-1"></i>Éléments de la checklist (<span id="checklistItemCount" class="badge-checklist">0</span> éléments)</h6>
@@ -299,8 +369,7 @@
             </div>
         `;
         $(this.options.containerSelector).html(originalContent);
-
-        console.log('Contenu de l\'éditeur restauré, bouton ajouté'); // Debug
+        console.log('Contenu de l\'éditeur restauré, bouton ajouté');
     }
 
     renderChecklistItems() {
@@ -317,8 +386,6 @@
             return;
         }
 
-        // CORRECTION : Ne pas trier pour l'affichage, garder l'ordre d'ajout
-        // Les nouveaux éléments apparaîtront en haut
         this.currentChecklist.elements.forEach((element) => {
             const html = this.createChecklistItemHtml(element);
             container.append(html);
@@ -432,10 +499,10 @@
     }
 
     addNewChecklistItem() {
-        console.log('Ajout d\'un nouvel élément'); // Debug
+        console.log('Ajout d\'un nouvel élément');
 
         const newElement = {
-            id: ++this.elementIdCounter, // CORRECTION : ID unique
+            id: ++this.elementIdCounter,
             categorie: '',
             sousCategorie: '',
             libelle: '',
@@ -444,14 +511,12 @@
             obligatoire: false
         };
 
-        // CORRECTION : Ajouter en début de tableau pour qu'il apparaisse en haut
         this.currentChecklist.elements.unshift(newElement);
         this.renderChecklistItems();
         this.updateChecklistData();
 
-        console.log('Élément ajouté, total:', this.currentChecklist.elements.length); // Debug
+        console.log('Élément ajouté, total:', this.currentChecklist.elements.length);
 
-        // Faire défiler vers le haut et mettre le focus sur le premier champ
         $(this.options.itemsContainer).scrollTop(0);
         setTimeout(() => {
             $(this.options.itemsContainer).find('.checklist-item:first-child input[name="libelle"]').focus();
@@ -459,11 +524,9 @@
     }
 
     removeChecklistItem(e) {
-        // CORRECTION : Utiliser l'ID de l'élément au lieu de l'index
         const elementId = parseInt($(e.target).closest('.checklist-item').data('element-id'));
-        console.log('Suppression de l\'élément avec ID:', elementId); // Debug
+        console.log('Suppression de l\'élément avec ID:', elementId);
 
-        // Trouver l'index réel dans le tableau
         const elementIndex = this.currentChecklist.elements.findIndex(el => el.id === elementId);
 
         if (elementIndex !== -1) {
@@ -477,7 +540,6 @@
     }
 
     updateElementData(e) {
-        // CORRECTION : Utiliser l'ID de l'élément au lieu de l'index
         const $item = $(e.target).closest('.checklist-item');
         const elementId = parseInt($item.data('element-id'));
         const field = $(e.target).attr('name');
@@ -489,14 +551,12 @@
             value = parseInt(value) || (field === 'priorite' ? 3 : 1);
         }
 
-        // Trouver l'élément par son ID
         const element = this.currentChecklist.elements.find(el => el.id === elementId);
         if (element) {
             element[field] = value;
             this.updateChecklistData();
             this.updateItemCount();
 
-            // Mettre à jour l'affichage de la priorité sans re-rendre tout
             if (field === 'priorite') {
                 const prioriteInfo = this.getPrioriteInfo(value);
                 $item.find('.badge').first()
@@ -505,12 +565,10 @@
                 $item.css('border-left-color', prioriteInfo.color);
             }
 
-            // Mettre à jour l'affichage du délai
             if (field === 'delaiDefautJours') {
                 $item.find('.text-muted').text(`Délai: ${value} jour(s)`);
             }
 
-            // Mettre à jour le label du switch obligatoire
             if (field === 'obligatoire') {
                 $item.find('.form-check-label').text(value ? 'Oui' : 'Non');
             }
@@ -522,27 +580,44 @@
         $('#checklistItemCount').text(count);
     }
 
+    // CORRECTION : Mise à jour des données avec vérification du formulaire
     updateChecklistData() {
-        // Mettre à jour les données dans le formulaire principal
         const checklistData = {
             type: this.currentChecklist.type,
             sourceId: this.currentChecklist.sourceId,
-            // CORRECTION : Nettoyer les IDs avant de sauvegarder (ils ne sont utiles que pour l'interface)
             elements: this.currentChecklist.elements.map(el => {
                 const { id, ...elementWithoutId } = el;
                 return elementWithoutId;
             })
         };
 
-        // Créer ou mettre à jour un champ caché pour les données de checklist
+        // CORRECTION : Cibler spécifiquement le formulaire principal
+        const $form = $(this.options.formSelector);
         let $hiddenField = $('#checklistData');
-        if ($hiddenField.length === 0) {
-            $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
-            $('form').append($hiddenField);
-        }
-        $hiddenField.val(JSON.stringify(checklistData));
 
-        console.log('Données checklist mises à jour:', checklistData); // Debug
+        if ($hiddenField.length === 0 || $hiddenField.closest('form')[0] !== $form[0]) {
+            // Supprimer l'ancien champ s'il existe
+            $hiddenField.remove();
+
+            // Créer le nouveau champ dans le bon formulaire
+            $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
+            $form.append($hiddenField);
+            console.log('Champ ChecklistData créé/recréé dans updateChecklistData');
+        }
+
+        const jsonData = JSON.stringify(checklistData);
+        $hiddenField.val(jsonData);
+
+        // Debug amélioré
+        console.log('=== DEBUG CHECKLIST ===');
+        console.log('Données checklist:', checklistData);
+        console.log('JSON généré:', jsonData);
+        console.log('Champ DOM:', $hiddenField[0]);
+        console.log('Valeur dans le champ:', $hiddenField.val());
+        console.log('Formulaire parent:', $hiddenField.closest('form')[0]);
+        console.log('Formulaire cible:', $form[0]);
+        console.log('Champ dans le bon formulaire:', $hiddenField.closest('form')[0] === $form[0]);
+        console.log('========================');
     }
 
     showNotification(message, type = 'info') {
@@ -562,13 +637,11 @@
 
         $('body').append(notification);
 
-        // Auto-remove after 5 seconds
         setTimeout(() => {
             notification.alert('close');
         }, 5000);
     }
 
-    // Méthode pour obtenir les données de checklist (utilisée lors de la soumission du formulaire)
     getChecklistData() {
         return {
             type: this.currentChecklist.type,
@@ -580,17 +653,15 @@
         };
     }
 
-    // Méthode pour valider la checklist avant soumission
     validateChecklist() {
         if (this.currentChecklist.type === '' || this.currentChecklist.type === null) {
-            return { isValid: true, message: '' }; // Pas de checklist sélectionnée, c'est OK
+            return { isValid: true, message: '' };
         }
 
         if (this.currentChecklist.elements.length === 0) {
             return { isValid: false, message: 'La checklist ne peut pas être vide.' };
         }
 
-        // Vérifier que tous les éléments ont un libellé
         const invalidElements = this.currentChecklist.elements.filter(el => !el.libelle.trim());
         if (invalidElements.length > 0) {
             return { isValid: false, message: 'Tous les éléments de la checklist doivent avoir un libellé.' };
@@ -600,8 +671,24 @@
     }
 }
 
-// Initialisation automatique quand le DOM est prêt
+// CORRECTION : Initialisation avec le bon sélecteur de formulaire
 $(document).ready(() => {
-    console.log('Initialisation du ChecklistManager'); // Debug
-    window.checklistManager = new ChecklistManager();
+    console.log('Initialisation du ChecklistManager');
+
+    // Attendre un peu que le DOM soit complètement chargé
+    setTimeout(() => {
+        window.checklistManager = new ChecklistManager({
+            formSelector: '#create-form' // CORRECTION : Sélecteur spécifique du formulaire
+        });
+
+        // Debug post-initialisation
+        setTimeout(() => {
+            console.log('Vérification post-initialisation:');
+            console.log('- Instance manager:', window.checklistManager);
+            console.log('- Formulaire principal:', $('#create-form')[0]);
+            console.log('- Champ ChecklistData:', $('#checklistData').length > 0 ? 'Présent' : 'Absent');
+            console.log('- Champ dans le formulaire:', $('#checklistData').closest('#create-form').length > 0 ? 'OUI' : 'NON');
+            console.log('- Valeur initiale:', $('#checklistData').val());
+        }, 500);
+    }, 100);
 });
