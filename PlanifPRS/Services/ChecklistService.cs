@@ -10,7 +10,7 @@ namespace PlanifPRS.Services
         private readonly PlanifPrsDbContext _context;
         private readonly ILogger<ChecklistService> _logger;
 
-        public ChecklistService(PlanifPrsDbContext context, ILogger<ChecklistService> logger) // Modifier le constructeur
+        public ChecklistService(PlanifPrsDbContext context, ILogger<ChecklistService> logger)
         {
             _context = context;
             _logger = logger;
@@ -133,7 +133,7 @@ namespace PlanifPRS.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erreur lors de l'application du modèle de checklist: {ex.Message}");
+                _logger.LogError($"Erreur lors de l'application du modèle de checklist: {ex.Message}");
                 return false;
             }
         }
@@ -152,9 +152,10 @@ namespace PlanifPRS.Services
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
-                // Récupérer les infos du PRS cible
+                // Récupérer les infos du PRS cible et source
                 var targetPrs = await _context.Prs.FindAsync(targetPrsId);
-                if (targetPrs == null) return false;
+                var sourcePrs = await _context.Prs.FindAsync(sourcePrsId);
+                if (targetPrs == null || sourcePrs == null) return false;
 
                 // Copier les éléments
                 foreach (var sourceItem in sourceChecklist)
@@ -171,7 +172,7 @@ namespace PlanifPRS.Services
                         Obligatoire = sourceItem.Obligatoire,
                         EstCoche = false,
                         Statut = null,
-                        DateEcheance = CalculerDateEcheanceFromDelai(targetPrs, sourceItem.DelaiDefautJours),
+                        DateEcheance = RecalculerDateEcheance(sourcePrs, targetPrs, sourceItem.DateEcheance),
                         PrsSourceId = sourcePrsId,
                         CreatedByLogin = userLogin,
                         DateCreation = DateTime.Now
@@ -183,8 +184,9 @@ namespace PlanifPRS.Services
                 await _context.SaveChangesAsync();
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError($"Erreur lors de la copie de checklist: {ex.Message}");
                 return false;
             }
         }
@@ -204,6 +206,14 @@ namespace PlanifPRS.Services
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
+                // Récupérer la PRS pour le calcul des dates
+                var prs = await _context.Prs.FindAsync(prsId);
+                if (prs == null)
+                {
+                    _logger.LogError($"[CreateCustomChecklist] PRS {prsId} non trouvée");
+                    return false;
+                }
+
                 // Ajouter les nouveaux éléments
                 foreach (var element in elements)
                 {
@@ -211,7 +221,21 @@ namespace PlanifPRS.Services
                     element.CreatedByLogin = userLogin;
                     element.DateCreation = DateTime.Now;
 
-                    _logger.LogInformation($"[CreateCustomChecklist] Ajout élément: {element.Libelle}, Catégorie: {element.Categorie}");
+                    // CORRECTION : Calculer la DateEcheance si un délai est défini (X jours AVANT la PRS)
+                    if (element.DelaiDefautJours > 0)
+                    {
+                        DateTime dateDebut = prs.DateDebut != default(DateTime) ? prs.DateDebut : prs.DateCreation;
+                        element.DateEcheance = dateDebut.AddDays(-element.DelaiDefautJours); // SOUSTRACTION
+
+                        _logger.LogInformation($"[CreateCustomChecklist] DateEcheance calculée pour {element.Libelle}: {element.DateEcheance} ({element.DelaiDefautJours} jours avant {dateDebut:yyyy-MM-dd})");
+                    }
+                    else
+                    {
+                        element.DateEcheance = null;
+                        _logger.LogInformation($"[CreateCustomChecklist] Pas de délai défini pour {element.Libelle}");
+                    }
+
+                    _logger.LogInformation($"[CreateCustomChecklist] Ajout élément: {element.Libelle}, Catégorie: {element.Categorie}, DelaiDefautJours: {element.DelaiDefautJours}");
                     _context.PrsChecklists.Add(element);
                 }
 
@@ -230,13 +254,25 @@ namespace PlanifPRS.Services
         private DateTime? CalculerDateEcheance(Prs prs, ChecklistElementModele element)
         {
             if (element.DelaiDefautJours <= 0) return null;
-            return prs.DateCreation.AddDays(element.DelaiDefautJours);
+
+            DateTime dateDebut;
+            if (prs.DateDebut != default(DateTime))
+                dateDebut = prs.DateDebut;
+            else
+                dateDebut = prs.DateCreation;
+
+            return dateDebut.AddDays(-element.DelaiDefautJours); // SOUSTRACTION - X jours AVANT la PRS
         }
 
-        private DateTime? CalculerDateEcheanceFromDelai(Prs prs, int delaiJours)
+        private DateTime? RecalculerDateEcheance(Prs sourcePrs, Prs targetPrs, DateTime? sourceEcheance)
         {
-            if (delaiJours <= 0) return null;
-            return prs.DateCreation.AddDays(delaiJours);
+            if (!sourceEcheance.HasValue) return null;
+
+            DateTime sourceDebut = sourcePrs.DateDebut != default(DateTime) ? sourcePrs.DateDebut : sourcePrs.DateCreation;
+            DateTime targetDebut = targetPrs.DateDebut != default(DateTime) ? targetPrs.DateDebut : targetPrs.DateCreation;
+
+            var ecartJours = (sourceDebut - sourceEcheance.Value).Days; // CORRECTION : source MOINS échéance
+            return targetDebut.AddDays(-ecartJours); // SOUSTRACTION pour maintenir le même écart
         }
     }
 }
