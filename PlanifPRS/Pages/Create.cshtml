@@ -149,6 +149,45 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
+        .checklist-item {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+        }
+
+        .checklist-affectation {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .affectation-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 4px;
+            font-size: 0.875em;
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+        }
+
+            .affectation-tag.groupe {
+                background: #e8f5e8;
+                color: #2e7d32;
+                border-color: #c8e6c9;
+            }
+
+        .remove-affectation-tag {
+            margin-left: 5px;
+            cursor: pointer;
+            color: #d32f2f;
+        }
+
         .file-icon {
             margin-right: 10px;
             font-size: 1.2rem;
@@ -755,6 +794,82 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Section Affectations -->
+<div class="form-section">
+    <div class="section-header">
+        <h4>
+            <i class="fas fa-users text-info"></i>
+            Affectation des personnes
+        </h4>
+        <p class="text-muted mb-0">Affectez des utilisateurs ou des groupes à cette PRS</p>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+                        <!-- Sélection utilisateur -->
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-user me-1"></i>
+                                Ajouter un utilisateur
+                            </label>
+                            <div class="input-group">
+                                <select id="userSelect" class="form-select">
+                                    <option value="">Sélectionner un utilisateur...</option>
+                                    @foreach (var user in Model.Utilisateurs.OrderBy(u => u.Nom).ThenBy(u => u.Prenom))
+                                    {
+                                        <option value="@user.Id" data-type="Utilisateur" data-name="@user.Prenom @user.Nom" data-service="@user.Service">
+                                            @user.Nom @user.Prenom (@user.Service)
+                                        </option>
+                                    }
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" id="addUserBtn">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+        </div>
+
+        <div class="col-md-6">
+                        <!-- Sélection groupe -->
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-users me-1"></i>
+                                Ajouter un groupe
+                            </label>
+                            <div class="input-group">
+                                <select id="groupSelect" class="form-select">
+                                    <option value="">Sélectionner un groupe...</option>
+                                    @foreach (var groupe in Model.GroupesUtilisateurs.OrderBy(g => g.NomGroupe))
+                                    {
+                                        <option value="@groupe.Id" data-type="Groupe" data-name="@groupe.NomGroupe" data-count="@groupe.Membres.Count">
+                                            @groupe.NomGroupe (@groupe.Membres.Count membres)
+                                        </option>
+                                    }
+                                </select>
+                                <button type="button" class="btn btn-outline-success" id="addGroupBtn">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+        </div>
+    </div>
+
+    <!-- Liste des affectations -->
+    <div class="mt-3">
+        <h6><i class="fas fa-list me-1"></i>Personnes affectées</h6>
+        <ul id="affectationsList" class="list-group">
+            <li class="list-group-item text-muted">
+                <i class="fas fa-info-circle me-2"></i>
+                Aucune affectation pour le moment.
+            </li>
+        </ul>
+    </div>
+
+    <!-- Champ caché pour les données -->
+    <input type="hidden" name="AffectationsData" id="affectationsData" />
+</div>
+
             <!-- 🔽 SECTION CHECKLIST À INSÉRER AVANT LES FICHIERS/DOSSIERS 🔽 -->
             <div class="col-12">
                 <div class="card checklist-section border-primary shadow-lg mb-4">
@@ -812,6 +927,19 @@
                     </div>
                 </div>
             </div>
+            <!-- Section Affectation Checklist -->
+            <div id="checklistAffectationSection" style="display: true;">
+                <h5 class="mt-4 mb-3">
+                    <i class="fas fa-user-check text-success"></i>
+                    Affectation des éléments de checklist
+                </h5>
+                <p class="text-muted">Vous pouvez affecter chaque élément de checklist à des utilisateurs ou groupes spécifiques.</p>
+
+                <div id="checklistItemsContainer"></div>
+
+                <!-- Champ caché pour les données -->
+                <input type="hidden" name="ChecklistAffectationsData" id="checklistAffectationsData" />
+            </div>
             <div class="col-12 text-center">
                 <button type="submit" class="btn btn-primary btn-lg px-5">
                     <i class="fas fa-plus-circle me-2"></i>Créer la PRS
@@ -819,6 +947,8 @@
             </div>
         </form>
     </div>
+
+
 
     <!-- 🤖 ZONE ROB.I.A - SUGGESTIONS INTELLIGENTES -->
     <div id="robia-suggestions" class="mt-4" style="display: none;">
@@ -1918,5 +2048,368 @@
         setTimeout(() => {
             showRobiaNotification(`ROB.I.A prêt à optimiser vos planifications, ${currentUserLogin}!`, 'success');
         }, 1000);
+
+                // Gestion des affectations
+        document.addEventListener('DOMContentLoaded', function() {
+            const userSelect = document.getElementById('userSelect');
+            const groupSelect = document.getElementById('groupSelect');
+            const addUserBtn = document.getElementById('addUserBtn');
+            const addGroupBtn = document.getElementById('addGroupBtn');
+            const affectationsList = document.getElementById('affectationsList');
+            const affectationsData = document.getElementById('affectationsData');
+
+            let selectedAffectations = [];
+
+            // Fonction pour mettre à jour la liste des affectations
+            function updateAffectationsList() {
+                affectationsList.innerHTML = '';
+
+                if (selectedAffectations.length === 0) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'list-group-item text-muted';
+                    emptyItem.innerHTML = '<i class="fas fa-info-circle me-2"></i>Aucune affectation pour le moment.';
+                    affectationsList.appendChild(emptyItem);
+                    affectationsData.value = '';
+                    return;
+                }
+
+                selectedAffectations.forEach((affectation, index) => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+                    const icon = affectation.type === 'Utilisateur' ? 'fa-user' : 'fa-users';
+                    const badge = affectation.type === 'Utilisateur' ? 'bg-primary' : 'bg-success';
+
+                    listItem.innerHTML = `
+                        <div>
+                            <i class="fas ${icon} me-2"></i>
+                            <strong>${affectation.name}</strong>
+                            <span class="badge ${badge} ms-2">${affectation.type}</span>
+                            ${affectation.info ? `<br><small class="text-muted">${affectation.info}</small>` : ''}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-affectation" data-index="${index}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+
+                    affectationsList.appendChild(listItem);
+                });
+
+                // Mettre à jour le champ caché
+                affectationsData.value = JSON.stringify(selectedAffectations);
+
+                // Ajouter les événements de suppression
+                document.querySelectorAll('.remove-affectation').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const index = parseInt(this.dataset.index);
+                        selectedAffectations.splice(index, 1);
+                        updateAffectationsList();
+                        showRobiaNotification('Affectation supprimée', 'info');
+                    });
+                });
+            }
+
+            // Ajouter un utilisateur
+            addUserBtn.addEventListener('click', function() {
+                const selectedOption = userSelect.options[userSelect.selectedIndex];
+                if (!selectedOption.value) {
+                    showRobiaNotification('Veuillez sélectionner un utilisateur', 'warning');
+                    return;
+                }
+
+                const userId = parseInt(selectedOption.value);
+                const userName = selectedOption.dataset.name;
+                const userService = selectedOption.dataset.service;
+
+                // Vérifier si déjà ajouté
+                const exists = selectedAffectations.some(a => a.type === 'Utilisateur' && a.id === userId);
+                if (exists) {
+                    showRobiaNotification('Cet utilisateur est déjà affecté', 'warning');
+                    return;
+                }
+
+                selectedAffectations.push({
+                    id: userId,
+                    type: 'Utilisateur',
+                    name: userName,
+                    info: userService
+                });
+
+                updateAffectationsList();
+                userSelect.selectedIndex = 0;
+                showRobiaNotification('Utilisateur ajouté', 'success');
+            });
+
+            // Ajouter un groupe
+            addGroupBtn.addEventListener('click', function() {
+                const selectedOption = groupSelect.options[groupSelect.selectedIndex];
+                if (!selectedOption.value) {
+                    showRobiaNotification('Veuillez sélectionner un groupe', 'warning');
+                    return;
+                }
+
+                const groupId = parseInt(selectedOption.value);
+                const groupName = selectedOption.dataset.name;
+                const memberCount = selectedOption.dataset.count;
+
+                // Vérifier si déjà ajouté
+                const exists = selectedAffectations.some(a => a.type === 'Groupe' && a.id === groupId);
+                if (exists) {
+                    showRobiaNotification('Ce groupe est déjà affecté', 'warning');
+                    return;
+                }
+
+                selectedAffectations.push({
+                    id: groupId,
+                    type: 'Groupe',
+                    name: groupName,
+                    info: `${memberCount} membres`
+                });
+
+                updateAffectationsList();
+                groupSelect.selectedIndex = 0;
+                showRobiaNotification('Groupe ajouté', 'success');
+            });
+
+            // Initialiser la liste
+            updateAffectationsList();
+        });
+
+                // Gestion des affectations de checklist
+        let checklistAffectations = {};
+
+        function showChecklistAffectationSection() {
+            document.getElementById('checklistAffectationSection').style.display = 'block';
+        }
+
+        function hideChecklistAffectationSection() {
+            document.getElementById('checklistAffectationSection').style.display = 'none';
+            checklistAffectations = {};
+            updateChecklistAffectationsData();
+        }
+
+        function generateChecklistAffectationUI(checklistItems) {
+            const container = document.getElementById('checklistItemsContainer');
+            container.innerHTML = '';
+
+            if (!checklistItems || checklistItems.length === 0) {
+                container.innerHTML = '<p class="text-muted">Aucun élément de checklist à affecter.</p>';
+                return;
+            }
+
+            checklistItems.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'checklist-item';
+                itemDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${item.libelle || item.tache || 'Élément sans nom'}</h6>
+                            ${item.categorie ? `<small class="text-muted">Catégorie: ${item.categorie}</small><br>` : ''}
+                            ${item.sousCategorie ? `<small class="text-muted">Sous-catégorie: ${item.sousCategorie}</small>` : ''}
+                        </div>
+                        <div class="ms-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAffectationModal(${index})">
+                                <i class="fas fa-user-plus"></i> Affecter
+                            </button>
+                        </div>
+                    </div>
+                    <div class="checklist-affectation">
+                        <div id="affectations-${index}" class="affectations-list">
+                            <span class="text-muted">Aucune affectation</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        function openAffectationModal(checklistIndex) {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Affecter cet élément de checklist</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Utilisateur</label>
+                                    <select id="modalUserSelect" class="form-select">
+                                        <option value="">Sélectionner un utilisateur...</option>
+                                        ${getUtilisateursOptions()}
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-primary mt-2" onclick="addChecklistAffectation(${checklistIndex}, 'user')">
+                                        Ajouter utilisateur
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Groupe</label>
+                                    <select id="modalGroupSelect" class="form-select">
+                                        <option value="">Sélectionner un groupe...</option>
+                                        ${getGroupesOptions()}
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-success mt-2" onclick="addChecklistAffectation(${checklistIndex}, 'group')">
+                                        Ajouter groupe
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+
+            modal.addEventListener('hidden.bs.modal', function () {
+                document.body.removeChild(modal);
+            });
+        }
+
+        function getUtilisateursOptions() {
+            const userSelect = document.getElementById('userSelect');
+            let options = '';
+            for (let i = 1; i < userSelect.options.length; i++) {
+                const option = userSelect.options[i];
+                options += `<option value="${option.value}" data-name="${option.dataset.name}">${option.text}</option>`;
+            }
+            return options;
+        }
+
+        function getGroupesOptions() {
+            const groupSelect = document.getElementById('groupSelect');
+            let options = '';
+            for (let i = 1; i < groupSelect.options.length; i++) {
+                const option = groupSelect.options[i];
+                options += `<option value="${option.value}" data-name="${option.dataset.name}">${option.text}</option>`;
+            }
+            return options;
+        }
+
+        function addChecklistAffectation(checklistIndex, type) {
+            const selectId = type === 'user' ? 'modalUserSelect' : 'modalGroupSelect';
+            const select = document.getElementById(selectId);
+            const selectedOption = select.options[select.selectedIndex];
+
+            if (!selectedOption.value) {
+                showRobiaNotification('Veuillez sélectionner un ' + (type === 'user' ? 'utilisateur' : 'groupe'), 'warning');
+                return;
+            }
+
+            if (!checklistAffectations[checklistIndex]) {
+                checklistAffectations[checklistIndex] = [];
+            }
+
+            const affectation = {
+                id: parseInt(selectedOption.value),
+                type: type === 'user' ? 'Utilisateur' : 'Groupe',
+                name: selectedOption.dataset.name
+            };
+
+            // Vérifier si déjà ajouté
+            const exists = checklistAffectations[checklistIndex].some(a =>
+                a.type === affectation.type && a.id === affectation.id
+            );
+
+            if (exists) {
+                showRobiaNotification('Cette affectation existe déjà', 'warning');
+                return;
+            }
+
+            checklistAffectations[checklistIndex].push(affectation);
+            updateChecklistAffectationDisplay(checklistIndex);
+            updateChecklistAffectationsData();
+
+            select.selectedIndex = 0;
+            showRobiaNotification('Affectation ajoutée', 'success');
+        }
+
+        function updateChecklistAffectationDisplay(checklistIndex) {
+            const container = document.getElementById(`affectations-${checklistIndex}`);
+            const affectations = checklistAffectations[checklistIndex] || [];
+
+            if (affectations.length === 0) {
+                container.innerHTML = '<span class="text-muted">Aucune affectation</span>';
+                return;
+            }
+
+            container.innerHTML = affectations.map((aff, affIndex) => `
+                <span class="affectation-tag ${aff.type === 'Groupe' ? 'groupe' : ''}">
+                    <i class="fas fa-${aff.type === 'Utilisateur' ? 'user' : 'users'}"></i>
+                    ${aff.name}
+                    <i class="fas fa-times remove-affectation-tag" onclick="removeChecklistAffectation(${checklistIndex}, ${affIndex})"></i>
+                </span>
+            `).join('');
+        }
+
+        function removeChecklistAffectation(checklistIndex, affectationIndex) {
+            if (checklistAffectations[checklistIndex]) {
+                checklistAffectations[checklistIndex].splice(affectationIndex, 1);
+                updateChecklistAffectationDisplay(checklistIndex);
+                updateChecklistAffectationsData();
+                showRobiaNotification('Affectation supprimée', 'info');
+            }
+        }
+
+        function updateChecklistAffectationsData() {
+            const data = [];
+
+            Object.keys(checklistAffectations).forEach(checklistIndex => {
+                const affectations = checklistAffectations[checklistIndex];
+                if (affectations && affectations.length > 0) {
+                    data.push({
+                        checklistId: parseInt(checklistIndex), // Index temporaire, sera remplacé par l'ID réel après création
+                        affectations: affectations
+                    });
+                }
+            });
+
+            document.getElementById('checklistAffectationsData').value = JSON.stringify(data);
+        }
+
+        // Intégration avec le système de checklist existant
+        // Modifiez votre fonction existante de génération de checklist pour appeler showChecklistAffectationSection()
+        // Par exemple, quand une checklist est générée avec succès :
+        document.addEventListener('DOMContentLoaded', function() {
+            // Observer les changements dans la zone de checklist
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        const checklistContainer = document.querySelector('.checklist-container, #checklist-preview');
+                        if (checklistContainer && checklistContainer.children.length > 0) {
+                            // Extraire les éléments de checklist pour l'affectation
+                            const checklistItems = Array.from(checklistContainer.querySelectorAll('.checklist-item, .form-check')).map((item, index) => {
+                                const label = item.querySelector('label, .checklist-label');
+                                return {
+                                    libelle: label ? label.textContent.trim() : `Élément ${index + 1}`,
+                                    categorie: item.dataset.categorie || '',
+                                    sousCategorie: item.dataset.sousCategorie || ''
+                                };
+                            });
+
+                            if (checklistItems.length > 0) {
+                                showChecklistAffectationSection();
+                                generateChecklistAffectationUI(checklistItems);
+                            }
+                        } else {
+                            hideChecklistAffectationSection();
+                        }
+                    }
+                });
+            });
+
+            // Observer le conteneur de checklist s'il existe
+            const checklistContainer = document.querySelector('.checklist-container, #checklist-preview');
+            if (checklistContainer) {
+                observer.observe(checklistContainer, { childList: true, subtree: true });
+            }
+        });
     </script>
 }

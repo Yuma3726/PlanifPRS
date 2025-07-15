@@ -32,6 +32,15 @@ namespace PlanifPRS.Pages.Prs
         }
 
         [BindProperty]
+        public string AffectationsData { get; set; }
+
+        [BindProperty]
+        public string ChecklistAffectationsData { get; set; }
+
+        public IList<Utilisateur> Utilisateurs { get; set; }
+        public IList<GroupeUtilisateurs> GroupesUtilisateurs { get; set; }
+
+        [BindProperty]
         public Models.Prs Prs { get; set; }
 
         [BindProperty]
@@ -93,6 +102,8 @@ namespace PlanifPRS.Pages.Prs
             _logger.LogInformation($"Fichiers reçus: {UploadedFiles?.Count ?? 0}");
             _logger.LogInformation($"PrsFolderLinks reçu: {PrsFolderLinks}");
             _logger.LogInformation($"ChecklistData reçu: {ChecklistData}");
+            _logger.LogInformation($"AffectationsData reçu: {AffectationsData}");
+            _logger.LogInformation($"ChecklistAffectationsData reçu: {ChecklistAffectationsData}");
 
             await ChargerDonneesAsync();
 
@@ -152,6 +163,62 @@ namespace PlanifPRS.Pages.Prs
                 _context.Prs.Add(Prs);
                 await _context.SaveChangesAsync();
                 _logger.LogInformation($"PRS créée avec succès. ID: {Prs.Id}, Titre: {Prs.Titre}");
+
+                // GESTION DES AFFECTATIONS
+                if (!string.IsNullOrEmpty(AffectationsData))
+                {
+                    try
+                    {
+                        _logger.LogInformation($"Traitement des affectations: {AffectationsData}");
+
+                        var affectations = JsonSerializer.Deserialize<List<AffectationDto>>(AffectationsData, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (affectations != null && affectations.Any())
+                        {
+                            int affectationsCount = 0;
+                            foreach (var affectation in affectations)
+                            {
+                                var prsAffectation = new PrsAffectation
+                                {
+                                    PrsId = Prs.Id,
+                                    TypeAffectation = affectation.type,
+                                    AffectePar = CurrentUserLogin,
+                                    DateAffectation = DateTime.Now
+                                };
+
+                                if (affectation.type == "Utilisateur")
+                                {
+                                    prsAffectation.UtilisateurId = affectation.id;
+                                }
+                                else if (affectation.type == "Groupe")
+                                {
+                                    prsAffectation.GroupeId = affectation.id;
+                                }
+
+                                _context.PrsAffectations.Add(prsAffectation);
+                                affectationsCount++;
+
+                                _logger.LogInformation($"Affectation ajoutée: {affectation.type} ID {affectation.id} pour PRS {Prs.Id}");
+                            }
+
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation($"{affectationsCount} affectation(s) créée(s) pour la PRS {Prs.Id}");
+
+                            if (affectationsCount > 0)
+                            {
+                                Flash += $" {affectationsCount} affectation(s) créée(s).";
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Erreur lors du traitement des affectations: {ex.Message}");
+                        ErrorMessage += " Erreur lors de la création des affectations.";
+                    }
+                }
 
                 // GESTION DE LA CHECKLIST SI PRÉSENTE
                 if (!string.IsNullOrWhiteSpace(ChecklistData))
@@ -241,6 +308,68 @@ namespace PlanifPRS.Pages.Prs
                     {
                         _logger.LogError($"Erreur lors du traitement des données de checklist: {ex.Message}");
                         ErrorMessage += " Erreur lors de la création de la checklist.";
+                    }
+                }
+
+                // GESTION DES AFFECTATIONS DE CHECKLIST
+                if (!string.IsNullOrEmpty(ChecklistAffectationsData))
+                {
+                    try
+                    {
+                        _logger.LogInformation($"Traitement des affectations de checklist: {ChecklistAffectationsData}");
+
+                        var checklistAffectations = JsonSerializer.Deserialize<List<ChecklistAffectationDto>>(ChecklistAffectationsData, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (checklistAffectations != null && checklistAffectations.Any())
+                        {
+                            int totalAffectations = 0;
+                            foreach (var checklistAff in checklistAffectations)
+                            {
+                                if (checklistAff.affectations?.Any() == true)
+                                {
+                                    foreach (var affectation in checklistAff.affectations)
+                                    {
+                                        var checklistAffectation = new ChecklistAffectation
+                                        {
+                                            ChecklistId = checklistAff.checklistId,
+                                            TypeAffectation = affectation.type,
+                                            AffectePar = CurrentUserLogin,
+                                            DateAffectation = DateTime.Now
+                                        };
+
+                                        if (affectation.type == "Utilisateur")
+                                        {
+                                            checklistAffectation.UtilisateurId = affectation.id;
+                                        }
+                                        else if (affectation.type == "Groupe")
+                                        {
+                                            checklistAffectation.GroupeId = affectation.id;
+                                        }
+
+                                        _context.ChecklistAffectations.Add(checklistAffectation);
+                                        totalAffectations++;
+
+                                        _logger.LogInformation($"Affectation checklist ajoutée: {affectation.type} ID {affectation.id} pour checklist {checklistAff.checklistId}");
+                                    }
+                                }
+                            }
+
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation($"{totalAffectations} affectation(s) de checklist créée(s)");
+
+                            if (totalAffectations > 0)
+                            {
+                                Flash += $" {totalAffectations} affectation(s) de checklist créée(s).";
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Erreur lors du traitement des affectations de checklist: {ex.Message}");
+                        ErrorMessage += " Erreur lors de la création des affectations de checklist.";
                     }
                 }
 
@@ -449,6 +578,41 @@ namespace PlanifPRS.Pages.Prs
                 _logger.LogError(ex, "Erreur lors du chargement des modèles de checklist");
                 ChecklistModeles = new List<ChecklistModele>();
             }
+
+            // Charger les utilisateurs actifs (tri par nom puis prénom)
+            try
+            {
+                Utilisateurs = await _context.Utilisateurs
+                    .Where(u => u.DateDeleted == null)
+                    .OrderBy(u => u.Nom)
+                    .ThenBy(u => u.Prenom)
+                    .ToListAsync();
+
+                _logger.LogInformation($"Chargé {Utilisateurs.Count} utilisateurs");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors du chargement des utilisateurs");
+                Utilisateurs = new List<Utilisateur>();
+            }
+
+            // Charger les groupes actifs (tri par nom de groupe)
+            try
+            {
+                GroupesUtilisateurs = await _context.GroupesUtilisateurs
+                    .Where(g => g.Actif)
+                    .Include(g => g.Membres)
+                    .ThenInclude(gu => gu.Utilisateur)
+                    .OrderBy(g => g.NomGroupe)  // Tri alphabétique par nom de groupe
+                    .ToListAsync();
+
+                _logger.LogInformation($"Chargé {GroupesUtilisateurs.Count} groupes");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors du chargement des groupes - probablement car les tables n'existent pas encore");
+                GroupesUtilisateurs = new List<GroupeUtilisateurs>();
+            }
         }
 
         private string GetCurrentUserLogin()
@@ -640,6 +804,22 @@ namespace PlanifPRS.Pages.Prs
             public int priorite { get; set; } = 3;
             public int delaiDefautJours { get; set; } = 1;
             public bool obligatoire { get; set; }
+        }
+
+        // DTO affectation pour la désérialisation JS
+        public class AffectationDto
+        {
+            public int id { get; set; }
+            public string type { get; set; } // "Utilisateur" ou "Groupe"
+            public string name { get; set; }
+            public string info { get; set; }
+        }
+
+        // DTO pour les affectations de checklist
+        public class ChecklistAffectationDto
+        {
+            public int checklistId { get; set; }
+            public List<AffectationDto> affectations { get; set; } = new();
         }
     }
 }

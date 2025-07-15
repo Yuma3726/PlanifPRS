@@ -57,6 +57,8 @@ namespace PlanifPRS.Models
 
         public DateTime DateCreation { get; set; } = DateTime.Now;
 
+        public ICollection<ChecklistAffectation> Affectations { get; set; } = new List<ChecklistAffectation>();
+
         // Sources possibles
         public int? ChecklistModeleSourceId { get; set; }
         public int? PrsSourceId { get; set; }

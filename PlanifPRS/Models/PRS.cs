@@ -80,6 +80,9 @@ namespace PlanifPRS.Models
         [ValidateNever]
         public Ligne Ligne { get; set; }
 
+        public ICollection<PrsAffectation> Affectations { get; set; } = new List<PrsAffectation>();
+
+
         // Propriétés calculées pour la checklist
         [NotMapped]
         public bool AChecklist => Checklist != null && Checklist.Any();

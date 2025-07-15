@@ -20,6 +20,11 @@ namespace PlanifPRS.Data
         public DbSet<Secteur> Secteurs { get; set; }
         public DbSet<PrsFichier> PrsFichiers { get; set; }
         public DbSet<LienDossierPrs> LiensDossierPrs { get; set; }
+        public DbSet<GroupeUtilisateurs> GroupesUtilisateurs { get; set; }
+        public DbSet<GroupeUtilisateur> GroupeUtilisateurs { get; set; }
+        public DbSet<PrsAffectation> PrsAffectations { get; set; }
+        public DbSet<ChecklistAffectation> ChecklistAffectations { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -228,6 +233,60 @@ namespace PlanifPRS.Data
                       .WithMany(u => u.JalonUtilisateurs)
                       .HasForeignKey(ju => ju.UtilisateurId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configuration GroupeUtilisateur (clé composite)
+            modelBuilder.Entity<GroupeUtilisateur>(entity =>
+            {
+                entity.HasKey(gu => new { gu.GroupeId, gu.UtilisateurId });
+
+                entity.HasOne(gu => gu.Groupe)
+                      .WithMany(g => g.Membres)
+                      .HasForeignKey(gu => gu.GroupeId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(gu => gu.Utilisateur)
+                      .WithMany()
+                      .HasForeignKey(gu => gu.UtilisateurId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configuration PrsAffectation
+            modelBuilder.Entity<PrsAffectation>(entity =>
+            {
+                entity.HasOne(pa => pa.Prs)
+                      .WithMany(p => p.Affectations)
+                      .HasForeignKey(pa => pa.PrsId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(pa => pa.Utilisateur)
+                      .WithMany()
+                      .HasForeignKey(pa => pa.UtilisateurId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(pa => pa.Groupe)
+                      .WithMany(g => g.PrsAffectations)
+                      .HasForeignKey(pa => pa.GroupeId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configuration ChecklistAffectation
+            modelBuilder.Entity<ChecklistAffectation>(entity =>
+            {
+                entity.HasOne(ca => ca.Checklist)
+                      .WithMany(c => c.Affectations)
+                      .HasForeignKey(ca => ca.ChecklistId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ca => ca.Utilisateur)
+                      .WithMany()
+                      .HasForeignKey(ca => ca.UtilisateurId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(ca => ca.Groupe)
+                      .WithMany()
+                      .HasForeignKey(ca => ca.GroupeId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
