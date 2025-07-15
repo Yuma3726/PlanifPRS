@@ -1,16 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PlanifPRS.Data;
 using PlanifPRS.Models;
+using Microsoft.Extensions.Logging;
 
 namespace PlanifPRS.Services
 {
     public class ChecklistService
     {
         private readonly PlanifPrsDbContext _context;
+        private readonly ILogger<ChecklistService> _logger;
 
-        public ChecklistService(PlanifPrsDbContext context)
+        public ChecklistService(PlanifPrsDbContext context, ILogger<ChecklistService> logger) // Modifier le constructeur
         {
             _context = context;
+            _logger = logger;
         }
 
         // Méthodes pour les modèles de checklist
@@ -190,35 +193,36 @@ namespace PlanifPRS.Services
         {
             try
             {
-                // Supprimer les éléments existants
+                _logger.LogInformation($"[CreateCustomChecklist] Début - PRS ID: {prsId}, Éléments: {elements.Count}, User: {userLogin}");
+
+                // Supprimer les éléments existants de la checklist PRS
                 var existingItems = await _context.PrsChecklists
                     .Where(pc => pc.PRSId == prsId)
                     .ToListAsync();
 
-                _context.PrsChecklists.RemoveRange(existingItems);
+                _logger.LogInformation($"[CreateCustomChecklist] Éléments existants trouvés: {existingItems.Count}");
 
-                // Récupérer les infos du PRS
-                var prs = await _context.Prs.FindAsync(prsId);
-                if (prs == null) return false;
+                _context.PrsChecklists.RemoveRange(existingItems);
 
                 // Ajouter les nouveaux éléments
                 foreach (var element in elements)
                 {
                     element.PRSId = prsId;
-                    element.EstCoche = false;
-                    element.Statut = null;
-                    element.DateEcheance = CalculerDateEcheanceFromDelai(prs, element.DelaiDefautJours);
                     element.CreatedByLogin = userLogin;
                     element.DateCreation = DateTime.Now;
 
+                    _logger.LogInformation($"[CreateCustomChecklist] Ajout élément: {element.Libelle}, Catégorie: {element.Categorie}");
                     _context.PrsChecklists.Add(element);
                 }
 
-                await _context.SaveChangesAsync();
+                var changes = await _context.SaveChangesAsync();
+                _logger.LogInformation($"[CreateCustomChecklist] Sauvegarde réussie - {changes} modifications");
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError($"[CreateCustomChecklist] Erreur: {ex.Message}");
+                _logger.LogError($"[CreateCustomChecklist] Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
