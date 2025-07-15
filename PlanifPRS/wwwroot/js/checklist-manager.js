@@ -181,6 +181,8 @@
                 break;
             case 'copy':
                 $('#prsSelector').show();
+                // Charger la liste des PRS avec checklist
+                this.loadPrsWithChecklistForSelector();
                 break;
             case 'custom':
                 this.showChecklistEditor();
@@ -246,6 +248,49 @@
             console.error('Erreur lors du chargement du modèle:', error);
             this.hideLoading();
             this.showNotification('Erreur lors du chargement du modèle: ' + error.message, 'danger');
+        }
+    }
+
+    // Fonction pour charger les PRS avec checklist dans le sélecteur
+    async loadPrsWithChecklistForSelector() {
+        try {
+            const response = await fetch('/api/checklists/prs-with-checklist');
+            if (!response.ok) throw new Error('Erreur lors du chargement des PRS');
+
+            const prsWithChecklist = await response.json();
+            const selector = document.getElementById('prsSourceSelect');
+
+            // Vider le sélecteur
+            selector.innerHTML = '<option value="">-- Sélectionner une PRS --</option>';
+
+            // Ajouter les PRS avec checklist
+            prsWithChecklist.forEach(prs => {
+                const option = document.createElement('option');
+                option.value = prs.id;
+                option.textContent = `PRS-${prs.id} - ${prs.titre} (${prs.nombreElements} éléments, ${prs.pourcentageCompletion}% complété)`;
+                selector.appendChild(option);
+            });
+
+            // Ajouter le gestionnaire d'événement pour la sélection
+            selector.addEventListener('change', (e) => {
+                const selectedPrsId = e.target.value;
+                if (selectedPrsId) {
+                    this.currentChecklist.sourceId = parseInt(selectedPrsId);
+                    this.updateChecklistData();
+
+                    // Optionnel : prévisualiser la checklist
+                    this.loadChecklistFromPrs(selectedPrsId);
+                } else {
+                    this.currentChecklist.sourceId = null;
+                    this.updateChecklistData();
+                }
+            });
+
+        } catch (error) {
+            console.error('Erreur:', error);
+            const selector = document.getElementById('prsSourceSelect');
+            selector.innerHTML = '<option value="">-- Erreur de chargement --</option>';
+            this.showNotification('Erreur lors du chargement des PRS', 'danger');
         }
     }
 

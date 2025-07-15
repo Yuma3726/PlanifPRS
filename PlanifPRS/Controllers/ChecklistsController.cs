@@ -2,6 +2,8 @@
 using PlanifPRS.Services;
 using PlanifPRS.Models;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using PlanifPRS.Data;
 
 namespace PlanifPRS.Controllers
 {
@@ -10,10 +12,12 @@ namespace PlanifPRS.Controllers
     public class ChecklistsController : ControllerBase
     {
         private readonly ChecklistService _checklistService;
+        private readonly PlanifPrsDbContext _context;
 
-        public ChecklistsController(ChecklistService checklistService)
+        public ChecklistsController(ChecklistService checklistService, PlanifPrsDbContext context)
         {
             _checklistService = checklistService;
+            _context = context;
         }
 
         [HttpGet("modeles")]
@@ -214,6 +218,37 @@ namespace PlanifPRS.Controllers
                 return BadRequest(new { message = $"Erreur lors de la création: {ex.Message}" });
             }
         }
+
+        [HttpGet("prs-with-checklist")]
+        public async Task<IActionResult> GetPrsWithChecklist()
+        {
+            try
+            {
+                var prsWithChecklist = await _context.Prs
+                    .Where(p => p.Checklist.Any()) // Utiliser "Checklist" au lieu de "PrsChecklists"
+                    .Select(p => new
+                    {
+                        id = p.Id,
+                        titre = p.Titre,
+                        equipement = p.Equipement ?? "N/A",
+                        dateCreation = p.DateCreation.ToString("dd/MM/yyyy"),
+                        nombreElements = p.Checklist.Count(),
+                        pourcentageCompletion = p.Checklist.Any()
+                            ? (int)Math.Round((double)p.Checklist.Count(pc => pc.EstCoche) / p.Checklist.Count() * 100)
+                            : 0
+                    })
+                    .OrderByDescending(p => p.dateCreation)
+                    .ToListAsync();
+
+                return Ok(prsWithChecklist);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Erreur lors de la récupération des PRS: {ex.Message}" });
+            }
+        }
+
+
 
         private string GetCurrentUserLogin()
         {

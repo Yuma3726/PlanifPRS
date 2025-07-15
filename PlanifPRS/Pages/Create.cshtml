@@ -831,8 +831,13 @@
                     </select>
                 </div>
                 <div class="col-md-4" id="prsSelector" style="display:none;">
-                    <label class="form-label fw-bold"><i class="fas fa-search me-1 text-warning"></i>Recherche PRS</label>
-                    <input type="text" id="searchPrsInput" class="form-control" placeholder="Titre ou ID de la PRS..." autocomplete="off" />
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-copy me-1 text-info"></i>PRS source
+                    </label>
+                    <select id="prsSourceSelect" class="form-select">
+                        <option value="">-- Chargement des PRS... --</option>
+                    </select>
+                    <small class="text-muted mt-1 d-block">Sélectionnez une PRS existante avec une checklist à copier</small>
                 </div>
             </div>
             <div id="prsSearchResults" class="prs-search-results" style="display:none;"></div>
