@@ -23,6 +23,7 @@ namespace PlanifPRS.Data
         public DbSet<GroupeUtilisateurs> GroupesUtilisateurs { get; set; }
         public DbSet<GroupeUtilisateur> GroupeUtilisateurs { get; set; }
         public DbSet<PrsAffectation> PrsAffectations { get; set; }
+
         public DbSet<ChecklistAffectation> ChecklistAffectations { get; set; }
 
         public DbSet<ChecklistUtilisateur> ChecklistUtilisateurs { get; set; }
@@ -252,6 +253,7 @@ namespace PlanifPRS.Data
                       .WithMany()
                       .HasForeignKey(gu => gu.UtilisateurId)
                       .OnDelete(DeleteBehavior.Cascade);
+
             });
 
             // Configuration PrsAffectation
@@ -273,11 +275,13 @@ namespace PlanifPRS.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configuration ChecklistAffectation
             modelBuilder.Entity<ChecklistAffectation>(entity =>
             {
+                entity.ToTable("ChecklistAffectations");
+                entity.HasKey(e => e.Id);
+
                 entity.HasOne(ca => ca.Checklist)
-                      .WithMany(c => c.Affectations)
+                      .WithMany()
                       .HasForeignKey(ca => ca.ChecklistId)
                       .OnDelete(DeleteBehavior.Cascade);
 
@@ -290,40 +294,6 @@ namespace PlanifPRS.Data
                       .WithMany()
                       .HasForeignKey(ca => ca.GroupeId)
                       .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // Configuration ChecklistUtilisateurs (clé composite)
-            modelBuilder.Entity<ChecklistUtilisateur>(entity =>
-            {
-                entity.HasKey(cu => new { cu.ChecklistId, cu.UtilisateurId });
-
-                entity.HasOne(cu => cu.PrsChecklist)
-                      .WithMany(c => c.ChecklistUtilisateurs)
-                      .HasForeignKey(cu => cu.ChecklistId)
-                      .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(cu => cu.Utilisateur)
-                      .WithMany()
-                      .HasForeignKey(cu => cu.UtilisateurId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // Configuration ChecklistGroupes
-            modelBuilder.Entity<ChecklistGroupe>(entity =>
-            {
-                entity.ToTable("ChecklistGroupes");
-                entity.HasKey(cg => new { cg.ChecklistId, cg.GroupeId });
-
-                entity.HasOne(cg => cg.PrsChecklist)
-                      .WithMany(c => c.ChecklistGroupes)
-                      .HasForeignKey(cg => cg.ChecklistId)
-                      .OnDelete(DeleteBehavior.Cascade);
-
-                // CORRECTION : Référence vers GroupeUtilisateurs
-                entity.HasOne(cg => cg.GroupeUtilisateur)
-                      .WithMany()
-                      .HasForeignKey(cg => cg.GroupeId)
-                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

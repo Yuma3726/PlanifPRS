@@ -24,5 +24,8 @@ namespace PlanifPRS.Models
         // Changement du nom de la propriété pour éviter le conflit
         public ICollection<GroupeUtilisateur> Membres { get; set; } = new List<GroupeUtilisateur>();
         public ICollection<PrsAffectation> PrsAffectations { get; set; } = new List<PrsAffectation>();
+
+        public ICollection<ChecklistAffectation> ChecklistAffectations { get; set; } = new List<ChecklistAffectation>();
+
     }
 }
