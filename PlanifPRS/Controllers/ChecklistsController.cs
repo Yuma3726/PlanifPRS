@@ -185,7 +185,18 @@ namespace PlanifPRS.Controllers
                     Obligatoire = e.Obligatoire
                 }).ToList();
 
-                var success = await _checklistService.CreateCustomChecklistAsync(prsId, checklistElements, userLogin);
+                // Extraire les assignations du premier élément (si elles sont communes à tous)
+                // ou utiliser une logique pour les combiner
+                var utilisateurIds = elements.FirstOrDefault()?.UtilisateurIds ?? new List<int>();
+                var groupeIds = elements.FirstOrDefault()?.GroupeIds ?? new List<int>();
+
+                var success = await _checklistService.CreateCustomChecklistAsync(
+                    prsId,
+                    checklistElements,
+                    utilisateurIds,
+                    groupeIds,
+                    userLogin
+                );
 
                 if (!success)
                     return BadRequest(new { message = "Erreur lors de la création de la checklist personnalisée" });
@@ -297,11 +308,15 @@ namespace PlanifPRS.Controllers
 
     public class PrsChecklistCreateDto
     {
-        public string Categorie { get; set; }
-        public string SousCategorie { get; set; }
-        public string Libelle { get; set; }
+        public string Categorie { get; set; } = string.Empty;
+        public string? SousCategorie { get; set; }
+        public string Libelle { get; set; } = string.Empty;
         public int Priorite { get; set; } = 3;
         public int DelaiDefautJours { get; set; } = 1;
         public bool Obligatoire { get; set; }
+
+        // Ajout des assignations
+        public List<int> UtilisateurIds { get; set; } = new List<int>();
+        public List<int> GroupeIds { get; set; } = new List<int>();
     }
 }

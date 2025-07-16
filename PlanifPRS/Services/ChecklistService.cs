@@ -191,18 +191,42 @@ namespace PlanifPRS.Services
             }
         }
 
-        public async Task<bool> CreateCustomChecklistAsync(int prsId, List<PrsChecklist> elements, string userLogin)
+        public async Task<bool> CreateCustomChecklistAsync(int prsId, List<PrsChecklist> elements, List<int> utilisateurIds, List<int> groupeIds, string userLogin)
         {
             try
             {
-                _logger.LogInformation($"[CreateCustomChecklist] Début - PRS ID: {prsId}, Éléments: {elements.Count}, User: {userLogin}");
+                _logger.LogInformation($"[CreateCustomChecklist] Début - PRS ID: {prsId}, Éléments: {elements.Count}, Utilisateurs: {utilisateurIds?.Count ?? 0}, Groupes: {groupeIds?.Count ?? 0}, User: {userLogin}");
 
-                // Supprimer les éléments existants de la checklist PRS
+                // Supprimer les éléments existants de la checklist PRS et leurs affectations
                 var existingItems = await _context.PrsChecklists
                     .Where(pc => pc.PRSId == prsId)
                     .ToListAsync();
 
                 _logger.LogInformation($"[CreateCustomChecklist] Éléments existants trouvés: {existingItems.Count}");
+
+                if (existingItems.Any())
+                {
+                    // Supprimer les affectations existantes
+                    var existingChecklistIds = existingItems.Select(x => x.Id).ToList();
+
+                    var existingAffectations = await _context.ChecklistAffectations
+                        .Where(ca => existingChecklistIds.Contains(ca.ChecklistId))
+                        .ToListAsync();
+
+                    var existingUtilisateurs = await _context.ChecklistUtilisateurs
+                        .Where(cu => existingChecklistIds.Contains(cu.ChecklistId))
+                        .ToListAsync();
+
+                    var existingGroupes = await _context.ChecklistGroupes
+                        .Where(cg => existingChecklistIds.Contains(cg.ChecklistId))
+                        .ToListAsync();
+
+                    _logger.LogInformation($"[CreateCustomChecklist] Suppression - Affectations: {existingAffectations.Count}, Utilisateurs: {existingUtilisateurs.Count}, Groupes: {existingGroupes.Count}");
+
+                    _context.ChecklistAffectations.RemoveRange(existingAffectations);
+                    _context.ChecklistUtilisateurs.RemoveRange(existingUtilisateurs);
+                    _context.ChecklistGroupes.RemoveRange(existingGroupes);
+                }
 
                 _context.PrsChecklists.RemoveRange(existingItems);
 
@@ -239,8 +263,84 @@ namespace PlanifPRS.Services
                     _context.PrsChecklists.Add(element);
                 }
 
+                // Sauvegarder d'abord les éléments pour obtenir leurs IDs
                 var changes = await _context.SaveChangesAsync();
-                _logger.LogInformation($"[CreateCustomChecklist] Sauvegarde réussie - {changes} modifications");
+                _logger.LogInformation($"[CreateCustomChecklist] Sauvegarde des éléments réussie - {changes} modifications");
+
+                // Maintenant ajouter les affectations pour chaque élément de checklist
+                int totalAffectations = 0;
+
+                foreach (var element in elements)
+                {
+                    // Affectations utilisateurs
+                    if (utilisateurIds?.Any() == true)
+                    {
+                        foreach (var userId in utilisateurIds)
+                        {
+                            // Table ChecklistUtilisateurs (relation many-to-many)
+                            var checklistUtilisateur = new ChecklistUtilisateur
+                            {
+                                ChecklistId = element.Id,
+                                UtilisateurId = userId
+                            };
+                            _context.ChecklistUtilisateurs.Add(checklistUtilisateur);
+
+                            // Table ChecklistAffectations (historique/audit)
+                            var affectationUtilisateur = new ChecklistAffectation
+                            {
+                                ChecklistId = element.Id,
+                                UtilisateurId = userId,
+                                GroupeId = null,
+                                DateAffectation = DateTime.Now
+                            };
+                            _context.ChecklistAffectations.Add(affectationUtilisateur);
+                            totalAffectations++;
+
+                            _logger.LogInformation($"[CreateCustomChecklist] Affectation utilisateur {userId} à l'élément {element.Id} ({element.Libelle})");
+                        }
+                    }
+
+                    // Affectations groupes
+                    if (groupeIds?.Any() == true)
+                    {
+                        foreach (var groupeId in groupeIds)
+                        {
+                            // Table ChecklistGroupes (relation many-to-many)
+                            var checklistGroupe = new ChecklistGroupe
+                            {
+                                ChecklistId = element.Id,
+                                GroupeId = groupeId
+                            };
+                            _context.ChecklistGroupes.Add(checklistGroupe);
+
+                            // Table ChecklistAffectations (historique/audit)
+                            var affectationGroupe = new ChecklistAffectation
+                            {
+                                ChecklistId = element.Id,
+                                UtilisateurId = null,
+                                GroupeId = groupeId,
+                                DateAffectation = DateTime.Now
+                            };
+                            _context.ChecklistAffectations.Add(affectationGroupe);
+                            totalAffectations++;
+
+                            _logger.LogInformation($"[CreateCustomChecklist] Affectation groupe {groupeId} à l'élément {element.Id} ({element.Libelle})");
+                        }
+                    }
+                }
+
+                // Sauvegarder les affectations
+                if (totalAffectations > 0)
+                {
+                    var affectationChanges = await _context.SaveChangesAsync();
+                    _logger.LogInformation($"[CreateCustomChecklist] Sauvegarde des affectations réussie - {affectationChanges} modifications pour {totalAffectations} affectations");
+                }
+                else
+                {
+                    _logger.LogInformation($"[CreateCustomChecklist] Aucune affectation à sauvegarder");
+                }
+
+                _logger.LogInformation($"[CreateCustomChecklist] Création terminée avec succès - {elements.Count} éléments, {totalAffectations} affectations");
                 return true;
             }
             catch (Exception ex)

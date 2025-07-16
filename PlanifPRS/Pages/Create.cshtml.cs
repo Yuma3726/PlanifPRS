@@ -280,7 +280,7 @@ namespace PlanifPRS.Pages.Prs
                                             Categorie = e.categorie,
                                             SousCategorie = e.sousCategorie,
                                             Libelle = e.libelle,
-                                            Tache = e.libelle, // Compatibilité
+                                            Tache = e.libelle,
                                             Priorite = e.priorite > 0 ? e.priorite : 3,
                                             DelaiDefautJours = e.delaiDefautJours > 0 ? e.delaiDefautJours : 1,
                                             Obligatoire = e.obligatoire,
@@ -288,10 +288,21 @@ namespace PlanifPRS.Pages.Prs
                                             Statut = null
                                         }).ToList();
 
-                                        var success = await _checklistService.CreateCustomChecklistAsync(Prs.Id, elements, userLogin);
+                                        // Utiliser directement les listes d'IDs depuis le DTO
+                                        var utilisateurIds = checklistForm.utilisateurIds ?? new List<int>();
+                                        var groupeIds = checklistForm.groupeIds ?? new List<int>();
+
+                                        var success = await _checklistService.CreateCustomChecklistAsync(
+                                            Prs.Id,
+                                            elements,
+                                            utilisateurIds,
+                                            groupeIds,
+                                            userLogin
+                                        );
+
                                         if (success)
                                         {
-                                            _logger.LogInformation($"Checklist personnalisée créée pour le PRS {Prs.Id} avec {elements.Count} éléments");
+                                            _logger.LogInformation($"Checklist personnalisée créée pour le PRS {Prs.Id} avec {elements.Count} éléments, {utilisateurIds.Count} utilisateurs, {groupeIds.Count} groupes");
                                             Flash += " Checklist personnalisée créée.";
                                         }
                                         else
@@ -823,8 +834,9 @@ namespace PlanifPRS.Pages.Prs
             public string type { get; set; }
             public int? sourceId { get; set; }
             public List<ChecklistElementDto> elements { get; set; } = new();
+            public List<int> utilisateurIds { get; set; } = new(); // AJOUT
+            public List<int> groupeIds { get; set; } = new();      // AJOUT
         }
-
         public class ChecklistElementDto
         {
             public string categorie { get; set; }

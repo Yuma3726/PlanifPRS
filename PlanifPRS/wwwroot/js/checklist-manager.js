@@ -73,7 +73,9 @@
         const defaultData = {
             type: '',
             sourceId: null,
-            elements: []
+            elements: [],
+            utilisateurIds: [],
+            groupeIds: []
         };
 
         $hiddenField.val(JSON.stringify(defaultData));
@@ -198,6 +200,11 @@
                 element.assignedGroups = element.assignedGroups.filter(id => id !== groupId);
                 this.updateElementAssignation(elementId, 'assignedGroups', element.assignedGroups);
             }
+        });
+
+        // Événements pour l'assignation globale
+        $(document).on('change', '#checklistUsers, #checklistGroups', () => {
+            this.updateChecklistData();
         });
     }
 
@@ -960,13 +967,24 @@
     }
 
     updateChecklistData() {
+        // Récupérer les utilisateurs et groupes sélectionnés globalement
+        const selectedUsers = Array.from(document.querySelectorAll('#checklistUsers option:checked'))
+            .map(option => parseInt(option.value))
+            .filter(id => !isNaN(id));
+
+        const selectedGroups = Array.from(document.querySelectorAll('#checklistGroups option:checked'))
+            .map(option => parseInt(option.value))
+            .filter(id => !isNaN(id));
+
         const checklistData = {
             type: this.currentChecklist.type,
             sourceId: this.currentChecklist.sourceId,
             elements: this.currentChecklist.elements.map(el => {
                 const { id, ...elementWithoutId } = el;
                 return elementWithoutId;
-            })
+            }),
+            utilisateurIds: selectedUsers,  // Ajout des utilisateurs sélectionnés globalement
+            groupeIds: selectedGroups       // Ajout des groupes sélectionnés globalement
         };
 
         const $form = $(this.options.formSelector);
@@ -984,6 +1002,8 @@
 
         console.log('=== DEBUG CHECKLIST ===');
         console.log('Données checklist:', checklistData);
+        console.log('Utilisateurs globaux sélectionnés:', selectedUsers);
+        console.log('Groupes globaux sélectionnés:', selectedGroups);
         console.log('JSON généré:', jsonData);
         console.log('Champ DOM:', $hiddenField[0]);
         console.log('Valeur dans le champ:', $hiddenField.val());
