@@ -25,6 +25,9 @@ namespace PlanifPRS.Data
         public DbSet<PrsAffectation> PrsAffectations { get; set; }
         public DbSet<ChecklistAffectation> ChecklistAffectations { get; set; }
 
+        public DbSet<ChecklistUtilisateur> ChecklistUtilisateurs { get; set; }
+        public DbSet<ChecklistGroupe> ChecklistGroupes { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -287,6 +290,40 @@ namespace PlanifPRS.Data
                       .WithMany()
                       .HasForeignKey(ca => ca.GroupeId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configuration ChecklistUtilisateurs (clé composite)
+            modelBuilder.Entity<ChecklistUtilisateur>(entity =>
+            {
+                entity.HasKey(cu => new { cu.ChecklistId, cu.UtilisateurId });
+
+                entity.HasOne(cu => cu.PrsChecklist)
+                      .WithMany(c => c.ChecklistUtilisateurs)
+                      .HasForeignKey(cu => cu.ChecklistId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(cu => cu.Utilisateur)
+                      .WithMany()
+                      .HasForeignKey(cu => cu.UtilisateurId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configuration ChecklistGroupes
+            modelBuilder.Entity<ChecklistGroupe>(entity =>
+            {
+                entity.ToTable("ChecklistGroupes");
+                entity.HasKey(cg => new { cg.ChecklistId, cg.GroupeId });
+
+                entity.HasOne(cg => cg.PrsChecklist)
+                      .WithMany(c => c.ChecklistGroupes)
+                      .HasForeignKey(cg => cg.ChecklistId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // CORRECTION : Référence vers GroupeUtilisateurs
+                entity.HasOne(cg => cg.GroupeUtilisateur)
+                      .WithMany()
+                      .HasForeignKey(cg => cg.GroupeId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

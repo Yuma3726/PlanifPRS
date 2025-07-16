@@ -8,7 +8,7 @@
             typeSelector: options.typeSelector || '#checklistTypeSelector',
             modeleSelector: options.modeleSelector || '#checklistModele',
             searchInput: options.searchInput || '#searchPrsInput',
-            formSelector: options.formSelector || '#create-form', // CORRECTION : Sélecteur spécifique du formulaire
+            formSelector: options.formSelector || '#create-form',
             ...options
         };
 
@@ -20,6 +20,8 @@
 
         this.searchTimeout = null;
         this.elementIdCounter = 0;
+        this.users = [];
+        this.groups = [];
         this.init();
     }
 
@@ -28,13 +30,33 @@
         this.initializeChecklistData();
         this.updateChecklistData();
         this.setupFormValidation();
+        this.loadUsersAndGroups();
     }
 
-    // CORRECTION : Initialiser le champ ChecklistData avec le bon formulaire
+    async loadUsersAndGroups() {
+        try {
+            console.log('Chargement des utilisateurs et groupes...');
+            const [usersResponse, groupsResponse] = await Promise.all([
+                fetch('/api/ChecklistAssignation/users'),
+                fetch('/api/ChecklistAssignation/groups')
+            ]);
+
+            if (usersResponse.ok && groupsResponse.ok) {
+                this.users = await usersResponse.json();
+                this.groups = await groupsResponse.json();
+                console.log('Utilisateurs chargés:', this.users.length);
+                console.log('Groupes chargés:', this.groups.length);
+            } else {
+                console.warn('Erreur lors du chargement des utilisateurs/groupes');
+            }
+        } catch (error) {
+            console.error('Erreur lors du chargement des utilisateurs et groupes:', error);
+        }
+    }
+
     initializeChecklistData() {
         console.log('Initialisation du champ ChecklistData...');
 
-        // CORRECTION : Cibler spécifiquement le formulaire principal
         const $form = $(this.options.formSelector);
         if ($form.length === 0) {
             console.error('Formulaire principal non trouvé avec le sélecteur:', this.options.formSelector);
@@ -43,7 +65,6 @@
 
         let $hiddenField = $('#checklistData');
         if ($hiddenField.length === 0) {
-            // CORRECTION : Ajouter le champ directement dans le formulaire spécifique
             $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
             $form.append($hiddenField);
             console.log('Champ ChecklistData créé dans le formulaire:', $form[0]);
@@ -57,13 +78,10 @@
 
         $hiddenField.val(JSON.stringify(defaultData));
         console.log('ChecklistData initialisé avec:', defaultData);
-
-        // CORRECTION : Vérifier que le champ est bien dans le formulaire
         console.log('Champ dans le formulaire:', $hiddenField.closest('form')[0] === $form[0]);
     }
 
     setupFormValidation() {
-        // CORRECTION : Cibler spécifiquement le formulaire principal
         $(this.options.formSelector).on('submit', (e) => {
             console.log('Soumission du formulaire détectée');
 
@@ -82,14 +100,10 @@
         const $form = $(this.options.formSelector);
         let $hiddenField = $('#checklistData');
 
-        // CORRECTION : S'assurer que le champ est dans le bon formulaire
         if ($hiddenField.length === 0 || $hiddenField.closest('form')[0] !== $form[0]) {
             console.log('Champ ChecklistData manquant ou mal placé, recréation...');
 
-            // Supprimer l'ancien champ s'il existe
             $hiddenField.remove();
-
-            // Recréer le champ dans le bon formulaire
             $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
             $form.append($hiddenField);
 
@@ -150,6 +164,41 @@
         $(document).on('click', '.btn-remove-item', (e) => {
             this.removeChecklistItem(e);
         });
+
+        // Nouveaux événements pour l'assignation améliorée
+        $(document).on('click', '.btn-assign-user', (e) => {
+            const elementId = parseInt($(e.target).closest('.btn-assign-user').data('element-id'));
+            this.showUserSelectionModal(elementId);
+        });
+
+        $(document).on('click', '.btn-assign-group', (e) => {
+            const elementId = parseInt($(e.target).closest('.btn-assign-group').data('element-id'));
+            this.showGroupSelectionModal(elementId);
+        });
+
+        $(document).on('click', '.btn-remove-user', (e) => {
+            e.stopPropagation();
+            const userId = parseInt($(e.target).data('user-id'));
+            const elementId = parseInt($(e.target).closest('.checklist-item').data('element-id'));
+
+            const element = this.currentChecklist.elements.find(el => el.id === elementId);
+            if (element && element.assignedUsers) {
+                element.assignedUsers = element.assignedUsers.filter(id => id !== userId);
+                this.updateElementAssignation(elementId, 'assignedUsers', element.assignedUsers);
+            }
+        });
+
+        $(document).on('click', '.btn-remove-group', (e) => {
+            e.stopPropagation();
+            const groupId = parseInt($(e.target).data('group-id'));
+            const elementId = parseInt($(e.target).closest('.checklist-item').data('element-id'));
+
+            const element = this.currentChecklist.elements.find(el => el.id === elementId);
+            if (element && element.assignedGroups) {
+                element.assignedGroups = element.assignedGroups.filter(id => id !== groupId);
+                this.updateElementAssignation(elementId, 'assignedGroups', element.assignedGroups);
+            }
+        });
     }
 
     handleTypeChange(selectedType) {
@@ -157,12 +206,10 @@
         console.log('selectedType:', selectedType);
         console.log('currentChecklist avant:', JSON.stringify(this.currentChecklist));
 
-        // Cacher tous les sélecteurs
         $('#modeleSelector, #prsSelector').hide();
         $(this.options.searchResults).hide();
         $(this.options.containerSelector).hide();
 
-        // Réinitialiser SEULEMENT si le type change vraiment
         if (this.currentChecklist.type !== selectedType) {
             this.currentChecklist = {
                 type: selectedType,
@@ -181,7 +228,6 @@
                 break;
             case 'copy':
                 $('#prsSelector').show();
-                // Charger la liste des PRS avec checklist
                 this.loadPrsWithChecklistForSelector();
                 break;
             case 'custom':
@@ -203,8 +249,6 @@
             this.showLoading('Chargement du modèle...');
 
             const response = await fetch(`/api/checklists/modeles/${modeleId}`);
-
-            // ✅ Vérifiez le contenu de la réponse AVANT de parser le JSON
             const responseText = await response.text();
             console.log('Réponse brute:', responseText);
 
@@ -212,7 +256,6 @@
                 throw new Error(`Erreur HTTP: ${response.status} - ${responseText}`);
             }
 
-            // ✅ Maintenant, parsez le JSON
             const modele = JSON.parse(responseText);
             console.log('Modèle chargé:', modele);
 
@@ -221,12 +264,15 @@
             }
 
             this.currentChecklist.elements = modele.elements.map(element => ({
+                id: ++this.elementIdCounter,
                 categorie: element.categorie,
                 sousCategorie: element.sousCategorie || '',
                 libelle: element.libelle,
                 priorite: element.priorite || 3,
                 obligatoire: element.obligatoire,
-                delaiDefautJours: element.delaiDefautJours
+                delaiDefautJours: element.delaiDefautJours,
+                assignedUsers: [],
+                assignedGroups: []
             }));
 
             this.currentChecklist.sourceId = parseInt(modeleId);
@@ -251,7 +297,6 @@
         }
     }
 
-    // Fonction pour charger les PRS avec checklist dans le sélecteur
     async loadPrsWithChecklistForSelector() {
         try {
             const response = await fetch('/api/checklists/prs-with-checklist');
@@ -260,10 +305,8 @@
             const prsWithChecklist = await response.json();
             const selector = document.getElementById('prsSourceSelect');
 
-            // Vider le sélecteur
             selector.innerHTML = '<option value="">-- Sélectionner une PRS --</option>';
 
-            // Ajouter les PRS avec checklist
             prsWithChecklist.forEach(prs => {
                 const option = document.createElement('option');
                 option.value = prs.id;
@@ -271,14 +314,11 @@
                 selector.appendChild(option);
             });
 
-            // Ajouter le gestionnaire d'événement pour la sélection
             selector.addEventListener('change', (e) => {
                 const selectedPrsId = e.target.value;
                 if (selectedPrsId) {
                     this.currentChecklist.sourceId = parseInt(selectedPrsId);
                     this.updateChecklistData();
-
-                    // Optionnel : prévisualiser la checklist
                     this.loadChecklistFromPrs(selectedPrsId);
                 } else {
                     this.currentChecklist.sourceId = null;
@@ -378,7 +418,9 @@
                 libelle: item.libelle || item.tache || '',
                 priorite: item.priorite || 3,
                 delaiDefautJours: item.delaiDefautJours || 1,
-                obligatoire: item.obligatoire || false
+                obligatoire: item.obligatoire || false,
+                assignedUsers: item.assignedUsers || [],
+                assignedGroups: item.assignedGroups || []
             }));
 
             this.currentChecklist.sourceId = prsId;
@@ -465,11 +507,10 @@
     }
 
     createChecklistItemHtml(element) {
-        const categorieColor = this.getCategorieColor(element.categorie);
         const prioriteInfo = this.getPrioriteInfo(element.priorite);
 
         return `
-            <div class="checklist-item mb-3 p-3 border rounded" data-element-id="${element.id}" 
+            <div class="checklist-item mb-4 p-3 border rounded" data-element-id="${element.id}" 
                  style="border-left: 4px solid ${prioriteInfo.color};">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div class="d-flex align-items-center">
@@ -483,7 +524,7 @@
                     </button>
                 </div>
                 
-                <div class="row align-items-center">
+                <div class="row align-items-center mb-3">
                     <div class="col-md-2">
                         <label class="form-label">Catégorie</label>
                         <select class="form-select form-select-sm" name="categorie">
@@ -531,8 +572,269 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Section d'assignation des responsables - Style amélioré -->
+                <div class="assignation-section border-top pt-3">
+                    <h6 class="mb-3">
+                        <i class="fas fa-users me-2"></i>Assignation des responsables
+                    </h6>
+                    
+                    <div class="row">
+                        <!-- Utilisateurs -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="fw-bold text-primary">👤 Utilisateurs responsables</small>
+                                        <button type="button" class="btn btn-outline-primary btn-sm btn-assign-user" 
+                                                data-element-id="${element.id}">
+                                            <i class="fas fa-plus"></i> Ajouter
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="assigned-users-container" data-element-id="${element.id}">
+                                        ${this.renderAssignedUsers(element.assignedUsers || [])}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Groupes -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="fw-bold text-success">👥 Groupes responsables</small>
+                                        <button type="button" class="btn btn-outline-success btn-sm btn-assign-group" 
+                                                data-element-id="${element.id}">
+                                            <i class="fas fa-plus"></i> Ajouter
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="assigned-groups-container" data-element-id="${element.id}">
+                                        ${this.renderAssignedGroups(element.assignedGroups || [])}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
+    }
+
+    renderAssignedUsers(assignedUserIds) {
+        if (!assignedUserIds || assignedUserIds.length === 0) {
+            return '<small class="text-muted">Aucun utilisateur assigné</small>';
+        }
+
+        return assignedUserIds.map(userId => {
+            const user = this.users.find(u => u.id === userId);
+            if (!user) return '';
+
+            return `
+                <span class="badge bg-primary me-1 mb-1 d-inline-flex align-items-center">
+                    ${user.prenom} ${user.nom}
+                    <button type="button" class="btn-close btn-close-white ms-1 btn-remove-user" 
+                            data-user-id="${userId}" style="font-size: 0.7em;" title="Retirer"></button>
+                </span>
+            `;
+        }).join('');
+    }
+
+    renderAssignedGroups(assignedGroupIds) {
+        if (!assignedGroupIds || assignedGroupIds.length === 0) {
+            return '<small class="text-muted">Aucun groupe assigné</small>';
+        }
+
+        return assignedGroupIds.map(groupId => {
+            const group = this.groups.find(g => g.id === groupId);
+            if (!group) return '';
+
+            return `
+                <span class="badge bg-success me-1 mb-1 d-inline-flex align-items-center">
+                    ${group.nomGroupe}
+                    <button type="button" class="btn-close btn-close-white ms-1 btn-remove-group" 
+                            data-group-id="${groupId}" style="font-size: 0.7em;" title="Retirer"></button>
+                </span>
+            `;
+        }).join('');
+    }
+
+    showUserSelectionModal(elementId) {
+        const element = this.currentChecklist.elements.find(el => el.id === elementId);
+        const assignedUserIds = element ? element.assignedUsers || [] : [];
+
+        const modalHtml = `
+            <div class="modal fade" id="userSelectionModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-users me-2"></i>Sélectionner des utilisateurs
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="userSearchInput" 
+                                       placeholder="Rechercher un utilisateur...">
+                            </div>
+                            <div class="row" id="userList">
+                                ${this.users.map(user => `
+                                    <div class="col-md-6 mb-2 user-item" data-name="${user.prenom} ${user.nom}">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   value="${user.id}" id="user_${user.id}"
+                                                   ${assignedUserIds.includes(user.id) ? 'checked' : ''}>
+                                            <label class="form-check-label" for="user_${user.id}">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle bg-primary text-white me-2">
+                                                        ${user.prenom.charAt(0)}${user.nom.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold">${user.prenom} ${user.nom}</div>
+                                                        <small class="text-muted">${user.loginWindows || ''}</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="button" class="btn btn-primary" id="confirmUserSelection">
+                                <i class="fas fa-check me-1"></i>Confirmer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Supprimer le modal existant s'il y en a un
+        $('#userSelectionModal').remove();
+
+        // Ajouter le nouveau modal
+        $('body').append(modalHtml);
+
+        // Afficher le modal
+        const modal = new bootstrap.Modal(document.getElementById('userSelectionModal'));
+        modal.show();
+
+        // Gestionnaire de recherche
+        $('#userSearchInput').on('input', function () {
+            const searchTerm = $(this).val().toLowerCase();
+            $('.user-item').each(function () {
+                const userName = $(this).data('name').toLowerCase();
+                $(this).toggle(userName.includes(searchTerm));
+            });
+        });
+
+        // Gestionnaire de confirmation
+        $('#confirmUserSelection').on('click', () => {
+            const selectedUserIds = [];
+            $('#userList input[type="checkbox"]:checked').each(function () {
+                selectedUserIds.push(parseInt($(this).val()));
+            });
+
+            this.updateElementAssignation(elementId, 'assignedUsers', selectedUserIds);
+            modal.hide();
+        });
+    }
+
+    showGroupSelectionModal(elementId) {
+        const element = this.currentChecklist.elements.find(el => el.id === elementId);
+        const assignedGroupIds = element ? element.assignedGroups || [] : [];
+
+        const modalHtml = `
+            <div class="modal fade" id="groupSelectionModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-users-cog me-2"></i>Sélectionner des groupes
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="list-group">
+                                ${this.groups.map(group => `
+                                    <div class="list-group-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   value="${group.id}" id="group_${group.id}"
+                                                   ${assignedGroupIds.includes(group.id) ? 'checked' : ''}>
+                                            <label class="form-check-label w-100" for="group_${group.id}">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle bg-success text-white me-2">
+                                                        <i class="fas fa-users"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold">${group.nomGroupe}</div>
+                                                        <small class="text-muted">${group.description || ''}</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="button" class="btn btn-success" id="confirmGroupSelection">
+                                <i class="fas fa-check me-1"></i>Confirmer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Supprimer le modal existant s'il y en a un
+        $('#groupSelectionModal').remove();
+
+        // Ajouter le nouveau modal
+        $('body').append(modalHtml);
+
+        // Afficher le modal
+        const modal = new bootstrap.Modal(document.getElementById('groupSelectionModal'));
+        modal.show();
+
+        // Gestionnaire de confirmation
+        $('#confirmGroupSelection').on('click', () => {
+            const selectedGroupIds = [];
+            $('#groupSelectionModal input[type="checkbox"]:checked').each(function () {
+                selectedGroupIds.push(parseInt($(this).val()));
+            });
+
+            this.updateElementAssignation(elementId, 'assignedGroups', selectedGroupIds);
+            modal.hide();
+        });
+    }
+
+    updateElementAssignation(elementId, field, selectedIds) {
+        const element = this.currentChecklist.elements.find(el => el.id === elementId);
+        if (element) {
+            element[field] = selectedIds;
+            this.updateChecklistData();
+
+            // Mettre à jour l'affichage
+            if (field === 'assignedUsers') {
+                $(`.assigned-users-container[data-element-id="${elementId}"]`)
+                    .html(this.renderAssignedUsers(selectedIds));
+            } else if (field === 'assignedGroups') {
+                $(`.assigned-groups-container[data-element-id="${elementId}"]`)
+                    .html(this.renderAssignedGroups(selectedIds));
+            }
+
+            console.log(`${field} mis à jour pour l'élément ${elementId}:`, selectedIds);
+        }
     }
 
     getPrioriteInfo(priorite) {
@@ -578,7 +880,9 @@
             libelle: '',
             priorite: 3,
             delaiDefautJours: 1,
-            obligatoire: false
+            obligatoire: false,
+            assignedUsers: [],
+            assignedGroups: []
         };
 
         this.currentChecklist.elements.unshift(newElement);
@@ -597,15 +901,18 @@
         const elementId = parseInt($(e.target).closest('.checklist-item').data('element-id'));
         console.log('Suppression de l\'élément avec ID:', elementId);
 
-        const elementIndex = this.currentChecklist.elements.findIndex(el => el.id === elementId);
+        if (confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
+            const elementIndex = this.currentChecklist.elements.findIndex(el => el.id === elementId);
 
-        if (elementIndex !== -1) {
-            this.currentChecklist.elements.splice(elementIndex, 1);
-            this.renderChecklistItems();
-            this.updateChecklistData();
-            console.log('Élément supprimé, total restant:', this.currentChecklist.elements.length);
-        } else {
-            console.error('Élément non trouvé pour suppression, ID:', elementId);
+            if (elementIndex !== -1) {
+                this.currentChecklist.elements.splice(elementIndex, 1);
+                this.renderChecklistItems();
+                this.updateChecklistData();
+                this.showNotification('Élément supprimé', 'success');
+                console.log('Élément supprimé, total restant:', this.currentChecklist.elements.length);
+            } else {
+                console.error('Élément non trouvé pour suppression, ID:', elementId);
+            }
         }
     }
 
@@ -642,6 +949,8 @@
             if (field === 'obligatoire') {
                 $item.find('.form-check-label').text(value ? 'Oui' : 'Non');
             }
+
+            console.log(`Champ ${field} mis à jour pour l'élément ${elementId}:`, value);
         }
     }
 
@@ -650,7 +959,6 @@
         $('#checklistItemCount').text(count);
     }
 
-    // CORRECTION : Mise à jour des données avec vérification du formulaire
     updateChecklistData() {
         const checklistData = {
             type: this.currentChecklist.type,
@@ -661,15 +969,11 @@
             })
         };
 
-        // CORRECTION : Cibler spécifiquement le formulaire principal
         const $form = $(this.options.formSelector);
         let $hiddenField = $('#checklistData');
 
         if ($hiddenField.length === 0 || $hiddenField.closest('form')[0] !== $form[0]) {
-            // Supprimer l'ancien champ s'il existe
             $hiddenField.remove();
-
-            // Créer le nouveau champ dans le bon formulaire
             $hiddenField = $('<input type="hidden" id="checklistData" name="ChecklistData">');
             $form.append($hiddenField);
             console.log('Champ ChecklistData créé/recréé dans updateChecklistData');
@@ -678,7 +982,6 @@
         const jsonData = JSON.stringify(checklistData);
         $hiddenField.val(jsonData);
 
-        // Debug amélioré
         console.log('=== DEBUG CHECKLIST ===');
         console.log('Données checklist:', checklistData);
         console.log('JSON généré:', jsonData);
@@ -741,17 +1044,15 @@
     }
 }
 
-// CORRECTION : Initialisation avec le bon sélecteur de formulaire
+// Initialisation avec le bon sélecteur de formulaire
 $(document).ready(() => {
     console.log('Initialisation du ChecklistManager');
 
-    // Attendre un peu que le DOM soit complètement chargé
     setTimeout(() => {
         window.checklistManager = new ChecklistManager({
-            formSelector: '#create-form' // CORRECTION : Sélecteur spécifique du formulaire
+            formSelector: '#create-form'
         });
 
-        // Debug post-initialisation
         setTimeout(() => {
             console.log('Vérification post-initialisation:');
             console.log('- Instance manager:', window.checklistManager);

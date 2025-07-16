@@ -1006,17 +1006,26 @@
                     <label class="form-check-label small">Obligatoire</label>
                 </div>
             </div>
-            <!-- NOUVELLE COLONNE AFFECTATION -->
-            <div class="col-md-3">
-                <select class="form-control form-control-sm checklist-affectation" data-field="affectation" multiple>
-                    <optgroup label="Utilisateurs">
-                        <!-- Options utilisateurs seront ajoutées dynamiquement -->
-                    </optgroup>
-                    <optgroup label="Groupes">
-                        <!-- Options groupes seront ajoutées dynamiquement -->
-                    </optgroup>
-                </select>
+            <!-- Ajoutez cette section dans votre formulaire de création de checklist -->
+            <div class="assignation-section mt-4">
+                <h5>👥 Assignation des responsables</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Utilisateurs responsables</label>
+                        <select id="checklistUsers" class="form-select" multiple>
+                            <!-- Options chargées via JavaScript -->
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Groupes responsables</label>
+                        <select id="checklistGroups" class="form-select" multiple>
+                            <!-- Options chargées via JavaScript -->
+                        </select>
+                    </div>
+                </div>
             </div>
+
+
             <div class="col-md-1">
                 <button type="button" class="btn btn-sm btn-danger btn-remove-item"><i class="fas fa-trash"></i></button>
             </div>
