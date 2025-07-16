@@ -662,7 +662,38 @@
                     </div>
                 </div>
             </div>
-
+            <!-- 🤖 ZONE ROB.I.A - SUGGESTIONS INTELLIGENTES -->
+            <div id="robia-suggestions" class="mt-4" style="display: none;">
+                <div class="card border-success shadow-lg">
+                    <div class="card-header bg-gradient-success text-dark">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-robot robot-icon me-2 fs-4"></i>
+                            <div>
+                                <h5 class="mb-0">🎯 ROB.I.A - Suggestions Optimales</h5>
+                                <small>Rapid Optimal Booking Intelligent Assistant • v1.0</small>
+                            </div>
+                            <div class="ms-auto">
+                                <span class="badge bg-light text-dark">IA Active</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="suggestions-content"></div>
+                        <div class="mt-4 text-center">
+                            <button type="button" class="btn btn-success btn-lg me-3" id="apply-suggestion">
+                                <i class="fas fa-check-circle me-2"></i>Appliquer cette suggestion
+                            </button>
+                            <button type="button" class="btn btn-warning me-3" id="show-alternatives">
+                                <i class="fas fa-sync-alt me-2"></i>Voir alternative suivante
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="close-suggestions">
+                                <i class="fas fa-times me-2"></i>Fermer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Fin de la zone ROB.I.A -->
             <div class="col-md-6">
                 <label asp-for="Prs.LigneId" class="form-label">
                     <i class="fas fa-industry"></i>
@@ -688,6 +719,7 @@
                 </select>
             </div>
 
+       
             <!-- Nouveau champ pour les liens vers les dossiers PRS -->
             <div class="col-md-12">
                 <div class="card border-warning">
@@ -928,7 +960,7 @@
                 </div>
             </div>
             <!-- Section Affectation Checklist -->
-            <div id="checklistAffectationSection" style="display: true;">
+            <div id="checklistAffectationSection" style="display: none;">
                 <h5 class="mt-4 mb-3">
                     <i class="fas fa-user-check text-success"></i>
                     Affectation des éléments de checklist
@@ -936,9 +968,6 @@
                 <p class="text-muted">Vous pouvez affecter chaque élément de checklist à des utilisateurs ou groupes spécifiques.</p>
 
                 <div id="checklistItemsContainer"></div>
-
-                <!-- Champ caché pour les données -->
-                <input type="hidden" name="ChecklistAffectationsData" id="checklistAffectationsData" />
             </div>
             <div class="col-12 text-center">
                 <button type="submit" class="btn btn-primary btn-lg px-5">
@@ -949,38 +978,6 @@
     </div>
 
 
-
-    <!-- 🤖 ZONE ROB.I.A - SUGGESTIONS INTELLIGENTES -->
-    <div id="robia-suggestions" class="mt-4" style="display: none;">
-        <div class="card border-success shadow-lg">
-            <div class="card-header bg-gradient-success text-dark">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-robot robot-icon me-2 fs-4"></i>
-                    <div>
-                        <h5 class="mb-0">🎯 ROB.I.A - Suggestions Optimales</h5>
-                        <small>Rapid Optimal Booking Intelligent Assistant • v1.0</small>
-                    </div>
-                    <div class="ms-auto">
-                        <span class="badge bg-light text-dark">IA Active</span>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body">
-                <div id="suggestions-content"></div>
-                <div class="mt-4 text-center">
-                    <button type="button" class="btn btn-success btn-lg me-3" id="apply-suggestion">
-                        <i class="fas fa-check-circle me-2"></i>Appliquer cette suggestion
-                    </button>
-                    <button type="button" class="btn btn-warning me-3" id="show-alternatives">
-                        <i class="fas fa-sync-alt me-2"></i>Voir alternative suivante
-                    </button>
-                    <button type="button" class="btn btn-secondary" id="close-suggestions">
-                        <i class="fas fa-times me-2"></i>Fermer
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 
@@ -1000,14 +997,25 @@
             <div class="col-md-2">
                 <input type="text" class="form-control form-control-sm checklist-souscategorie" placeholder="Sous-catégorie" data-field="sousCategorie">
             </div>
-            <div class="col-md-5">
+            <div class="col-md-3">
                 <input type="text" class="form-control form-control-sm checklist-libelle" placeholder="Description de l'élément" data-field="libelle">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <div class="form-check">
                     <input class="form-check-input checklist-obligatoire" type="checkbox" data-field="obligatoire">
                     <label class="form-check-label small">Obligatoire</label>
                 </div>
+            </div>
+            <!-- NOUVELLE COLONNE AFFECTATION -->
+            <div class="col-md-3">
+                <select class="form-control form-control-sm checklist-affectation" data-field="affectation" multiple>
+                    <optgroup label="Utilisateurs">
+                        <!-- Options utilisateurs seront ajoutées dynamiquement -->
+                    </optgroup>
+                    <optgroup label="Groupes">
+                        <!-- Options groupes seront ajoutées dynamiquement -->
+                    </optgroup>
+                </select>
             </div>
             <div class="col-md-1">
                 <button type="button" class="btn btn-sm btn-danger btn-remove-item"><i class="fas fa-trash"></i></button>
@@ -2410,6 +2418,125 @@
             if (checklistContainer) {
                 observer.observe(checklistContainer, { childList: true, subtree: true });
             }
+        });
+
+                // ===== GESTION DES AFFECTATIONS CHECKLIST =====
+
+        // Variables globales pour stocker les données
+        let utilisateurs = [];
+        let groupes = [];
+
+        // Charger les utilisateurs et groupes au démarrage
+        $(document).ready(function() {
+            chargerUtilisateursEtGroupes();
+        });
+
+        // Fonction pour charger les utilisateurs et groupes
+        function chargerUtilisateursEtGroupes() {
+            $.ajax({
+                url: '/api/checklist/utilisateurs-groupes',
+                type: 'GET',
+                success: function(data) {
+                    utilisateurs = data.utilisateurs;
+                    groupes = data.groupes;
+                },
+                error: function() {
+                    console.error('Erreur lors du chargement des utilisateurs et groupes');
+                }
+            });
+        }
+
+                // Fonction appelée quand les éléments de checklist sont générés
+        function genererAffectationsChecklist(checklistItems) {
+            if (!checklistItems || checklistItems.length === 0) {
+                return;
+            }
+
+            // Ajouter les sélecteurs d'affectation directement dans les lignes de checklist existantes
+            checklistItems.forEach(function(item, index) {
+                // Trouver la ligne de checklist correspondante (vous devrez adapter le sélecteur selon votre structure)
+                const checklistRow = $(`.checklist-row[data-index="${index}"]`);
+
+                if (checklistRow.length > 0) {
+                    // Ajouter la colonne d'affectation après la priorité
+                    const affectationCol = `
+                        <div class="col-md-3">
+                            <label class="form-label small">Affecter à :</label>
+                            <select class="form-select form-select-sm checklist-affectation"
+                                    data-checklist-index="${index}"
+                                    multiple>
+                                <optgroup label="Utilisateurs">
+                                    ${genererOptionsUtilisateurs()}
+                                </optgroup>
+                                <optgroup label="Groupes">
+                                    ${genererOptionsGroupes()}
+                                </optgroup>
+                            </select>
+                        </div>
+                    `;
+
+                    // Ajouter après la colonne priorité
+                    checklistRow.find('.priority-col').after(affectationCol);
+                }
+            });
+
+            // Initialiser Select2 pour une meilleure UX
+            $('.checklist-affectation').select2({
+                placeholder: "Sélectionner...",
+                allowClear: true,
+                width: '100%'
+            });
+        }
+
+        // Générer les options pour les utilisateurs
+        function genererOptionsUtilisateurs() {
+            return utilisateurs.map(user =>
+                `<option value="user_${user.Id}">${user.Nom} ${user.Prenom}</option>`
+            ).join('');
+        }
+
+        // Générer les options pour les groupes
+        function genererOptionsGroupes() {
+            return groupes.map(groupe =>
+                `<option value="group_${groupe.Id}">${groupe.NomGroupe}</option>`
+            ).join('');
+        }
+
+        // Fonction à appeler lors de la soumission du formulaire
+        function collecterAffectationsChecklist() {
+            const affectations = [];
+
+            $('.checklist-affectation').each(function(index) {
+                const selectedValues = $(this).val();
+                if (selectedValues && selectedValues.length > 0) {
+                    selectedValues.forEach(function(value) {
+                        const [type, id] = value.split('_');
+                        affectations.push({
+                            ChecklistIndex: index,
+                            TypeAffectation: type === 'user' ? 'Utilisateur' : 'Groupe',
+                            UtilisateurId: type === 'user' ? parseInt(id) : null,
+                            GroupeId: type === 'group' ? parseInt(id) : null
+                        });
+                    });
+                }
+            });
+
+            return affectations;
+        }
+
+        // Modifier la soumission du formulaire existant
+        $(document).ready(function() {
+            $('#create-form').on('submit', function(e) {
+                // Collecter les affectations de checklist
+                const affectationsChecklist = collecterAffectationsChecklist();
+
+                // Ajouter au formulaire
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'ChecklistAffectationsData',
+                    value: JSON.stringify(affectationsChecklist)
+                }).appendTo(this);
+            });
         });
     </script>
 }

@@ -259,7 +259,35 @@ namespace PlanifPRS.Controllers
             }
         }
 
+        [HttpGet("utilisateurs-groupes")]
+        public async Task<IActionResult> GetUtilisateursEtGroupes()
+        {
+            try
+            {
+                var utilisateurs = await _context.Utilisateurs
+                    .Where(u => u.DateDeleted == null) // Utilisateurs non supprimés
+                    .Select(u => new { u.Id, u.Nom, u.Prenom })
+                    .OrderBy(u => u.Nom)
+                    .ThenBy(u => u.Prenom)
+                    .ToListAsync();
 
+                var groupes = await _context.GroupesUtilisateurs
+                    .Where(g => g.Actif)
+                    .Select(g => new { g.Id, g.NomGroupe })
+                    .OrderBy(g => g.NomGroupe)
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    utilisateurs = utilisateurs,
+                    groupes = groupes
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
 
         private string GetCurrentUserLogin()
         {

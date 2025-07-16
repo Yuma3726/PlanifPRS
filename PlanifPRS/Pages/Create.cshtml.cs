@@ -678,6 +678,35 @@ namespace PlanifPRS.Pages.Prs
             }
         }
 
+        public async Task<IActionResult> OnGetUtilisateursEtGroupesAsync()
+        {
+            try
+            {
+                var utilisateurs = await _context.Utilisateurs
+                    .Where(u => u.DateDeleted == null)
+                    .Select(u => new { u.Id, u.Nom, u.Prenom })
+                    .OrderBy(u => u.Nom)
+                    .ThenBy(u => u.Prenom)
+                    .ToListAsync();
+
+                var groupes = await _context.GroupesUtilisateurs
+                    .Where(g => g.Actif)
+                    .Select(g => new { g.Id, g.NomGroupe })
+                    .OrderBy(g => g.NomGroupe)
+                    .ToListAsync();
+
+                return new JsonResult(new
+                {
+                    utilisateurs = utilisateurs,
+                    groupes = groupes
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors du chargement des utilisateurs et groupes");
+                return new JsonResult(new { error = ex.Message });
+            }
+        }
         private void ChargerFamilles()
         {
             try
@@ -804,6 +833,8 @@ namespace PlanifPRS.Pages.Prs
             public int priorite { get; set; } = 3;
             public int delaiDefautJours { get; set; } = 1;
             public bool obligatoire { get; set; }
+            // AJOUT : Affectations pour cet élément
+            public List<AffectationDto> affectations { get; set; } = new();
         }
 
         // DTO affectation pour la désérialisation JS
@@ -820,6 +851,14 @@ namespace PlanifPRS.Pages.Prs
         {
             public int checklistId { get; set; }
             public List<AffectationDto> affectations { get; set; } = new();
+        }
+
+        public class ChecklistAffectationCreationDto
+        {
+            public int checklistIndex { get; set; }
+            public string typeAffectation { get; set; }
+            public int? utilisateurId { get; set; }
+            public int? groupeId { get; set; }
         }
     }
 }
